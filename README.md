@@ -31,6 +31,13 @@ The system will allow youth leaders to create an activity and track requisit for
 3. Update api/.env file
 4. Run docker-compose `docker-compose up`
 
+###  Testing
+Unit tests are located in /tests.  
+- Make sure required test libraries are installed (test-requirements.txt)
+- Run with `pytest --cov=api tests/`
+- To run from docker `docker compose exec app pytest --cov=api --cov-report=term-missing`
+To reset the database use api/reset_db.py.  From inside api folder run `python reset_db.py`
+
 
 ## Security & Compliance
 **Hippa**
