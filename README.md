@@ -25,6 +25,13 @@ The system will allow youth leaders to create an activity and track requisit for
 - Can re-request approvals from those from whom an approval is missing
 
 
+## Local Setup
+1. Update migrate.sh (as needed)
+2. Update docker-compose env info
+3. Update api/.env file
+4. Run docker-compose `docker-compose up`
+
+
 ## Security & Compliance
 **Hippa**
 Per HIPPA adult users will be required to use credentials in order to access health information.  Credentials will be stored hashed and salted.  PHI will be stored in a table separate from PII.  A UID will be used to correlate PII to PHI.
@@ -68,11 +75,3 @@ Persuant the handbook all activity requests will be sent to the Bishop for appro
 - Embed signature + certificate into the PDF's metadata (e.g., Adobe CDS).
 4. Timestamp
 - Add a timestamp token from a Time Stamp Authority (TSA). This provides non-repudiation.
-
-Libraries:
-Python: PyPDF2, pdf-stamp, or signpdf.
-
-
-
-
-Services: DigiCert, GlobalSign TSA, Entrust TSA
