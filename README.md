@@ -22,7 +22,7 @@ The system will allow youth leaders to create an activity and track requisit for
 
 ## Security & Compliance
 **Hippa**
-Per HIPPA adult users will be required to use credentials in order to access health information.  Credentials will be stored hashed and salted.  Medical information will be stored in a table separate from PII.  UID will be used to correlate PII to health information
+Per HIPPA adult users will be required to use credentials in order to access health information.  Credentials will be stored hashed and salted.  PHI will be stored in a table separate from PII.  A UID will be used to correlate PII to PHI.
 
 **Safety**
 Depending on the nature of the activity corresponding training/certifications will be automatically identified.
