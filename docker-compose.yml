@@ -1,0 +1,48 @@
+version: "3.9"
+
+services:
+  api:
+    build:
+      context: ./api
+    container_name: fastapi_app
+    ports:
+      - "8000:8000"  # Internal access; users go through Nginx
+    depends_on:
+      - mysql
+    environment:
+      MYSQL_USER: root
+      MYSQL_PASSWORD: mysecret
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_DB: activitydb
+      BASE_URL: http://localhost/api
+    volumes:
+      - ./api/signatures:/app/signatures
+      - ./api/pdfs:/app/pdfs
+      - ./api/certs:/app/certs
+    restart: always
+
+  mysql:
+    image: mysql:8.0
+    container_name: mysql
+    restart: always
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: mysecret
+      MYSQL_DATABASE: activitydb
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  web:
+    build:
+      context: ./nginx
+    container_name: nginx_web
+    ports:
+      - "80:80"
+    depends_on:
+      - api
+    restart: always
+
+volumes:
+  mysql_data:
