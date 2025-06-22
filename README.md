@@ -21,11 +21,11 @@ The system will allow youth leaders to create an activity and track requisit for
 
 
 ### Security & Compliance
--- **Hippa**
+**Hippa**
 Per HIPPA adult users will be required to use credentials in order to access health information.  Credentials will be stored hashed and salted.  Medical information will be stored in a table separate from PII.  UID will be used to correlate PII to health information
 
--- **Safety**
+**Safety**
 Depending on the nature of the activity corresponding training/certifications will be automatically identified.
 
--- **Supervisory Permissions**
+**Supervisory Permissions**
 Persuant the handbook all activity requests will be sent to the Bishop for approval.  All activities which are co-ed or of *n* distance from the home ward will also require Stake Presidency approval.  These individuals will receive an electronic notification with a link which will describe the activity and allow for an electronic siganture.  
