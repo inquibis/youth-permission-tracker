@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Activity Permission Form</title>
+  <style>
+    canvas { border: 1px solid #ccc; }
+  </style>
+</head>
+<body>
+  <h1 id="activity-name">Loading...</h1>
+  <p id="activity-details"></p>
+
+  <form id="permission-form">
+    <label>Allergies: <input type="text" name="allergies"></label><br>
+    <label>Restrictions: <input type="text" name="restrictions"></label><br>
+    <label>Special Diet: <input type="text" name="special_diet"></label><br>
+    <label>Prescriptions: <input type="text" name="prescriptions"></label><br>
+    <label>OTC Drugs: <input type="text" name="over_the_counter_drugs"></label><br>
+    <label>Chronic Illness: <input type="text" name="chronic_illness"></label><br>
+    <label>Surgeries (last 12 months): <input type="text" name="surgeries_12mo"></label><br>
+    <label>Serious Illnesses (last year): <input type="text" name="serious_illnesses"></label><br>
+    <label>Comments: <textarea name="comments"></textarea></label><br>
+
+    <p>Signature (use your finger or mouse):</p>
+    <canvas id="signature-pad" width="300" height="150"></canvas><br>
+    <button type="button" id="clear-sig">Clear Signature</button><br><br>
+
+    <button type="submit">Submit</button>
+  </form>
+
+  <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
+  <script type="module">
+    const BASE_URL = import.meta.env.BASE_URL || 'https://your-default-api.com';
+
+    const params = new URLSearchParams(window.location.search);
+    const activityId = params.get('id');
+
+    const signaturePad = new SignaturePad(document.getElementById('signature-pad'));
+
+    // Load activity data
+    fetch(`${BASE_URL}/activity?id=${activityId}`)
+      .then(res => res.json())
+      .then(data => {
+        document.getElementById('activity-name').textContent = data.activity_name;
+        document.getElementById('activity-details').textContent = `
+          From: ${data.date_start} to ${data.date_end}
+          | Driver(s): ${data.drivers}
+          | Youth: ${data.youth_name}
+        `;
+      });
+
+    // Clear signature
+    document.getElementById('clear-sig').addEventListener('click', () => {
+      signaturePad.clear();
+    });
+
+    // Form submission
+    document.getElementById('permission-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const formData = new FormData(e.target);
+      const json = Object.fromEntries(formData.entries());
+
+      if (!signaturePad.isEmpty()) {
+        json.signature = signaturePad.toDataURL();  // Base64 PNG
+      } else {
+        alert("Please provide a signature.");
+        return;
+      }
+
+      json.activity_id = activityId;
+
+      const response = await fetch(`${BASE_URL}/activity-permission`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(json)
+      });
+
+      if (response.ok) {
+        alert("Form submitted successfully.");
+      } else {
+        alert("There was an error submitting the form.");
+      }
+    });
+  </script>
+</body>
+</html>
