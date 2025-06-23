@@ -3,7 +3,7 @@ import io
 import base64
 import requests
 from datetime import datetime
-
+from fpdf import FPDF
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import LETTER
 from PyPDF2 import PdfReader, PdfWriter
@@ -125,6 +125,31 @@ def digitally_sign_pdf(input_pdf_path: str, output_pdf_path: str):
         writer.write(f)
 
     print("PDF signed and saved:", output_pdf_path)
+
+def generate_waiver_pdf(user_name, guardian_name, activity_name, date_start, date_end, description, ip, user_agent, output_path):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", size=12)
+
+    pdf.cell(200, 10, txt="Parental Permission Waiver", ln=True, align="C")
+    pdf.ln(10)
+
+    pdf.cell(200, 10, txt=f"Participant: {user_name}", ln=True)
+    pdf.cell(200, 10, txt=f"Guardian: {guardian_name}", ln=True)
+    pdf.cell(200, 10, txt=f"Activity: {activity_name}", ln=True)
+    pdf.cell(200, 10, txt=f"Dates: {date_start} to {date_end}", ln=True)
+    pdf.multi_cell(200, 10, txt=f"Description: {description}")
+    pdf.ln(5)
+
+    pdf.cell(200, 10, txt=f"Signed on: {datetime.utcnow().isoformat()} UTC", ln=True)
+    pdf.cell(200, 10, txt=f"IP Address: {ip}", ln=True)
+    pdf.multi_cell(200, 10, txt=f"User-Agent: {user_agent}")
+    pdf.ln(5)
+
+    pdf.cell(200, 10, txt="Permission confirmed and digitally logged.", ln=True)
+
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    pdf.output(output_path)
 
 
 def request_tsa_timestamp(pdf_hash: bytes) -> bytes:

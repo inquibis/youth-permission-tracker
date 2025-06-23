@@ -8,9 +8,9 @@ from fastapi.security import OAuth2PasswordBearer
 from fastapi import Security
 
 from schema import ActivityPermissionRequest, UserCreate, ActivityCreate
-from models import ActivityPermission, User, Activity
+from models import ActivityPermission, User, Activity, PermissionToken, ActivityPermission
 from database import Base, engine, SessionLocal
-from pdf_func import create_signed_pdf
+from pdf_func import create_signed_pdf, generate_waiver_pdf
 from auth import hash_password, decode_token
 from auth import verify_password, create_token
 from contact import Contact
@@ -99,6 +99,19 @@ def update_user(user_id: int, user: UserCreate, db: Session = Depends(get_db)):
     db.commit()
     return db_user.to_dict()
 
+@app.get("/verify-token")
+def verify_token(token: str, db: Session = Depends(get_db)):
+    record = db.query(PermissionToken).filter_by(token=token, used=False).first()
+    if not record or record.expires_at < datetime.utcnow():
+        raise HTTPException(status_code=400, detail="Invalid or expired token")
+
+    return {
+        "user_name": record.user.first_name + " " + record.user.last_name,
+        "activity_name": record.activity.activity_name,
+        "description": record.activity.description,
+        "date_start": record.activity.date_start.isoformat(),
+        "date_end": record.activity.date_end.isoformat()
+    }
 
 ##########################
 ##  ACTIVITIES
@@ -168,6 +181,73 @@ def get_all_activities(db: Session = Depends(get_db), user=Depends(get_current_u
 
 
 ############### PERMISSIONS
+@router.post("/submit-permission")
+def submit_permission(token: str, db: Session = Depends(get_db)):
+    record = db.query(PermissionToken).filter_by(token=token, used=False).first()
+    if not record or record.expires_at < datetime.utcnow():
+        raise HTTPException(status_code=400, detail="Invalid or expired token")
+
+    # Mark signed
+    perm = db.query(ActivityPermission).filter_by(user_id=record.user_id, activity_id=record.activity_id).first()
+    if not perm:
+        perm = ActivityPermission(user_id=record.user_id, activity_id=record.activity_id)
+        db.add(perm)
+
+    perm.signed = True
+    record.used = True
+    db.commit()
+    return {"status": "signed"}
+
+@app.post("/submit-permission")
+def submit_permission(data: dict, request: Request, db: Session = Depends(get_db)):
+    token = data.get("token")
+    if not token:
+        raise HTTPException(status_code=400, detail="Missing token")
+
+    record = db.query(PermissionToken).filter_by(token=token, used=False).first()
+    if not record or record.expires_at < datetime.utcnow():
+        raise HTTPException(status_code=400, detail="Invalid or expired token")
+
+    ip_address = request.client.host
+    user_agent = request.headers.get("user-agent", "")
+
+    # Update or create permission
+    perm = db.query(ActivityPermission).filter_by(user_id=record.user_id, activity_id=record.activity_id).first()
+    if not perm:
+        perm = ActivityPermission(user_id=record.user_id, activity_id=record.activity_id)
+        db.add(perm)
+
+    perm.signed = True
+    perm.ip_address = ip_address
+    perm.user_agent = user_agent
+
+    record.used = True
+    db.commit()
+
+    # Generate PDF
+    pdf_path = f"./pdfs/waivers/{record.user_id}-{record.activity_id}.pdf"
+    generate_waiver_pdf(
+        user_name = f"{record.user.first_name} {record.user.last_name}",
+        guardian_name = record.user.guardian_name,
+        activity_name = record.activity.activity_name,
+        date_start = record.activity.date_start.strftime("%Y-%m-%d"),
+        date_end = record.activity.date_end.strftime("%Y-%m-%d"),
+        description = record.activity.description,
+        ip = ip_address,
+        user_agent = user_agent,
+        output_path = pdf_path
+    )
+
+    # Email Admin
+    contact_engine.send_admin_confirmation(
+        user_name = f"{record.user.first_name} {record.user.last_name}",
+        guardian_name = record.user.guardian_name,
+        activity_name = record.activity.activity_name,
+        pdf_path = pdf_path
+    )
+
+    return {"status": "signed"}
+
 
 @app.post("/activity-permission")
 def submit_permission(data: ActivityPermissionRequest, request: Request, db: Session = Depends(get_db)):
@@ -291,3 +371,5 @@ def get_activity_permissions(activity_id: int, db: Session = Depends(get_db), us
 #     "signed": false
 #   }
 # ]
+
+
