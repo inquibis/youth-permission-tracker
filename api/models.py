@@ -24,6 +24,8 @@ class ActivityPermission(Base):
     comments = Column(Text)
     signature_path = Column(Text)  # or store base64 string
     submitted_at = Column(DateTime, default=datetime.utcnow)
+    dl_number = Column(Text)
+    pin = Column(Text)
 
 
 class Activity(Base):

@@ -13,7 +13,8 @@ class ActivityPermissionRequest(BaseModel):
     surgeries_12mo: Optional[str] = None
     serious_illnesses: Optional[str] = None
     comments: Optional[str] = None
-
+    dl: Optional[str] = None
+    pin: Optional[str] = None
     signature: Optional[str] = None  # base64 PNG data
 
 class UserCreate(BaseModel):

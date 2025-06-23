@@ -145,6 +145,8 @@ def submit_permission(data: ActivityPermissionRequest, request: Request, db: Ses
         surgeries_12mo=data.surgeries_12mo,
         serious_illnesses=data.serious_illnesses,
         comments=data.comments,
+        dl=data.dl,
+        pin=data.pin,
         signature_path=signature_path,
     )
 
