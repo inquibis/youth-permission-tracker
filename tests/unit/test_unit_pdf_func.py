@@ -1,6 +1,6 @@
 import pytest
 import os
-from api.pdf_func import create_signed_pdf
+from api.pdf_func import create_signed_pdf, generate_waiver_pdf
 
 def test_create_signed_pdf(tmp_path):
     # Prepare sample data
@@ -28,3 +28,19 @@ def test_create_signed_pdf(tmp_path):
 
     # Clean up if needed
     os.remove(pdf_path)
+
+def test_generate_pdf_creates_file(tmp_path):
+    output_file = tmp_path / "test_waiver.pdf"
+    generate_waiver_pdf(
+        user_name="Test User",
+        guardian_name="Guardian",
+        activity_name="Campout",
+        date_start="2025-07-01",
+        date_end="2025-07-03",
+        description="Overnight outdoor camp.",
+        ip="123.45.67.89",
+        user_agent="UnitTestAgent/1.0",
+        output_path=str(output_file)
+    )
+    assert output_file.exists()
+    assert output_file.stat().st_size > 100  # basic size check
