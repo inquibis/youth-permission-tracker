@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Permission Status</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    .checkmark { color: green; font-size: 1.5rem; }
+    .crossmark { color: red; font-size: 1.5rem; }
+  </style>
+</head>
+<body class="bg-light">
+  <div class="container py-5">
+    <h2 class="mb-4">Activity Permission Status</h2>
+
+    <div id="permissionSection" style="display: none;">
+      <table class="table table-hover bg-white shadow-sm">
+        <thead class="table-light">
+          <tr>
+            <th>User</th>
+            <th>Guardian Name</th>
+            <th>Signed?</th>
+          </tr>
+        </thead>
+        <tbody id="permissionTableBody">
+          <!-- JS-generated rows -->
+        </tbody>
+      </table>
+      <button class="btn btn-warning mt-3" id="reRequestBtn">Re-request Permissions</button>
+    </div>
+
+    <div id="loading" class="text-muted">Loading...</div>
+    <div id="error" class="text-danger" style="display:none;">Failed to load permission data.</div>
+  </div>
+
+  <script>
+    const token = localStorage.getItem("token");
+    const params = new URLSearchParams(window.location.search);
+    const activityId = params.get("id");
+
+    async function loadPermissions() {
+      if (!activityId) return document.getElementById("error").innerText = "Missing activity ID";
+
+      try {
+        const res = await fetch(`/api/activity-permissions?id=${activityId}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        if (!res.ok) throw new Error("Fetch failed");
+        const users = await res.json();
+        document.getElementById("loading").style.display = "none";
+        document.getElementById("permissionSection").style.display = "block";
+
+        const tbody = document.getElementById("permissionTableBody");
+        tbody.innerHTML = "";
+
+        users.forEach(user => {
+          const row = document.createElement("tr");
+          row.innerHTML = `
+            <td>${user.user_name}</td>
+            <td>${user.guardian_name || "—"}</td>
+            <td class="text-center">
+              ${user.signed ? '<span class="checkmark">✔️</span>' : '<span class="crossmark">❌</span>'}
+            </td>
+          `;
+          tbody.appendChild(row);
+        });
+
+      } catch (e) {
+        console.error(e);
+        document.getElementById("loading").style.display = "none";
+        document.getElementById("error").style.display = "block";
+      }
+    }
+
+    document.getElementById("reRequestBtn").addEventListener("click", async () => {
+      if (!confirm("Re-send permission requests to all guardians?")) return;
+
+      const res = await fetch(`/api/request-permissions?id=${activityId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (res.ok) {
+        alert("Permission requests resent.");
+      } else {
+        alert("Failed to resend requests.");
+      }
+    });
+
+    loadPermissions();
+  </script>
+</body>
+</html>

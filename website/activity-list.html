@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Activity List</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+  <div class="container py-5" id="adminArea" style="display: none;">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h2>Activities</h2>
+      <div>
+        <select id="groupFilter" class="form-select d-inline w-auto">
+          <option value="">All Groups</option>
+          <option value="deacon">Deacon</option>
+          <option value="teacher">Teacher</option>
+          <option value="priest">Priest</option>
+          <option value="young man">Young Man</option>
+          <option value="young women (younger)">Young Women (Younger)</option>
+          <option value="young women (older)">Young Women (Older)</option>
+          <option value="young women">Young Women</option>
+        </select>
+        <button class="btn btn-outline-secondary ms-2" onclick="exportToPDF()">Export to PDF</button>
+      </div>
+    </div>
+    <table class="table table-hover table-bordered bg-white shadow-sm" id="activityTable">
+      <thead class="table-light">
+        <tr>
+          <th>ID</th>
+          <th>Name</th>
+          <th>Start</th>
+          <th>End</th>
+          <th>Groups</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="activityTableBody">
+        <!-- Filled by JS -->
+      </tbody>
+    </table>
+  </div>
+
+  <div class="container py-5" id="notAdminArea" style="display: none;">
+    <h4 class="text-danger">Access Denied</h4>
+    <p>You must be an administrator to view this page.</p>
+  </div>
+
+  <!-- Edit Modal -->
+  <div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <form id="editForm">
+          <div class="modal-header">
+            <h5 class="modal-title">Edit Activity</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body row g-3 p-3">
+            <input type="hidden" name="id">
+            <div class="col-md-6">
+              <label class="form-label">Activity Name</label>
+              <input type="text" name="activity_name" class="form-control" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Drivers (comma-separated)</label>
+              <input type="text" name="drivers" class="form-control">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Start Date</label>
+              <input type="datetime-local" name="date_start" class="form-control" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">End Date</label>
+              <input type="datetime-local" name="date_end" class="form-control" required>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Description</label>
+              <textarea name="description" class="form-control"></textarea>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Groups (comma-separated)</label>
+              <input type="text" name="groups" class="form-control">
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-primary" type="submit">Save Changes</button>
+            <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script>
+    const token = localStorage.getItem("token");
+    let allActivities = [];
+
+    async function checkAdmin() {
+      const res = await fetch("/api/me", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const user = await res.json();
+      if (user.is_admin) {
+        document.getElementById("adminArea").style.display = "block";
+        loadActivities();
+      } else {
+        document.getElementById("notAdminArea").style.display = "block";
+      }
+    }
+
+    async function loadActivities() {
+      const res = await fetch("/api/activity-all", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      allActivities = await res.json();
+      renderActivities(allActivities);
+    }
+
+    function renderActivities(activities) {
+      const body = document.getElementById("activityTableBody");
+      body.innerHTML = "";
+      activities.forEach(activity => {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${activity.id}</td>
+          <td>${activity.activity_name}</td>
+          <td>${new Date(activity.date_start).toLocaleString()}</td>
+          <td>${new Date(activity.date_end).toLocaleString()}</td>
+          <td>${activity.groups.join(", ")}</td>
+          <td>
+            <button class="btn btn-sm btn-warning me-2" onclick='openEdit(${JSON.stringify(activity)})'>Edit</button>
+            <button class="btn btn-sm btn-danger" onclick='deleteActivity(${activity.id})'>Delete</button>
+          </td>
+        `;
+        body.appendChild(row);
+      });
+    }
+
+    document.getElementById("groupFilter").addEventListener("change", e => {
+      const group = e.target.value;
+      if (group === "") return renderActivities(allActivities);
+      const filtered = allActivities.filter(a => a.groups.includes(group));
+      renderActivities(filtered);
+    });
+
+    async function exportToPDF() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+
+      doc.setFontSize(14);
+      doc.text("Activity Report", 10, 10);
+      let y = 20;
+      allActivities.forEach((a, i) => {
+        doc.text(`${i + 1}. ${a.activity_name} (${a.groups.join(", ")})`, 10, y);
+        y += 8;
+        if (y > 280) {
+          doc.addPage();
+          y = 10;
+        }
+      });
+
+      doc.save("activities.pdf");
+    }
+
+    function openEdit(activity) {
+      editForm.id.value = activity.id;
+      editForm.activity_name.value = activity.activity_name;
+      editForm.date_start.value = new Date(activity.date_start).toISOString().slice(0, 16);
+      editForm.date_end.value = new Date(activity.date_end).toISOString().slice(0, 16);
+      editForm.drivers.value = activity.drivers.join(", ");
+      editForm.description.value = activity.description;
+      editForm.groups.value = activity.groups.join(", ");
+      editModal.show();
+    }
+
+    editForm.addEventListener("submit", async e => {
+      e.preventDefault();
+      const id = editForm.id.value;
+      const payload = {
+        activity_name: editForm.activity_name.value,
+        date_start: new Date(editForm.date_start.value).toISOString(),
+        date_end: new Date(editForm.date_end.value).toISOString(),
+        drivers: editForm.drivers.value.split(",").map(x => x.trim()),
+        description: editForm.description.value,
+        groups: editForm.groups.value.split(",").map(x => x.trim())
+      };
+
+      const res = await fetch(`/api/activity/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (res.ok) {
+        editModal.hide();
+        loadActivities();
+      } else {
+        alert("Update failed");
+      }
+    });
+
+    async function deleteActivity(id) {
+      if (!confirm("Are you sure?")) return;
+      const res = await fetch(`/api/activity/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        loadActivities();
+      } else {
+        alert("Delete failed");
+      }
+    }
+
+    loadActivities();
+  </script>
+</body>
+</html>
