@@ -241,11 +241,41 @@ def request_permissions(activity_id: int, db: Session = Depends(get_db), user=De
     }
 
 
+@app.get("/resend-permission")
+def resend_permission(id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    if not user.is_admin:
+        raise HTTPException(status_code=403)
+
+    perm = db.query(ActivityPermission).filter(ActivityPermission.id == id).first()
+    if not perm or perm.signed:
+        raise HTTPException(status_code=404, detail="No pending permission")
+
+    contact_engine.email_guardians([perm.user], "Activity")
+    contact_engine.sms_guardians([perm.user], "Activity")
+
+    perm.last_requested_at = datetime.utcnow()
+    db.commit()
+    return {"status": "resent"}
+
+
 @app.get("/activity-permissions")
 def get_activity_permissions(activity_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
-    # Verify user is admin or permitted
-    # Query all users for the activity
-    # Return list of {user_name, guardian_name, signed: bool}
+    permissions = (
+        db.query(ActivityPermission)
+        .join(User)
+        .filter(ActivityPermission.activity_id == activity_id)
+        .all()
+    )
+    return [
+        {
+            "user_name": p.user.first_name + " " + p.user.last_name,
+            "guardian_name": p.user.guardian_name,
+            "signed": p.signed,
+            "last_requested_at": p.last_requested_at.isoformat() if p.last_requested_at else None,
+            "permission_id": p.id
+        }
+        for p in permissions
+    ]
 
 
 # return format
