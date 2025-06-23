@@ -207,12 +207,38 @@ def submit_permission(data: ActivityPermissionRequest, request: Request, db: Ses
     db.refresh(entry)
     return {"status": "success", "entry_id": entry.id}
 
+
 @app.get("/request-permissions")
 def request_permissions(activity_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
-    # Verify user is admin
-    # Look up users in activity groups
-    # Resend email/SMS waiver links
-    return {"status": "sent"}
+    if not user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin only")
+
+    # Get permission records for this activity
+    permissions = db.query(ActivityPermission).filter_by(activity_id=activity_id, signed=False).all()
+    if not permissions:
+        return {"status": "no pending signatures"}
+
+    # Get user records
+    users = [perm.user for perm in permissions]
+
+    # Get activity name for message
+    activity = db.query(Activity).filter(Activity.id == activity_id).first()
+    activity_name = activity.activity_name if activity else "an activity"
+
+    # Notify guardians
+    contact_engine.email_guardians(users, activity_name)
+    contact_engine.sms_guardians(users, activity_name)
+
+    # Update last_requested_at
+    for perm in permissions:
+        perm.last_requested_at = datetime.utcnow()
+
+    db.commit()
+
+    return {
+        "status": "requested",
+        "count": len(users)
+    }
 
 
 @app.get("/activity-permissions")
