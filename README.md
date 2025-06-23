@@ -3,7 +3,7 @@
 
 ## Overview
 
-The system will allow youth leaders to create an activity and track requisit forms.  At this point they can select which individuals, or groups, to be included in the activity.  At this stage the information about the activity will be entered (e.g dates, location, description of the activity, adult leaders from a mult-select option).  When the activity is then submitted (viz created) an electronic notification is then sent to the guardian of each youth invited.  This email gives some information about the activity and includes a hyperlink.  This link takes the guardian to a page where they can electronically sign to give permission as well as ask medical information.  Youth leaders will be able to track compliance on a seperate page which will show the activity, who was invited and for which individuals are forms extant.  It will also show if any supervisotry signatures, and required credentials, are needed and if they are aquired.  It will also include "alerts", such as allergies or potential medical limitations of any participants to an activity.
+The system will allow youth leaders to create an activity and track requisite forms.  At this point they can select which individuals, or groups, to be included in the activity.  At this stage the information about the activity will be entered (e.g dates, location, description of the activity, adult leaders from a multi-select option).  When the activity is then submitted (viz created) an electronic notification is then sent to the guardian of each youth invited.  This email gives some information about the activity and includes a hyperlink.  This link takes the guardian to a page where they can electronically sign to give permission as well as ask medical information.  Youth leaders will be able to track compliance on a separate page which will show the activity, who was invited and for which individuals are forms extant.  It will also show if any supervisory signatures, and required credentials, are needed and if they are required.  It will also include "alerts", such as allergies or potential medical limitations of any participants to an activity.
 
 ## Pages
 ### User Management
@@ -21,7 +21,7 @@ The system will allow youth leaders to create an activity and track requisit for
 - Per activity one can view who was invited and whose guardians have submitted approval.
 - Can view aggregated list of "risks" (e.g. allergies, physical limitations, guardian's notes)
 - Can view is supervisory signatures have been obtained
-- Can view is requisit trainings are achieved
+- Can view is requisite trainings are achieved
 - Can re-request approvals from those from whom an approval is missing
 
 
@@ -53,7 +53,7 @@ Per HIPPA adult users will be required to use credentials in order to access hea
 Depending on the nature of the activity corresponding training/certifications will be automatically identified.
 
 **Supervisory Permissions**
-Persuant the handbook all activity requests will be sent to the Bishop for approval.  All activities which are co-ed or of *n* distance from the home ward will also require Stake Presidency approval.  These individuals will receive an electronic notification with a link which will describe the activity and allow for an electronic siganture.  
+Persuant the handbook all activity requests will be sent to the Bishop for approval.  All activities which are co-ed or of *n* distance from the home ward will also require Stake Presidency approval.  These individuals will receive an electronic notification with a link which will describe the activity and allow for an electronic signature.  
 
 ## Versions
 - 1.0:  Activity creation and approval tracking
@@ -69,7 +69,7 @@ Persuant the handbook all activity requests will be sent to the Bishop for appro
 1. Identity Verification (KYC)
 - Before signing, verify the user’s identity
 - Basic SES: Email confirmation or 2FA
-- AES/QES: Government-issued ID + liveness test, or use a 3rd-party identity verification API (e.g., IDnow, Onfido, Jumio).
+- AES/QES: Government-issued ID + liveness test
 2. Capture the Signature
 - Drawn signature using a touchscreen or mouse.
 - Typed name with a selected font.
@@ -79,6 +79,6 @@ Persuant the handbook all activity requests will be sent to the Bishop for appro
 - Digitally bind the signature to the document so it’s tamper-evident
 - Use public key cryptography (PKI).
 - Hash the PDF document (SHA256), sign the hash with the private key of the signer.
-- Embed signature + certificate into the PDF's metadata (e.g., Adobe CDS).
+- Embed signature + certificate into the PDF's metadata.
 4. Timestamp
-- Add a timestamp token from a Time Stamp Authority (TSA). This provides non-repudiation.
+- Add a timestamp token from a Time Stamp Authority (TSA) for non-repudiation.
