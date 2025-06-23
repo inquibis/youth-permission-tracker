@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 from typing import Optional, List
+from datetime import datetime
 
 class ActivityPermissionRequest(BaseModel):
     activity_id: str
@@ -28,3 +29,11 @@ class UserCreate(BaseModel):
     is_active: Optional[bool] = True
     groups: List[str]
     guardian_password: str
+
+class ActivityCreate(BaseModel):
+    activity_name: str
+    date_start: datetime
+    date_end: datetime
+    drivers: List[str]
+    description: str = ""
+    groups: List[str]

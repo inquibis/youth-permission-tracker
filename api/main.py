@@ -7,19 +7,20 @@ from fastapi import Form, Request
 from fastapi.security import OAuth2PasswordBearer
 from fastapi import Security
 
-from schema import ActivityPermissionRequest, UserCreate
+from schema import ActivityPermissionRequest, UserCreate, ActivityCreate
 from models import ActivityPermission, User, Activity
 from database import Base, engine, SessionLocal
 from pdf_func import create_signed_pdf
 from auth import hash_password, decode_token
 from auth import verify_password, create_token
-
+from contact import Contact
 
 # Initializations
 Base.metadata.create_all(bind=engine)
 app = FastAPI()
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
+contact_engine = Contact()
 
 # Dependency to get DB session
 def get_db():
@@ -117,6 +118,57 @@ def get_activity(id: int = Query(..., alias="id"), db: Session = Depends(get_db)
         "youth_name": activity.youth_name
     }
 
+
+@app.post("/activity")
+def create_activity(payload: ActivityCreate, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    activity = Activity(
+        activity_name=payload.activity_name,
+        date_start=payload.date_start,
+        date_end=payload.date_end,
+        drivers=payload.drivers,
+        description=payload.description,
+        groups=payload.groups
+    )
+    db.add(activity)
+    db.commit()
+    db.refresh(activity)
+
+    contact_engine.contact_users(groups=activity.groups, db=db)
+    return {"message": "Activity created", "id": activity.id}
+
+
+@app.put("/activity/{activity_id}")
+def update_activity(activity_id: int, payload: ActivityCreate, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    activity = db.query(Activity).filter(Activity.id == activity_id).first()
+    if not activity:
+        raise HTTPException(status_code=404, detail="Activity not found")
+
+    for field, value in payload.dict().items():
+        setattr(activity, field, value)
+
+    db.commit()
+    db.refresh(activity)
+    return {"message": "Activity updated", "id": activity.id}
+
+
+@app.delete("/activity/{activity_id}")
+def delete_activity(activity_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    activity = db.query(Activity).filter(Activity.id == activity_id).first()
+    if not activity:
+        raise HTTPException(status_code=404, detail="Activity not found")
+
+    db.delete(activity)
+    db.commit()
+    return {"message": "Activity deleted"}
+
+
+@app.get("/activity-all")
+def get_all_activities(db: Session = Depends(get_db), user=Depends(get_current_user)):
+    return db.query(Activity).all()
+
+
+############### PERMISSIONS
+
 @app.post("/activity-permission")
 def submit_permission(data: ActivityPermissionRequest, request: Request, db: Session = Depends(get_db)):
     # Save signature to file (optional)
@@ -154,3 +206,32 @@ def submit_permission(data: ActivityPermissionRequest, request: Request, db: Ses
     db.commit()
     db.refresh(entry)
     return {"status": "success", "entry_id": entry.id}
+
+@app.get("/request-permissions")
+def request_permissions(activity_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    # Verify user is admin
+    # Look up users in activity groups
+    # Resend email/SMS waiver links
+    return {"status": "sent"}
+
+
+@app.get("/activity-permissions")
+def get_activity_permissions(activity_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    # Verify user is admin or permitted
+    # Query all users for the activity
+    # Return list of {user_name, guardian_name, signed: bool}
+
+
+# return format
+#[
+#   {
+#     "user_name": "Sam Smith",
+#     "guardian_name": "John Smith",
+#     "signed": true
+#   },
+#   {
+#     "user_name": "Lucy Jones",
+#     "guardian_name": "Alice Jones",
+#     "signed": false
+#   }
+# ]
