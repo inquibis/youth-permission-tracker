@@ -2,9 +2,8 @@ version: "3.9"
 
 services:
   api:
-    build: .
-      context: ./api
-    container_name: fastapi_app
+    image: youth-permission-api
+    container_name: youth-permission-api
     ports:
       - "8000:8000"  # Internal access; users go through Nginx
     depends_on:

@@ -86,5 +86,9 @@ Persuant the handbook all activity requests will be sent to the Bishop for appro
 # Run Program
 1. Make sure that alembic/alembic.ini file uses `sqlalchemy.url = mysql+mysqlconnector://${DB_USER}:${DB_PASSWORD}@${DB_HOST}/${DB_NAME}` instead of `sqlalchemy.url = driver://user:pass@host/dbname`
     This file is created with: `alembic init alembic`
-2. 
+2. Create api image
+-  `docker image build -t youth-permission-api -f api-dockerfile .`
+3. Run docker compose `docker-compose up`
+4. Verify api is running: `http://localhost:8000/docs`
+5. Verify website is running: `http://localhost`
 
