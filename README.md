@@ -82,3 +82,9 @@ Persuant the handbook all activity requests will be sent to the Bishop for appro
 - Embed signature + certificate into the PDF's metadata.
 4. Timestamp
 - Add a timestamp token from a Time Stamp Authority (TSA) for non-repudiation.
+
+# Run Program
+1. Make sure that alembic/alembic.ini file uses `sqlalchemy.url = mysql+mysqlconnector://${DB_USER}:${DB_PASSWORD}@${DB_HOST}/${DB_NAME}` instead of `sqlalchemy.url = driver://user:pass@host/dbname`
+    This file is created with: `alembic init alembic`
+2. 
+

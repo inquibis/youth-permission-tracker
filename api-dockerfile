@@ -5,6 +5,13 @@ FROM python:3.11-slim
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV BASE_URL=http://localhost:8000
+ENV MYSQL_USER=""
+ENV MYSQL_PASSWORD=""
+ENV MYSQL_HOST=mysql
+ENV MYSQL_PORT=3306
+ENV MYSQL_DB=activitydb
+ENV BASE_URL=http://localhost/api
+# ENV DATABASE_URL=mysql+pymysql://user:password@mysql/db_name
 
 # Set work directory
 WORKDIR /app
@@ -30,5 +37,8 @@ EXPOSE 8000
 
 # Make sure alembic is installed
 RUN alembic --version
+RUN RUN alembic upgrade head
 
-CMD ["./migrate.sh"]
+COPY migrate.sh /migrate.sh
+RUN chmod +x /migrate.sh
+CMD [\"./migrate.sh\"]

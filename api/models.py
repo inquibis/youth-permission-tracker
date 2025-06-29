@@ -1,4 +1,5 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean
+from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey
+from sqlalchemy.orm import relationship
 from database import Base
 from datetime import datetime
 import json
@@ -7,6 +8,18 @@ from sqlalchemy.types import JSON
 
 
 password_hash = Column(String(255))
+
+class ActivityPermission(Base):
+    __tablename__ = "activity_permissions"
+
+    id = Column(Integer, primary_key=True)
+    activity_id = Column(Integer, ForeignKey("activities.id"))
+    user_id = Column(Integer, ForeignKey("users.id"))
+    signed = Column(Boolean, default=False)
+    last_requested_at = Column(DateTime)
+    user = relationship("User")
+    ip_address = Column(String, nullable=True)
+    user_agent = Column(String, nullable=True)
 
 class ActivityPermission(Base):
     __tablename__ = "activity_permissions"
@@ -26,6 +39,8 @@ class ActivityPermission(Base):
     submitted_at = Column(DateTime, default=datetime.utcnow)
     dl_number = Column(Text)
     pin = Column(Text)
+    ip_address = Column(String, nullable=True)
+    user_agent = Column(String, nullable=True)
 
 
 class Activity(Base):
@@ -38,6 +53,7 @@ class Activity(Base):
     drivers = Column(MutableList.as_mutable(JSON), default=[])
     description = Column(Text)
     youth_groups = Column(String(255))
+    groups = Column(MutableList.as_mutable(JSON), default=[])
 
 
 class User(Base):
@@ -67,3 +83,18 @@ class User(Base):
             "is_active": self.is_active,
             "groups": json.loads(self.groups or "[]"),
         }
+
+
+class PermissionToken(Base):
+    __tablename__ = "permission_tokens"
+
+    id = Column(Integer, primary_key=True)
+    token = Column(String, unique=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    activity_id = Column(Integer, ForeignKey("activities.id"))
+    expires_at = Column(DateTime)
+    used = Column(Boolean, default=False)
+
+    user = relationship("User")
+    activity = relationship("Activity")
+
