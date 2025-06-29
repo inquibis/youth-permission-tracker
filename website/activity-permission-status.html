@@ -35,13 +35,37 @@
     <div id="error" class="text-danger" style="display:none;">Failed to load permission data.</div>
   </div>
 
-  <script>
+<script>
   const token = localStorage.getItem("token");
   const params = new URLSearchParams(window.location.search);
   const activityId = params.get("id");
 
   const ONE_DAY = 24 * 60 * 60 * 1000;
   let permissionData = [];
+
+  const fallbackData = [
+    {
+      "user_name": "John Smith",
+      "guardian_name": "Papa Smith",
+      "signed": false,
+      "last_requested_at": "June 1, 2000",
+      "permission_id": 1235
+    },
+    {
+      "user_name": "Sally Smith",
+      "guardian_name": "Papa Smith",
+      "signed": false,
+      "last_requested_at": "June 1, 2000",
+      "permission_id": 1236
+    },
+    {
+      "user_name": "Bishop",
+      "guardian_name": "",
+      "signed": true,
+      "last_requested_at": "June 1, 2000",
+      "permission_id": 3451
+    }
+  ];
 
   async function loadPermissions() {
     if (!activityId) return showError("Missing activity ID");
@@ -52,21 +76,30 @@
       });
 
       if (!res.ok) throw new Error("Fetch failed");
-      permissionData = await res.json();
 
-      document.getElementById("loading").style.display = "none";
-      document.getElementById("permissionSection").style.display = "block";
+      const data = await res.json();
+      if (!data || data.length === 0) throw new Error("Empty data");
 
-      renderPermissions();
-
-      // Disable re-request if within 24 hrs
-      const recent = permissionData.some(p => p.last_requested_at && Date.now() - new Date(p.last_requested_at).getTime() < ONE_DAY);
-      document.getElementById("reRequestBtn").disabled = recent;
+      permissionData = data;
+      renderUI();
 
     } catch (e) {
-      console.error(e);
-      showError("Failed to load permission data.");
+      console.warn("Using hardcoded fallback data due to error:", e.message);
+      permissionData = fallbackData;
+      renderUI();
     }
+  }
+
+  function renderUI() {
+    document.getElementById("loading").style.display = "none";
+    document.getElementById("permissionSection").style.display = "block";
+    renderPermissions();
+
+    const recent = permissionData.some(p =>
+      p.last_requested_at &&
+      Date.now() - new Date(p.last_requested_at).getTime() < ONE_DAY
+    );
+    document.getElementById("reRequestBtn").disabled = recent;
   }
 
   function showError(msg) {

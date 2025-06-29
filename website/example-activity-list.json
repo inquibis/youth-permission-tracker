@@ -1,0 +1,20 @@
+[
+  {
+    "id": 101,
+    "activity_name": "Youth Camp",
+    "date_start": "2025-07-10T09:00:00",
+    "date_end": "2025-07-12T17:00:00",
+    "groups": ["young man", "young women"],
+    "drivers": ["Alice", "Bob"],
+    "description": "A fun and spiritual outdoor weekend retreat."
+  },
+  {
+    "id": 102,
+    "activity_name": "Service Project",
+    "date_start": "2025-08-03T13:00:00",
+    "date_end": "2025-08-03T16:00:00",
+    "groups": ["deacon", "teacher"],
+    "drivers": ["Carol"],
+    "description": "Helping clean up the community park."
+  }
+]

@@ -34,61 +34,89 @@
   </div>
 
   <script>
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get("token");
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get("token");
 
-    if (!token) {
-      showError("Missing permission token in the URL.");
-    } else {
-      fetch(`/api/verify-token?token=${token}`)
-        .then(res => {
-          if (!res.ok) throw new Error("Token invalid or expired");
-          return res.json();
-        })
-        .then(data => {
-          document.getElementById("loading").style.display = "none";
-          document.getElementById("contentSection").style.display = "block";
+  if (!token) {
+    // No token → use local fallback
+    fetch("parental-activity-examples.json")
+      .then(res => {
+        if (!res.ok) throw new Error("Failed to load fallback data");
+        return res.json();
+      })
+      .then(data => {
+        const fallback = data[0]; // assume using the first entry in the array
+        document.getElementById("loading").style.display = "none";
+        document.getElementById("contentSection").style.display = "block";
 
-          document.getElementById("userName").textContent = data.user_name;
-          document.getElementById("activityName").textContent = data.activity_name;
-          document.getElementById("activityDates").textContent =
-            new Date(data.date_start).toLocaleDateString() + " to " + new Date(data.date_end).toLocaleDateString();
-          document.getElementById("activityDescription").textContent = data.description;
-        })
-        .catch(err => {
-          showError("This permission link is invalid or has expired.");
-        });
-    }
-
-    function showError(msg) {
-      document.getElementById("loading").style.display = "none";
-      const err = document.getElementById("error");
-      err.classList.remove("d-none");
-      err.textContent = msg;
-    }
-
-    document.getElementById("confirmCheck").addEventListener("change", (e) => {
-      document.getElementById("submitBtn").disabled = !e.target.checked;
-    });
-
-    document.getElementById("submitBtn").addEventListener("click", async () => {
-      const btn = document.getElementById("submitBtn");
-      btn.disabled = true;
-      btn.textContent = "Submitting...";
-
-      const res = await fetch("/api/submit-permission", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token })
+        document.getElementById("userName").textContent = fallback.user_name;
+        document.getElementById("activityName").textContent = fallback.activity_name;
+        document.getElementById("activityDates").textContent =
+          new Date(fallback.date_start).toLocaleDateString() + " to " +
+          new Date(fallback.date_end).toLocaleDateString();
+        document.getElementById("activityDescription").textContent = fallback.description;
+      })
+      .catch(err => {
+        showError("Could not load example activity data.");
       });
+  } else {
+    // Token present → verify with API
+    fetch(`/api/verify-token?token=${token}`)
+      .then(res => {
+        if (!res.ok) throw new Error("Token invalid or expired");
+        return res.json();
+      })
+      .then(data => {
+        document.getElementById("loading").style.display = "none";
+        document.getElementById("contentSection").style.display = "block";
 
-      if (res.ok) {
-        document.getElementById("contentSection").style.display = "none";
-        document.getElementById("success").classList.remove("d-none");
-      } else {
-        showError("Failed to submit permission. Please try again.");
-      }
+        document.getElementById("userName").textContent = data.user_name;
+        document.getElementById("activityName").textContent = data.activity_name;
+        document.getElementById("activityDates").textContent =
+          new Date(data.date_start).toLocaleDateString() + " to " +
+          new Date(data.date_end).toLocaleDateString();
+        document.getElementById("activityDescription").textContent = data.description;
+      })
+      .catch(err => {
+        showError("This permission link is invalid or has expired.");
+      });
+  }
+
+  function showError(msg) {
+    document.getElementById("loading").style.display = "none";
+    const err = document.getElementById("error");
+    err.classList.remove("d-none");
+    err.textContent = msg;
+  }
+
+  document.getElementById("confirmCheck").addEventListener("change", (e) => {
+    document.getElementById("submitBtn").disabled = !e.target.checked;
+  });
+
+  document.getElementById("submitBtn").addEventListener("click", async () => {
+    if (!token) {
+      alert("Test mode only — submission not available without a token.");
+      return;
+    }
+
+    const btn = document.getElementById("submitBtn");
+    btn.disabled = true;
+    btn.textContent = "Submitting...";
+
+    const res = await fetch("/api/submit-permission", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token })
     });
-  </script>
+
+    if (res.ok) {
+      document.getElementById("contentSection").style.display = "none";
+      document.getElementById("success").classList.remove("d-none");
+    } else {
+      showError("Failed to submit permission. Please try again.");
+    }
+  });
+</script>
+
 </body>
 </html>

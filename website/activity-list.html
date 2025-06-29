@@ -97,23 +97,53 @@
     let allActivities = [];
 
     async function checkAdmin() {
-      const res = await fetch("/api/me", {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const user = await res.json();
-      if (user.is_admin) {
+      if (!token) {
+        // No token, assume demo mode
         document.getElementById("adminArea").style.display = "block";
-        loadActivities();
-      } else {
-        document.getElementById("notAdminArea").style.display = "block";
+        loadActivities(); // Will fall back to JSON
+        return;
+      }
+
+      try {
+        const res = await fetch("/api/me", {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error("Not authorized");
+
+        const user = await res.json();
+        if (user.is_admin) {
+          document.getElementById("adminArea").style.display = "block";
+          loadActivities();
+        } else {
+          document.getElementById("notAdminArea").style.display = "block";
+        }
+      } catch (err) {
+        console.warn("Admin check failed, falling back to public mode.");
+        document.getElementById("adminArea").style.display = "block";
+        loadActivities(); // fallback to JSON
       }
     }
 
     async function loadActivities() {
-      const res = await fetch("/api/activity-all", {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      allActivities = await res.json();
+      try {
+        if (!token) throw new Error("No token available");
+
+        const res = await fetch("/api/activity-all", {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        if (!res.ok) throw new Error("API fetch failed");
+
+        const data = await res.json();
+        if (!Array.isArray(data)) throw new Error("Invalid data");
+
+        allActivities = data;
+      } catch (err) {
+        console.warn("Loading fallback from example-activity-list.json due to:", err.message);
+        const fallback = await fetch("example-activity-list.json");
+        allActivities = await fallback.json();
+      }
+
       renderActivities(allActivities);
     }
 
@@ -168,9 +198,9 @@
       editForm.activity_name.value = activity.activity_name;
       editForm.date_start.value = new Date(activity.date_start).toISOString().slice(0, 16);
       editForm.date_end.value = new Date(activity.date_end).toISOString().slice(0, 16);
-      editForm.drivers.value = activity.drivers.join(", ");
-      editForm.description.value = activity.description;
-      editForm.groups.value = activity.groups.join(", ");
+      editForm.drivers.value = activity.drivers?.join(", ") || "";
+      editForm.description.value = activity.description || "";
+      editForm.groups.value = activity.groups?.join(", ") || "";
       editModal.show();
     }
 
@@ -216,7 +246,8 @@
       }
     }
 
-    loadActivities();
+    // ✅ Start everything
+    checkAdmin();
   </script>
 </body>
 </html>

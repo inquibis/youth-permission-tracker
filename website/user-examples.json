@@ -1,0 +1,18 @@
+[
+  {
+    "first_name": "Alice",
+    "last_name": "Example",
+    "guardian_name": "Bob",
+    "guardian_email": "bob@example.com",
+    "groups": ["Young Women", "Young Women Younger Class"],
+    "is_active": true
+  },
+  {
+    "first_name": "Charlie",
+    "last_name": "Test",
+    "guardian_name": "Daisy",
+    "guardian_email": "daisy@example.com",
+    "groups": ["Young Men","Deacon"],
+    "is_active": false
+  }
+]

@@ -54,54 +54,81 @@
     </div>
   </div>
 
-  <script>
-    const BASE_URL = "/api";
-    const token = localStorage.getItem("token");
+ <script>
+  const BASE_URL = "/api";
+  const token = localStorage.getItem("token");
 
-    const loginSection = document.getElementById("loginSection");
-    const userMgmtSection = document.getElementById("userMgmtSection");
-    const loginForm = document.getElementById("loginForm");
-    const loginError = document.getElementById("loginError");
+  const loginSection = document.getElementById("loginSection");
+  const userMgmtSection = document.getElementById("userMgmtSection");
+  const loginForm = document.getElementById("loginForm");
+  const loginError = document.getElementById("loginError");
 
-    // Show form if already logged in
-    if (token) {
+  const TEST_EMAIL = "tester@test.com";
+  const TEST_PASSWORD = "local";
+  const TEST_TOKEN = "test-token";
+
+  // If a token is already set, try to load users
+  if (token) {
+    loginSection.style.display = "none";
+    userMgmtSection.style.display = "block";
+    loadUsers();
+  }
+
+  loginForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const form = new FormData(loginForm);
+    const email = form.get("email");
+    const password = form.get("password");
+
+    // Handle test account
+    if (email === TEST_EMAIL && password === TEST_PASSWORD) {
+      localStorage.setItem("token", TEST_TOKEN);
+      loginSection.style.display = "none";
+      userMgmtSection.style.display = "block";
+      loadUsers(true); // pass true for test mode
+      return;
+    }
+
+    // Real login
+    const res = await fetch(`${BASE_URL}/login`, {
+      method: "POST",
+      body: new URLSearchParams({
+        user_email: email,
+        password: password
+      })
+    });
+
+    const data = await res.json();
+    if (res.ok) {
+      localStorage.setItem("token", data.access_token);
       loginSection.style.display = "none";
       userMgmtSection.style.display = "block";
       loadUsers();
+    } else {
+      loginError.style.display = "block";
+      loginError.textContent = data.detail || "Login failed";
     }
+  });
 
-    loginForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const form = new FormData(loginForm);
-      const res = await fetch(`${BASE_URL}/login`, {
-        method: "POST",
-        body: new URLSearchParams({
-          user_email: form.get("email"),
-          password: form.get("password")
-        })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        localStorage.setItem("token", data.access_token);
-        loginSection.style.display = "none";
-        userMgmtSection.style.display = "block";
-        loadUsers();
+  async function loadUsers(useTestData = false) {
+    const container = document.getElementById("usersContainer");
+    container.innerHTML = "";
+
+    let users;
+
+    try {
+      if (useTestData || localStorage.getItem("token") === TEST_TOKEN) {
+        const res = await fetch("user-examples.json");
+        if (!res.ok) throw new Error("Failed to load test data");
+        users = await res.json();
       } else {
-        loginError.style.display = "block";
-        loginError.textContent = data.detail || "Login failed";
+        const res = await fetch(`${BASE_URL}/users`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+        });
+        if (res.status === 401) return logout();
+        users = await res.json();
       }
-    });
 
-    async function loadUsers() {
-      const res = await fetch(`${BASE_URL}/users`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
-      });
-      if (res.status === 401) {
-        logout();
-      }
-      const users = await res.json();
-      const container = document.getElementById("usersContainer");
-      container.innerHTML = '';
       users.forEach(user => {
         const div = document.createElement("div");
         div.className = "card p-3 mb-3";
@@ -111,41 +138,53 @@
           Active: ${user.is_active ? "Yes" : "No"}`;
         container.appendChild(div);
       });
+
+    } catch (err) {
+      container.innerHTML = `<div class="text-danger">Failed to load users: ${err.message}</div>`;
+    }
+  }
+
+  document.getElementById("userForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    if (localStorage.getItem("token") === TEST_TOKEN) {
+      alert("Test mode: user creation disabled.");
+      return;
     }
 
-    document.getElementById("userForm").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const form = e.target;
-      const formData = new FormData(form);
-      const payload = {
-        first_name: formData.get("first_name"),
-        last_name: formData.get("last_name"),
-        guardian_name: formData.get("guardian_name"),
-        guardian_email: formData.get("guardian_email"),
-        guardian_cell: formData.get("guardian_cell"),
-        user_email: formData.get("user_email"),
-        user_cell: formData.get("user_cell"),
-        is_active: formData.get("is_active") === "true",
-        groups: Array.from(form.querySelector("select[name='groups']").selectedOptions).map(opt => opt.value),
-        password: formData.get("password")
-      };
-      const res = await fetch(`${BASE_URL}/users`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`
-        },
-        body: JSON.stringify(payload)
-      });
-      if (res.status === 401) return logout();
-      form.reset();
-      loadUsers();
+    const form = e.target;
+    const formData = new FormData(form);
+    const payload = {
+      first_name: formData.get("first_name"),
+      last_name: formData.get("last_name"),
+      guardian_name: formData.get("guardian_name"),
+      guardian_email: formData.get("guardian_email"),
+      guardian_cell: formData.get("guardian_cell"),
+      user_email: formData.get("user_email"),
+      user_cell: formData.get("user_cell"),
+      is_active: formData.get("is_active") === "true",
+      groups: Array.from(form.querySelector("select[name='groups']").selectedOptions).map(opt => opt.value),
+      password: formData.get("password")
+    };
+
+    const res = await fetch(`${BASE_URL}/users`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localStorage.getItem("token")}`
+      },
+      body: JSON.stringify(payload)
     });
 
-    function logout() {
-      localStorage.removeItem("token");
-      location.reload();
-    }
-  </script>
+    if (res.status === 401) return logout();
+    form.reset();
+    loadUsers();
+  });
+
+  function logout() {
+    localStorage.removeItem("token");
+    location.reload();
+  }
+</script>
 </body>
 </html>
