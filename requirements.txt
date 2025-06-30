@@ -18,3 +18,4 @@ python-dotenv
 pymysql
 
 python-multipart
+python-dotenv
