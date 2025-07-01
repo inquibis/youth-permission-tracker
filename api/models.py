@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey
 from sqlalchemy.orm import relationship
 from database import Base
-from datetime import datetime
+from datetime import datetime, date
 import json
 from sqlalchemy.ext.mutable import MutableList
 from sqlalchemy.types import JSON
@@ -98,3 +98,47 @@ class PermissionToken(Base):
     user = relationship("User")
     activity = relationship("Activity")
 
+class ActivityInfo(Base):
+    __tablename__ = "activity_info"
+
+    id = Column(Integer, primary_key=True, index=True)
+    activity_name = Column(String)
+    description = Column(String)
+    date_start = Column(Date)
+    date_end = Column(Date)
+    purpose = Column(String)
+
+    # Optional - normalize relations
+    budgets = relationship("ActivityBudget", back_populates="activity", cascade="all, delete-orphan")
+    drivers = relationship("ActivityDriver", back_populates="activity", cascade="all, delete-orphan")
+    groups = relationship("ActivityGroup", back_populates="activity", cascade="all, delete-orphan")
+
+class ActivityBudget(Base):
+    __tablename__ = "activity_budget"
+    id = Column(Integer, primary_key=True, index=True)
+    item = Column(String)
+    amount = Column(Float)
+    activity_id = Column(Integer, ForeignKey("activity_info.id"))
+    activity = relationship("ActivityInfo", back_populates="budgets")
+
+class ActivityDriver(Base):
+    __tablename__ = "activity_driver"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String)
+    activity_id = Column(Integer, ForeignKey("activity_info.id"))
+    activity = relationship("ActivityInfo", back_populates="drivers")
+
+class ActivityGroup(Base):
+    __tablename__ = "activity_group"
+    id = Column(Integer, primary_key=True, index=True)
+    group = Column(String)
+    activity_id = Column(Integer, ForeignKey("activity_info.id"))
+    activity = relationship("ActivityInfo", back_populates="groups")
+
+class SelectedActivity(Base):
+    __tablename__ = "selectedactivities"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    year = Column(Integer, nullable=False)
+    activity_name = Column(String, nullable=False)

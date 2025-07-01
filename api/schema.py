@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
+from datetime import date
 
 class ActivityPermissionRequest(BaseModel):
     activity_id: str
@@ -37,3 +38,32 @@ class ActivityCreate(BaseModel):
     drivers: List[str]
     description: str = ""
     groups: List[str]
+
+class BudgetItem(BaseModel):
+    item: str
+    amount: float
+
+class ActivityInformationCreate(BaseModel):
+    activity_name: str
+    description: str
+    groups: List[str]
+    drivers: List[str]
+    budget: List[BudgetItem]
+    date_start: date
+    date_end: date
+    purpose: str
+
+class ActivityInformationOut(ActivityInformationCreate):
+    activity_id: int
+
+class UserInterestIn(BaseModel):
+    name: str
+    activities: List[str]
+
+class SelectedActivityOut(BaseModel):
+    name: str
+    year: int
+    activities: List[str]
+
+    class Config:
+        orm_mode = True

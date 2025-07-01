@@ -6,9 +6,11 @@ import json
 from fastapi import Form, Request
 from fastapi.security import OAuth2PasswordBearer
 from fastapi import Security
+from fastapi import Query
+from typing import List, Optional
 
-from schema import ActivityPermissionRequest, UserCreate, ActivityCreate
-from models import ActivityPermission, User, Activity, PermissionToken, ActivityPermission
+from schema import ActivityInformationCreate, ActivityPermissionRequest, UserCreate, ActivityCreate, ActivityInformationOut, UserInterestIn, SelectedActivityOut
+from models import ActivityBudget, ActivityDriver, ActivityGroup, ActivityPermission, SelectedActivity, User, Activity, PermissionToken, ActivityPermission, ActivityInfo
 from database import Base, engine, SessionLocal
 from pdf_func import create_signed_pdf, generate_waiver_pdf
 from auth import hash_password, decode_token
@@ -181,7 +183,7 @@ def get_all_activities(db: Session = Depends(get_db), user=Depends(get_current_u
 
 
 ############### PERMISSIONS
-@router.post("/submit-permission")
+@app.post("/submit-permission")
 def submit_permission(token: str, db: Session = Depends(get_db)):
     record = db.query(PermissionToken).filter_by(token=token, used=False).first()
     if not record or record.expires_at < datetime.utcnow():
@@ -197,6 +199,7 @@ def submit_permission(token: str, db: Session = Depends(get_db)):
     record.used = True
     db.commit()
     return {"status": "signed"}
+
 
 @app.post("/submit-permission")
 def submit_permission(data: dict, request: Request, db: Session = Depends(get_db)):
@@ -372,4 +375,97 @@ def get_activity_permissions(activity_id: int, db: Session = Depends(get_db), us
 #   }
 # ]
 
+@app.post("/activity-information")
+def create_activity_info(payload: ActivityInformationCreate, db: Session = Depends(get_db)):
+    activity = ActivityInfo(
+        activity_name=payload.activity_name,
+        description=payload.description,
+        date_start=payload.date_start,
+        date_end=payload.date_end,
+        purpose=payload.purpose
+    )
+    db.add(activity)
+    db.flush()  # To get activity.id
 
+    for item in payload.budget:
+        db.add(ActivityBudget(item=item.item, amount=item.amount, activity_id=activity.id))
+    for name in payload.drivers:
+        db.add(ActivityDriver(name=name, activity_id=activity.id))
+    for group in payload.groups:
+        db.add(ActivityGroup(group=group, activity_id=activity.id))
+
+    db.commit()
+    return { "status": "ok", "activity_id": activity.id }
+
+
+@app.get("/activity-information", response_model=ActivityInformationOut)
+def get_activity_info(
+    activity_id: Optional[int] = Query(None),
+    activity_name: Optional[str] = Query(None),
+    db: Session = Depends(get_db)
+):
+    if not activity_id and not activity_name:
+        raise HTTPException(status_code=400, detail="Either activity_id or activity_name is required")
+
+    query = db.query(ActivityInfo)
+    if activity_id:
+        activity = query.filter_by(id=activity_id).first()
+    else:
+        activity = query.filter_by(activity_name=activity_name).first()
+
+    if not activity:
+        raise HTTPException(status_code=404, detail="Activity not found")
+
+    # Query related fields
+    budgets = db.query(ActivityBudget).filter_by(activity_id=activity.id).all()
+    drivers = db.query(ActivityDriver).filter_by(activity_id=activity.id).all()
+    groups = db.query(ActivityGroup).filter_by(activity_id=activity.id).all()
+
+    return ActivityInformationOut(
+        activity_id=activity.id,
+        activity_name=activity.activity_name,
+        description=activity.description,
+        date_start=activity.date_start,
+        date_end=activity.date_end,
+        purpose=activity.purpose,
+        budget=[{"item": b.item, "amount": b.amount} for b in budgets],
+        drivers=[d.name for d in drivers],
+        groups=[g.group for g in groups],
+    )
+
+
+@app.post("/user-interest")
+def save_user_interest(payload: UserInterestIn, db: Session = Depends(get_db)):
+    # Find user by name (adjust query if needed)
+    user = db.query(User).filter(User.first_name + " " + User.last_name == payload.name).first()
+    if not user:
+        raise HTTPException(status_code=400, detail="User not found")
+
+    year = datetime.utcnow().year
+
+    # Store each activity as a separate SelectedActivity record
+    for activity_name in payload.activities:
+        sa = SelectedActivity(user_id=user.id, year=year, activity_name=activity_name)
+        db.add(sa)
+    db.commit()
+
+    return {"status": "success", "user_id": user.id, "year": year, "activities_saved": len(payload.activities)}
+
+
+@app.get("/user-interest", response_model=List[SelectedActivityOut])
+def list_user_interests(db: Session = Depends(get_db)):
+    #TODO filter by activity group
+    rows = db.query(User).join(SelectedActivity).all()
+    result = []
+    for user in rows:
+        user_activities = db.query(SelectedActivity).filter(SelectedActivity.user_id == user.id).all()
+        grouped = {}
+        for activity in user_activities:
+            grouped.setdefault(activity.year, []).append(activity.activity_name)
+        for year, activities in grouped.items():
+            result.append(SelectedActivityOut(
+                name=f\"{user.first_name} {user.last_name}\",
+                year=year,
+                activities=activities
+            ))
+    return result

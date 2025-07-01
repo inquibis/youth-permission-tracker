@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Create Activity Information</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+  <div class="container mt-5">
+    <h2>Create Activity Information</h2>
+    <form id="activityForm">
+      <div class="mb-3">
+        <label for="activityName" class="form-label">Activity Name</label>
+        <input type="text" class="form-control" id="activityName" required>
+      </div>
+      <div class="mb-3">
+        <label for="purpose" class="form-label">Purpose</label>
+        <textarea class="form-control" id="purpose" rows="2"></textarea>
+      </div>
+      <div class="mb-3">
+        <label for="description" class="form-label">Description</label>
+        <textarea class="form-control" id="description" rows="3"></textarea>
+      </div>
+      <div class="mb-3">
+        <label for="groups" class="form-label">Invited Groups</label>
+        <select class="form-select" id="groups" multiple>
+          <option value="deacon">Deacon</option>
+          <option value="teacher">Teacher</option>
+          <option value="priest">Priest</option>
+          <option value="young_man">Young Man</option>
+          <option value="young_women_younger">Young Women (Younger)</option>
+          <option value="young_women_older">Young Women (Older)</option>
+          <option value="young_women">Young Women</option>
+        </select>
+      </div>
+      <div class="mb-3">
+        <label for="drivers" class="form-label">Drivers</label>
+        <input type="text" class="form-control" id="drivers" placeholder="Comma separated names">
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Budget</label>
+        <table class="table table-bordered" id="budgetTable">
+          <thead>
+            <tr>
+              <th>Item</th>
+              <th>Amount ($)</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+        <div class="input-group mb-3">
+          <input type="text" id="budgetItem" class="form-control" placeholder="Item">
+          <input type="number" id="budgetAmount" class="form-control" placeholder="Amount">
+          <button type="button" class="btn btn-outline-secondary" onclick="addBudgetItem()">Add</button>
+        </div>
+      </div>
+      <div class="mb-3">
+        <label for="dateStart" class="form-label">Start Date</label>
+        <input type="date" class="form-control" id="dateStart" required>
+      </div>
+      <div class="mb-3">
+        <label for="dateEnd" class="form-label">End Date</label>
+        <input type="date" class="form-control" id="dateEnd" required>
+      </div>      
+      <button type="submit" class="btn btn-primary">Submit</button>
+    </form>
+  </div>
+
+  <script>
+    function addBudgetItem() {
+      const item = document.getElementById("budgetItem").value;
+      const amount = document.getElementById("budgetAmount").value;
+      if (item && amount) {
+        const table = document.getElementById("budgetTable").getElementsByTagName("tbody")[0];
+        const row = table.insertRow();
+        row.innerHTML = `
+          <td>${item}</td>
+          <td>${amount}</td>
+          <td><button class="btn btn-sm btn-danger" onclick="this.closest('tr').remove()">Remove</button></td>
+        `;
+        document.getElementById("budgetItem").value = "";
+        document.getElementById("budgetAmount").value = "";
+      }
+    }
+
+    document.getElementById("activityForm").addEventListener("submit", async function(e) {
+      e.preventDefault();
+
+      const budgetRows = Array.from(document.querySelectorAll("#budgetTable tbody tr"));
+      const budget = budgetRows.map(row => {
+        const cells = row.getElementsByTagName("td");
+        return { item: cells[0].innerText, amount: parseFloat(cells[1].innerText) };
+      });
+
+      const payload = {
+        activity_name: document.getElementById("activityName").value,
+        description: document.getElementById("description").value,
+        groups: Array.from(document.getElementById("groups").selectedOptions).map(opt => opt.value),
+        drivers: document.getElementById("drivers").value.split(",").map(d => d.trim()).filter(Boolean),
+        budget,
+        date_start: document.getElementById("dateStart").value,
+        date_end: document.getElementById("dateEnd").value,
+        purpose: document.getElementById("purpose").value
+      };
+
+      const res = await fetch(`${window.BASE_URL || ''}/activity-information`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+    //   if (res.ok) {
+    //     const data = await res.json();
+    //     alert(`Activity submitted successfully. Activity ID: ${data.activity_id}`);
+    //     document.getElementById("activityForm").reset();
+    //     document.querySelector("#budgetTable tbody").innerHTML = "";
+    //   } else {
+    //     alert("Submission failed");
+    //   }
+
+      if (res.ok) {
+        const data = await res.json();
+        document.getElementById("successAlert").classList.remove("d-none");
+        setTimeout(() => {
+          window.location.href = `/permission-status.html?id=${data.activity_id}`;
+        }, 1500);
+      } else {
+        alert("Submission failed");
+      }
+    });
+  </script>
+</body>
+</html>
