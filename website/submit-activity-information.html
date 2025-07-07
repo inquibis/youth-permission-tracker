@@ -35,6 +35,25 @@
         </select>
       </div>
       <div class="mb-3">
+  <label class="form-label">Activity Flags</label>
+  <div class="form-check">
+    <input class="form-check-input" type="checkbox" id="isOvernighter">
+    <label class="form-check-label" for="isOvernighter">Overnighter</label>
+  </div>
+  <div class="form-check">
+    <input class="form-check-input" type="checkbox" id="includesAquatics">
+    <label class="form-check-label" for="includesAquatics">Includes Aquatics</label>
+  </div>
+  <div class="form-check">
+    <input class="form-check-input" type="checkbox" id="isHighAdventure">
+    <label class="form-check-label" for="isHighAdventure">High Adventure</label>
+  </div>
+  <div class="form-check">
+    <input class="form-check-input" type="checkbox" id="isTravelOver50Miles">
+    <label class="form-check-label" for="isTravelOver50Miles">Travel Over 50 Miles</label>
+  </div>
+</div>
+      <div class="mb-3">
         <label for="drivers" class="form-label">Drivers</label>
         <input type="text" class="form-control" id="drivers" placeholder="Comma separated names">
       </div>
@@ -95,15 +114,19 @@
       });
 
       const payload = {
-        activity_name: document.getElementById("activityName").value,
-        description: document.getElementById("description").value,
-        groups: Array.from(document.getElementById("groups").selectedOptions).map(opt => opt.value),
-        drivers: document.getElementById("drivers").value.split(",").map(d => d.trim()).filter(Boolean),
-        budget,
-        date_start: document.getElementById("dateStart").value,
-        date_end: document.getElementById("dateEnd").value,
-        purpose: document.getElementById("purpose").value
-      };
+      activity_name: document.getElementById("activityName").value,
+      description: document.getElementById("description").value,
+      groups: Array.from(document.getElementById("groups").selectedOptions).map(opt => opt.value),
+      drivers: document.getElementById("drivers").value.split(",").map(d => d.trim()).filter(Boolean),
+      budget,
+      date_start: document.getElementById("dateStart").value,
+      date_end: document.getElementById("dateEnd").value,
+      purpose: document.getElementById("purpose").value,
+      is_overnighter: document.getElementById("isOvernighter").checked,
+      includes_aquatics: document.getElementById("includesAquatics").checked,
+      is_high_adventure: document.getElementById("isHighAdventure").checked,
+      is_travel_over_50_miles: document.getElementById("isTravelOver50Miles").checked
+    };
 
       const res = await fetch(`${window.BASE_URL || ''}/activity-information`, {
         method: "POST",
