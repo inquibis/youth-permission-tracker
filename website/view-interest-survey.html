@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Selected Activities Viewer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+</head>
+<body>
+  <div class="container mt-5">
+    <h2>Selected Activities Viewer</h2>
+
+    <div class="mb-3">
+      <label for="userSelect" class="form-label">Select User</label>
+      <select id="userSelect" class="form-select">
+        <option value="">-- Choose a user --</option>
+      </select>
+    </div>
+
+    <div class="mb-3">
+      <label for="groupSelect" class="form-label">Select Group</label>
+      <select id="groupSelect" class="form-select">
+        <option value="">-- Choose a group --</option>
+      </select>
+    </div>
+
+    <div id="results" class="mt-4"></div>
+  </div>
+
+  <script>
+    const userSelect = document.getElementById("userSelect");
+    const groupSelect = document.getElementById("groupSelect");
+    const results = document.getElementById("results");
+
+    let usersMap = {};
+
+    async function fetchWithFallback(primaryUrl, fallbackUrl) {
+      try {
+        const res = await fetch(primaryUrl);
+        if (!res.ok) throw new Error("API error");
+        const data = await res.json();
+        if (!data || (Array.isArray(data) && data.length === 0)) throw new Error("Empty data");
+        return data;
+      } catch (err) {
+        console.warn(`Primary fetch failed, falling back to ${fallbackUrl}`);
+        const res = await fetch(fallbackUrl);
+        return await res.json();
+      }
+    }
+
+    async function fetchUsers() {
+      const users = await fetchWithFallback("/users", "user-examples.json");
+      usersMap = {};
+      users.forEach(user => {
+        usersMap[user.id] = user;
+        const option = document.createElement("option");
+        option.value = user.id;
+        option.textContent = user.name;
+        userSelect.appendChild(option);
+      });
+    }
+
+    async function fetchGroups() {
+      const groups = await fetchWithFallback("/groups", "groups.json");
+      groups.forEach(group => {
+        const option = document.createElement("option");
+        option.value = group;
+        option.textContent = group;
+        groupSelect.appendChild(option);
+      });
+    }
+
+    async function fetchUserActivities(userId) {
+      try {
+        const res = await fetch(`/selectedactivities/user/${userId}`);
+        if (!res.ok) throw new Error("API error");
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          return data;
+        } else {
+          throw new Error("Empty");
+        }
+      } catch {
+        const res = await fetch("user_activities.json");
+        const data = await res.json();
+        return data[userId] || [];
+      }
+    }
+
+    async function fetchGroupActivities(groupName) {
+      try {
+        const res = await fetch(`/selectedactivities/group/${groupName}`);
+        if (!res.ok) throw new Error("API error");
+        const data = await res.json();
+        if (Object.keys(data).length > 0) {
+          return data;
+        } else {
+          throw new Error("Empty");
+        }
+      } catch {
+        const res = await fetch("group_activities.json");
+        const data = await res.json();
+        return data[groupName] || {};
+      }
+    }
+
+    function displayActivities(activities) {
+      if (!activities.length) {
+        results.innerHTML = "<p>No activities found for this user.</p>";
+        return;
+      }
+      let html = "<h4>User Activities</h4><ul class='list-group'>";
+      activities.forEach(act => {
+        html += `<li class='list-group-item'>${act.activity_name} (${act.year})</li>`;
+      });
+      html += "</ul>";
+      results.innerHTML = html;
+    }
+
+    function displayActivityCounts(counts) {
+      if (!Object.keys(counts).length) {
+        results.innerHTML = "<p>No activities found for this group.</p>";
+        return;
+      }
+      let html = "<h4>Group Activity Summary</h4><ul class='list-group'>";
+      for (const [activity, count] of Object.entries(counts)) {
+        html += `<li class='list-group-item d-flex justify-content-between align-items-center'>
+                  ${activity}
+                  <span class="badge bg-primary rounded-pill">${count}</span>
+                 </li>`;
+      }
+      html += "</ul>";
+      results.innerHTML = html;
+    }
+
+    userSelect.addEventListener("change", async () => {
+      groupSelect.value = "";
+      if (userSelect.value) {
+        const activities = await fetchUserActivities(userSelect.value);
+        displayActivities(activities);
+      } else {
+        results.innerHTML = "";
+      }
+    });
+
+    groupSelect.addEventListener("change", async () => {
+      userSelect.value = "";
+      if (groupSelect.value) {
+        const counts = await fetchGroupActivities(groupSelect.value);
+        displayActivityCounts(counts);
+      } else {
+        results.innerHTML = "";
+      }
+    });
+
+    fetchUsers();
+    fetchGroups();
+  </script>
+</body>
+</html>

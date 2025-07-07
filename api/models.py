@@ -142,3 +142,13 @@ class SelectedActivity(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     year = Column(Integer, nullable=False)
     activity_name = Column(String, nullable=False)
+
+class IdentifiedNeed(Base):
+    __tablename__ = "identifiedneeds"
+
+    id = Column(Integer, primary_key=True, index=True)
+    group_name = Column(String, nullable=False)
+    need = Column(String, nullable=False)
+    priority = Column(Integer, nullable=False)
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)

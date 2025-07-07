@@ -101,6 +101,10 @@ def update_user(user_id: int, user: UserCreate, db: Session = Depends(get_db)):
     db.commit()
     return db_user.to_dict()
 
+@app.get("/groups")
+def get_groups(db: Session = Depends(get_db)):
+    return list({user.group for user in db.query(User).all()})
+
 @app.get("/verify-token")
 def verify_token(token: str, db: Session = Depends(get_db)):
     record = db.query(PermissionToken).filter_by(token=token, used=False).first()
@@ -469,3 +473,45 @@ def list_user_interests(db: Session = Depends(get_db)):
                 activities=activities
             ))
     return result
+
+@app.get("/selectedactivities/user/{user_id}")
+def get_user_activities(user_id: int, db: Session = Depends(get_db)):
+    return db.query(SelectedActivity).filter_by(user_id=user_id).all()
+
+@app.get("/selectedactivities/group/{group_name}")
+def get_group_activities(group_name: str, db: Session = Depends(get_db)):
+    users = db.query(User).filter_by(group=group_name).all()
+    user_ids = [u.id for u in users]
+    activities = db.query(SelectedActivity).filter(SelectedActivity.user_id.in_(user_ids)).all()
+    
+    from collections import Counter
+    counts = Counter([act.activity_name for act in activities])
+    return dict(counts)
+
+
+##############################
+##  group needs
+##############################
+@app.get("/identified-needs/{group_name}")
+def get_needs(group_name: str, db: Session = Depends(get_db)):
+    return db.query(IdentifiedNeed).filter_by(group_name=group_name).all()
+
+@app.post("/identified-needs")
+def create_need(need: IdentifiedNeedCreate, db: Session = Depends(get_db)):
+    db_need = IdentifiedNeed(**need.dict())
+    db.add(db_need)
+    db.commit()
+    db.refresh(db_need)
+    return db_need
+
+@app.put("/identified-needs/{need_id}")
+def update_need(need_id: int, need: IdentifiedNeedCreate, db: Session = Depends(get_db)):
+    db.query(IdentifiedNeed).filter_by(id=need_id).update(need.dict())
+    db.commit()
+    return {"status": "updated"}
+
+@app.delete("/identified-needs/{need_id}")
+def delete_need(need_id: int, db: Session = Depends(get_db)):
+    db.query(IdentifiedNeed).filter_by(id=need_id).delete()
+    db.commit()
+    return {"status": "deleted"}

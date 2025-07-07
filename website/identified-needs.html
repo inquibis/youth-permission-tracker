@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Identified Needs</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+</head>
+<body class="p-4">
+  <div class="container">
+    <h2>Identified Needs</h2>
+
+    <!-- Login Section -->
+    <div id="loginSection">
+      <form id="loginForm">
+        <div class="mb-3">
+          <label for="username" class="form-label">Username</label>
+          <input type="text" id="username" class="form-control" required />
+        </div>
+        <div class="mb-3">
+          <label for="password" class="form-label">Password</label>
+          <input type="password" id="password" class="form-control" required />
+        </div>
+        <button type="submit" class="btn btn-primary">Login</button>
+      </form>
+    </div>
+
+    <!-- Needs Table and Form -->
+    <div id="needsSection" style="display:none;">
+      <table class="table table-bordered mt-4" id="needsTable">
+        <thead>
+          <tr>
+            <th>Need</th>
+            <th>Priority</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+
+      <form id="needForm" class="mt-4">
+        <h5>Add / Edit Need</h5>
+        <input type="hidden" id="needId" />
+        <div class="mb-2">
+          <label for="needText" class="form-label">Need</label>
+          <input type="text" id="needText" class="form-control" required />
+        </div>
+        <div class="mb-2">
+          <label for="priority" class="form-label">Priority (1-5)</label>
+          <input type="number" id="priority" class="form-control" min="1" max="5" required />
+        </div>
+        <button type="submit" class="btn btn-success">Save</button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const loginSection = document.getElementById("loginSection");
+    const needsSection = document.getElementById("needsSection");
+    const loginForm = document.getElementById("loginForm");
+    const needForm = document.getElementById("needForm");
+    const needsTable = document.querySelector("#needsTable tbody");
+    const needId = document.getElementById("needId");
+    const needText = document.getElementById("needText");
+    const priority = document.getElementById("priority");
+
+    let groupName = "";
+
+    async function fetchWithFallback(url, fallbackFile) {
+      try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("API error");
+        const data = await res.json();
+        if (!data || data.length === 0) throw new Error("Empty");
+        return data;
+      } catch {
+        const res = await fetch(fallbackFile);
+        return await res.json();
+      }
+    }
+
+    async function login(username, password) {
+      if (username === "test" && password === "tester") {
+        return { group_name: "Teachers" };
+      }
+
+      try {
+        const res = await fetch("/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, password })
+        });
+
+        if (!res.ok) throw new Error("Login failed");
+        return await res.json();
+      } catch {
+        const res = await fetch("login_fallback.json");
+        const fallbackUsers = await res.json();
+        const user = fallbackUsers.find(u => u.username === username && u.password === password);
+        if (user) return { group_name: user.group_name };
+        throw new Error("Invalid login");
+      }
+    }
+
+    async function loadNeeds() {
+      const needs = await fetchWithFallback(`/identified-needs/${groupName}`, "needs.json");
+      renderNeeds(needs);
+    }
+
+    function renderNeeds(needs) {
+      needsTable.innerHTML = "";
+      needs.forEach(need => {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${need.need}</td>
+          <td>${need.priority}</td>
+          <td>
+            <button class="btn btn-sm btn-warning" onclick='editNeed(${JSON.stringify(need)})'>Edit</button>
+            <button class="btn btn-sm btn-danger" onclick='deleteNeed(${need.id})'>Delete</button>
+          </td>`;
+        needsTable.appendChild(row);
+      });
+    }
+
+    function editNeed(need) {
+      needId.value = need.id;
+      needText.value = need.need;
+      priority.value = need.priority;
+    }
+
+    async function deleteNeed(id) {
+      try {
+        await fetch(`/identified-needs/${id}`, { method: "DELETE" });
+        loadNeeds();
+      } catch {
+        alert("Unable to delete.");
+      }
+    }
+
+    loginForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const username = document.getElementById("username").value;
+      const password = document.getElementById("password").value;
+      try {
+        const result = await login(username, password);
+        groupName = result.group_name;
+        loginSection.style.display = "none";
+        needsSection.style.display = "block";
+        loadNeeds();
+      } catch (err) {
+        alert("Login failed: " + err.message);
+      }
+    });
+
+    needForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const payload = {
+        id: needId.value || null,
+        group_name: groupName,
+        need: needText.value,
+        priority: parseInt(priority.value)
+      };
+
+      const url = payload.id ? `/identified-needs/${payload.id}` : "/identified-needs";
+      const method = payload.id ? "PUT" : "POST";
+
+      try {
+        await fetch(url, {
+          method,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        needForm.reset();
+        loadNeeds();
+      } catch {
+        alert("Save failed");
+      }
+    });
+  </script>
+</body>
+</html>
