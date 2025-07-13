@@ -1,4 +1,4 @@
-# overview
+<img width="1024" height="1536" alt="image" src="https://github.com/user-attachments/assets/4378ae14-184d-49dd-8913-9851deb1479f" /># overview
 [1] End-User (App UI)
      |
      v
@@ -31,3 +31,6 @@
 [12] App Backend Receives Webhook Notification
      |
      +--> [13] Report shows missing signatures
+
+     <img width="1024" height="1536" alt="image" src="https://github.com/user-attachments/assets/91fa7c46-1803-4198-bfd9-612dc2d3fc70" />
+
