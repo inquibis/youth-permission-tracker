@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, Request, Query
+from fastapi import FastAPI, Depends, HTTPException, Request, Query, UploadFile, File
 from sqlalchemy.orm import Session
 import base64, os
 from datetime import datetime
@@ -16,6 +16,9 @@ from pdf_func import create_signed_pdf, generate_waiver_pdf
 from auth import hash_password, decode_token
 from auth import verify_password, create_token
 from contact import Contact
+
+import csv
+import io
 
 # Initializations
 Base.metadata.create_all(bind=engine)
@@ -60,6 +63,47 @@ def login(user_email: str = Form(), password: str = Form(), db: Session = Depend
         raise HTTPException(status_code=401, detail="Invalid credentials")
     token = create_token({"sub": user.user_email})
     return {"access_token": token, "token_type": "bearer"}
+
+
+@app.post("/users-groupload")
+async def upload_users_from_file(file: UploadFile = File(...)):
+    if not file.filename.endswith('.csv'):
+        raise HTTPException(status_code=400, detail="Only CSV files are supported.")
+
+    content = await file.read()
+    decoded = content.decode("utf-8")
+    reader = csv.DictReader(io.StringIO(decoded))
+
+    db = SessionLocal()
+    added_users = 0
+
+#  "id": self.id,
+#             "first_name": self.first_name,
+#             "last_name": self.last_name,
+#             "guardian_name": self.guardian_name,
+#             "guardian_email": self.guardian_email,
+#             "guardian_cell": self.guardian_cell,
+#             "user_email": self.user_email,
+#             "user_cell": self.user_cell,
+#             "is_active": self.is_active,
+#             "groups": json.loads(self.groups or "[]"),
+    try:
+        for row in reader:
+            user = User(
+                name=row.get("name"),
+                email=row.get("email"),
+                age=int(row.get("age", 0))
+            )
+            db.add(user)
+            added_users += 1
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error processing file: {e}")
+    finally:
+        db.close()
+
+    return {"message": f"Uploaded and added {added_users} users successfully."}
 
 
 @app.get("/users")
@@ -118,6 +162,7 @@ def verify_token(token: str, db: Session = Depends(get_db)):
         "date_start": record.activity.date_start.isoformat(),
         "date_end": record.activity.date_end.isoformat()
     }
+
 
 ##########################
 ##  ACTIVITIES
