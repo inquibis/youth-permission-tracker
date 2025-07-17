@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Depends, HTTPException, Request, Query, UploadFile, File
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 import base64, os
 from datetime import datetime
@@ -8,17 +9,21 @@ from fastapi.security import OAuth2PasswordBearer
 from fastapi import Security
 from fastapi import Query
 from typing import List, Optional
+import os
+import csv
+import io
 
 from schema import ActivityInformationCreate, ActivityPermissionRequest, UserCreate, ActivityCreate, ActivityInformationOut, UserInterestIn, SelectedActivityOut
-from models import ActivityBudget, ActivityDriver, ActivityGroup, ActivityPermission, SelectedActivity, User, Activity, PermissionToken, ActivityPermission, ActivityInfo
+from models import ActivityBudget, ActivityDriver, ActivityGroup, ActivityPermission, SelectedActivity, User, Activity, PermissionToken, ActivityPermissionMedical, ActivityInfo
 from database import Base, engine, SessionLocal
 from pdf_func import create_signed_pdf, generate_waiver_pdf
 from auth import hash_password, decode_token
 from auth import verify_password, create_token
 from contact import Contact
+from data import activity_list
 
-import csv
-import io
+ENV = os.getenv("ENV", "prod")
+print(f"Starting API\nEnvironment: {ENV}")
 
 # Initializations
 Base.metadata.create_all(bind=engine)
@@ -145,9 +150,11 @@ def update_user(user_id: int, user: UserCreate, db: Session = Depends(get_db)):
     db.commit()
     return db_user.to_dict()
 
+
 @app.get("/groups")
 def get_groups(db: Session = Depends(get_db)):
     return list({user.group for user in db.query(User).all()})
+
 
 @app.get("/verify-token")
 def verify_token(token: str, db: Session = Depends(get_db)):
@@ -250,8 +257,8 @@ def submit_permission(token: str, db: Session = Depends(get_db)):
     return {"status": "signed"}
 
 
-@app.post("/submit-permission")
-def submit_permission(data: dict, request: Request, db: Session = Depends(get_db)):
+@app.post("/submit-permission-detail")
+def submit_permission_detail(data: dict, request: Request, db: Session = Depends(get_db)):
     token = data.get("token")
     if not token:
         raise HTTPException(status_code=400, detail="Missing token")
@@ -301,8 +308,8 @@ def submit_permission(data: dict, request: Request, db: Session = Depends(get_db
     return {"status": "signed"}
 
 
-@app.post("/activity-permission")
-def submit_permission(data: ActivityPermissionRequest, request: Request, db: Session = Depends(get_db)):
+@app.post("/activity-permission-medical")
+def submit_permission_medical(data: ActivityPermissionRequest, request: Request, db: Session = Depends(get_db)):
     # Save signature to file (optional)
     signature_path = None
     if data.signature:
@@ -318,7 +325,7 @@ def submit_permission(data: ActivityPermissionRequest, request: Request, db: Ses
         except Exception:
             raise HTTPException(status_code=400, detail="Invalid signature format")
 
-    entry = ActivityPermission(
+    entry = ActivityPermissionMedical(
         activity_id=data.activity_id,
         allergies=data.allergies,
         restrictions=data.restrictions,
@@ -424,6 +431,10 @@ def get_activity_permissions(activity_id: int, db: Session = Depends(get_db), us
 #   }
 # ]
 
+@app.post("/activity-ideas")
+def get_act_list():
+    return activity_list
+
 @app.post("/activity-information")
 def create_activity_info(payload: ActivityInformationCreate, db: Session = Depends(get_db)):
     activity = ActivityInfo(
@@ -513,7 +524,7 @@ def list_user_interests(db: Session = Depends(get_db)):
             grouped.setdefault(activity.year, []).append(activity.activity_name)
         for year, activities in grouped.items():
             result.append(SelectedActivityOut(
-                name=f\"{user.first_name} {user.last_name}\",
+                name=f"{user.first_name} {user.last_name}",
                 year=year,
                 activities=activities
             ))
@@ -537,26 +548,26 @@ def get_group_activities(group_name: str, db: Session = Depends(get_db)):
 ##############################
 ##  group needs
 ##############################
-@app.get("/identified-needs/{group_name}")
-def get_needs(group_name: str, db: Session = Depends(get_db)):
-    return db.query(IdentifiedNeed).filter_by(group_name=group_name).all()
+# @app.get("/identified-needs/{group_name}")
+# def get_needs(group_name: str, db: Session = Depends(get_db)):
+#     return db.query(IdentifiedNeed).filter_by(group_name=group_name).all()
 
-@app.post("/identified-needs")
-def create_need(need: IdentifiedNeedCreate, db: Session = Depends(get_db)):
-    db_need = IdentifiedNeed(**need.dict())
-    db.add(db_need)
-    db.commit()
-    db.refresh(db_need)
-    return db_need
+# @app.post("/identified-needs")
+# def create_need(need: IdentifiedNeedCreate, db: Session = Depends(get_db)):
+#     db_need = IdentifiedNeed(**need.dict())
+#     db.add(db_need)
+#     db.commit()
+#     db.refresh(db_need)
+#     return db_need
 
-@app.put("/identified-needs/{need_id}")
-def update_need(need_id: int, need: IdentifiedNeedCreate, db: Session = Depends(get_db)):
-    db.query(IdentifiedNeed).filter_by(id=need_id).update(need.dict())
-    db.commit()
-    return {"status": "updated"}
+# @app.put("/identified-needs/{need_id}")
+# def update_need(need_id: int, need: IdentifiedNeedCreate, db: Session = Depends(get_db)):
+#     db.query(IdentifiedNeed).filter_by(id=need_id).update(need.dict())
+#     db.commit()
+#     return {"status": "updated"}
 
-@app.delete("/identified-needs/{need_id}")
-def delete_need(need_id: int, db: Session = Depends(get_db)):
-    db.query(IdentifiedNeed).filter_by(id=need_id).delete()
-    db.commit()
-    return {"status": "deleted"}
+# @app.delete("/identified-needs/{need_id}")
+# def delete_need(need_id: int, db: Session = Depends(get_db)):
+#     db.query(IdentifiedNeed).filter_by(id=need_id).delete()
+#     db.commit()
+#     return {"status": "deleted"}

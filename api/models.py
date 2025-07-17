@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey
+from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey, Date, Float
 from sqlalchemy.orm import relationship
 from database import Base
 from datetime import datetime, date
@@ -21,8 +21,8 @@ class ActivityPermission(Base):
     ip_address = Column(String, nullable=True)
     user_agent = Column(String, nullable=True)
 
-class ActivityPermission(Base):
-    __tablename__ = "activity_permissions"
+class ActivityPermissionMedical(Base):
+    __tablename__ = "activity_permissions_medical"
 
     id = Column(Integer, primary_key=True, index=True)
     activity_id = Column(String(50), nullable=False)

@@ -19,3 +19,8 @@ pymysql
 
 python-multipart
 python-dotenv
+fpdf
+twilio
+jinja2
+
+aiosqlite 

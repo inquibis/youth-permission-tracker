@@ -14,6 +14,12 @@ api/.env
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
 
+# local setup
+.env
+
+# venv
+sandbox/
+
 # Mono auto generated files
 mono_crash.*
 

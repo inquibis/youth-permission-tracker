@@ -1,5 +1,4 @@
 from sqlalchemy.orm import Session
-from api.models import User
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
@@ -10,7 +9,7 @@ from twilio.rest import Client
 import secrets
 from datetime import datetime, timedelta
 from jinja2 import Template
-from api.models import PermissionToken, ActivityPermission
+from models import PermissionToken, ActivityPermission, User
 
 class Contact:
 
@@ -30,78 +29,78 @@ class Contact:
         for u in invited:
             print(f"Hello {u.first_name}!")
 
-        self.email_guardians(invited, activity_name)
+       # self.email_guardians(invited, activity_name)
         self.sms_guardians(invited, activity_name)
 
 
-    def email_guardians(self, users: list, activity_name: str):
-        smtp_host = os.getenv("SMTP_HOST", "smtp.gmail.com")
-        smtp_port = int(os.getenv("SMTP_PORT", "587"))
-        smtp_user = os.getenv("SMTP_USER")
-        smtp_pass = os.getenv("SMTP_PASS")
+    # def email_guardians(self, users: list, activity_name: str):
+    #     smtp_host = os.getenv("SMTP_HOST", "smtp.gmail.com")
+    #     smtp_port = int(os.getenv("SMTP_PORT", "587"))
+    #     smtp_user = os.getenv("SMTP_USER")
+    #     smtp_pass = os.getenv("SMTP_PASS")
 
-        for user in users:
-            if not user.guardian_email:
-                continue
+    #     for user in users:
+    #         if not user.guardian_email:
+    #             continue
 
-            msg = EmailMessage()
-            msg["Subject"] = f"New Activity: {activity_name}"
-            msg["From"] = smtp_user
-            msg["To"] = user.guardian_email
-            msg.set_content(f"Hello {user.guardian_name},\n\n{user.first_name} has been invited to the activity: {activity_name}.\n\nThank you.")
+    #         msg = EmailMessage()
+    #         msg["Subject"] = f"New Activity: {activity_name}"
+    #         msg["From"] = smtp_user
+    #         msg["To"] = user.guardian_email
+    #         msg.set_content(f"Hello {user.guardian_name},\n\n{user.first_name} has been invited to the activity: {activity_name}.\n\nThank you.")
 
-            try:
-                with smtplib.SMTP(smtp_host, smtp_port) as smtp:
-                    smtp.starttls()
-                    smtp.login(smtp_user, smtp_pass)
-                    smtp.send_message(msg)
-            except Exception as e:
-                print(f"Failed to email {user.guardian_email}: {e}")
+    #         try:
+    #             with smtplib.SMTP(smtp_host, smtp_port) as smtp:
+    #                 smtp.starttls()
+    #                 smtp.login(smtp_user, smtp_pass)
+    #                 smtp.send_message(msg)
+    #         except Exception as e:
+    #             print(f"Failed to email {user.guardian_email}: {e}")
 
 
-    def email_guardians(users, activity, db):
-        for user in users:
-            # Generate secure token
-            token = generate_token()
-            expires = datetime.utcnow() + timedelta(days=7)
+    # def email_guardians(self, users, activity, db):
+    #     for user in users:
+    #         # Generate secure token
+    #         token = self.generate_token()
+    #         expires = datetime.utcnow() + timedelta(days=7)
 
-            # Save token in DB
-            db_token = PermissionToken(
-                token=token,
-                user_id=user.id,
-                activity_id=activity.id,
-                expires_at=expires
-            )
-            db.add(db_token)
+    #         # Save token in DB
+    #         db_token = PermissionToken(
+    #             token=token,
+    #             user_id=user.id,
+    #             activity_id=activity.id,
+    #             expires_at=expires
+    #         )
+    #         db.add(db_token)
 
-            # Construct email body using a template
-            html_template = Template("""
-            <p>Dear {{ guardian_name or "Parent" }},</p>
-            <p>Please review and sign the permission waiver for the upcoming activity:</p>
-            <ul>
-            <li><strong>Name:</strong> {{ activity_name }}</li>
-            <li><strong>Dates:</strong> {{ date_start }} to {{ date_end }}</li>
-            <li><strong>Description:</strong> {{ description }}</li>
-            </ul>
-            <p>Click the button below to sign the waiver:</p>
-            <p><a href="{{ link }}" style="padding: 10px 15px; background: #007bff; color: white; text-decoration: none; border-radius: 4px;">Sign Permission Waiver</a></p>
-            <p>This link expires in 7 days.</p>
-            """)
+    #         # Construct email body using a template
+    #         html_template = Template("""
+    #         <p>Dear {{ guardian_name or "Parent" }},</p>
+    #         <p>Please review and sign the permission waiver for the upcoming activity:</p>
+    #         <ul>
+    #         <li><strong>Name:</strong> {{ activity_name }}</li>
+    #         <li><strong>Dates:</strong> {{ date_start }} to {{ date_end }}</li>
+    #         <li><strong>Description:</strong> {{ description }}</li>
+    #         </ul>
+    #         <p>Click the button below to sign the waiver:</p>
+    #         <p><a href="{{ link }}" style="padding: 10px 15px; background: #007bff; color: white; text-decoration: none; border-radius: 4px;">Sign Permission Waiver</a></p>
+    #         <p>This link expires in 7 days.</p>
+    #         """)
 
-            html = html_template.render(
-                guardian_name=user.guardian_name,
-                activity_name=activity.activity_name,
-                date_start=activity.date_start.strftime("%B %d, %Y"),
-                date_end=activity.date_end.strftime("%B %d, %Y"),
-                description=activity.description,
-                link=f"https://yourdomain.com/parental-permission.html?token={token}"
-            )
+    #         html = html_template.render(
+    #             guardian_name=user.guardian_name,
+    #             activity_name=activity.activity_name,
+    #             date_start=activity.date_start.strftime("%B %d, %Y"),
+    #             date_end=activity.date_end.strftime("%B %d, %Y"),
+    #             description=activity.description,
+    #             link=f"https://yourdomain.com/parental-permission.html?token={token}"
+    #         )
 
-            send_email(to=user.guardian_email, subject="Permission Request for Activity", html=html)
+    #         self.send_email(to=user.guardian_email, subject="Permission Request for Activity", html=html)
 
-        db.commit()
+    #     db.commit()
 
-    def send_admin_confirmation(user_name, guardian_name, activity_name, pdf_path):
+    def send_admin_confirmation(self, user_name, guardian_name, activity_name, pdf_path):
         msg = MIMEMultipart()
         msg['Subject'] = f"Signed Waiver: {user_name} - {activity_name}"
         msg['From'] = "noreply@notic.com"
@@ -126,6 +125,7 @@ class Contact:
             server.login("your_username", "your_password")
             server.send_message(msg)
 
+
     def sms_guardians(self, users: list, activity_name: str):
         twilio_sid = os.getenv("TWILIO_ACCOUNT_SID")
         twilio_token = os.getenv("TWILIO_AUTH_TOKEN")
@@ -146,7 +146,8 @@ class Contact:
                 print(f"Failed to SMS {user.guardian_cell}: {e}")
 
 
-    def create_parent_token():
+    # def create_parent_token(self):
+    #     pass
 #         Guardians receive an email with:
 
 # Activity name, dates, description

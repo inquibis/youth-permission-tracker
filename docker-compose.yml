@@ -9,13 +9,13 @@ services:
     depends_on:
       - mysql
     environment:
-      MYSQL_USER: root
-      MYSQL_PASSWORD: mysecret
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
       MYSQL_HOST: mysql
       MYSQL_PORT: 3306
-      MYSQL_DB: activitydb
+      MYSQL_DB: ${MYSQL_DB}
       BASE_URL: http://localhost/api
-      DATABASE_URL=mysql+pymysql://user:password@mysql/db_name
+      DATABASE_URL: ${DATABASE_URL}
     volumes:
       - ./api/signatures:/app/signatures
       - ./api/pdfs:/app/pdfs
@@ -30,10 +30,10 @@ services:
     ports:
       - "3306:3306"
     environment:
-      MYSQL_ROOT_PASSWORD: mysecret
-      MYSQL_DATABASE: activitydb
-      MYSQL_USER: user
-      MYSQL_PASSWORD: password
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT}
+      MYSQL_DATABASE: ${MYSQL_DB}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     volumes:
       - mysql_data:/var/lib/mysql
 

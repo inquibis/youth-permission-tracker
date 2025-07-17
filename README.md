@@ -88,7 +88,8 @@ Persuant the handbook all activity requests will be sent to the Bishop for appro
     This file is created with: `alembic init alembic`
 2. Create api image
 -  `docker image build -t youth-permission-api -f api-dockerfile .`
-3. Run docker compose `docker-compose up`
-4. Verify api is running: `http://localhost:8000/docs`
-5. Verify website is running: `http://localhost`
+3. Update the root level .env file which will be used by the docker-compose file for variables
+4. Run docker compose `docker-compose up`
+5. Verify api is running: `http://localhost:8000/docs`
+6. Verify website is running: `http://localhost`
 
