@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, Request, Query, UploadFile, File
+from fastapi import FastAPI, Depends, HTTPException, Request, Query, UploadFile, File, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 import base64, os
@@ -13,6 +13,7 @@ import os
 import csv
 import io
 
+
 from schema import ActivityInformationCreate, ActivityPermissionRequest, UserCreate, ActivityCreate, ActivityInformationOut, UserInterestIn, SelectedActivityOut
 from models import ActivityBudget, ActivityDriver, ActivityGroup, ActivityPermission, SelectedActivity, User, Activity, PermissionToken, ActivityPermissionMedical, ActivityInfo
 from database import Base, engine, SessionLocal
@@ -21,6 +22,7 @@ from auth import hash_password, decode_token
 from auth import verify_password, create_token
 from contact import Contact
 from data import activity_list
+
 
 ENV = os.getenv("ENV", "prod")
 print(f"Starting API\nEnvironment: {ENV}")
@@ -53,6 +55,7 @@ app.add_middleware(
 ###################
 ### USER SECTION
 ###################
+
 def get_current_user(token: str = Security(oauth2_scheme)):
     try:
         payload = decode_token(token)
@@ -67,7 +70,15 @@ def login(username: str = Form(), password: str = Form(), db: Session = Depends(
         user = db.query(User).filter(User.user_email == username).first()
         if not user or not verify_password(password, user.password_hash):
             raise HTTPException(status_code=401, detail="Invalid credentials")
-    token = create_token({"sub": username})
+    #TODO        
+    user_data = {"sub": username}
+    if ENV=="test":
+        user_data = {
+            "role":"tester",
+            "is_guardian":1,
+            "username":username
+        }
+    token = create_token()
     return {"access_token": token, "token_type": "bearer"}
 
 
@@ -119,7 +130,12 @@ def list_users(db: Session = Depends(get_db)):
 
 
 @app.post("/users", tags=["Users"])
-def create_user(user: UserCreate, db: Session = Depends(get_db)):
+def create_user(user: UserCreate, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have access to this resource"
+        )
     new_user = User(
         first_name=user.first_name,
         last_name=user.last_name,
@@ -138,7 +154,12 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
 
 
 @app.put("/users/{user_id}", tags=["Users"])
-def update_user(user_id: int, user: UserCreate, db: Session = Depends(get_db)):
+def update_user(user_id: int, user: UserCreate, db: Session = Depends(get_db),current_user: dict = Depends(get_current_user)):
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have access to this resource"
+        )
     db_user = db.query(User).filter(User.id == user_id).first()
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -171,6 +192,9 @@ def verify_token(token: str, db: Session = Depends(get_db)):
         "date_end": record.activity.date_end.isoformat()
     }
 
+@app.get("/hello-world")
+def hello_world(current_user: dict = Depends(get_current_user)):
+    return current_user
 
 ##########################
 ##  ACTIVITIES
