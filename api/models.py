@@ -62,13 +62,14 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     first_name = Column(String(100))
     last_name = Column(String(100))
-    guardian_name = Column(String(100))
-    guardian_email = Column(String(100))
-    guardian_cell = Column(String(20))
+    guardian_name = Column(String(100), nullable=True)
+    guardian_email = Column(String(100), nullable=True)
+    guardian_cell = Column(String(20), nullable=True)
     user_email = Column(String(100))
     user_cell = Column(String(20))
     is_active = Column(Boolean, default=True)
     groups = Column(Text)  # store as JSON array
+    role = Column(String(20))
 
     def to_dict(self):
         return {
@@ -82,6 +83,7 @@ class User(Base):
             "user_cell": self.user_cell,
             "is_active": self.is_active,
             "groups": json.loads(self.groups or "[]"),
+            "role": self.role,
         }
 
 

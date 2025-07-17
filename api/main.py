@@ -1,6 +1,5 @@
 from fastapi import FastAPI, Depends, HTTPException, Request, Query, UploadFile, File, status
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
 from sqlalchemy.orm import Session
 import base64, os
 from datetime import datetime
@@ -88,7 +87,7 @@ def get_roles():
 
 
 @app.get("/list-groups", tags=["Users"], description="List potential group membership")
-def get_roles():
+def get_groups():
     return list("Deacon","Teacher","Priest","Young Man","Young Woman", "Young Woman-younger","Young Woman-older")
 
 @app.get("/groups", tags=["Users"], description="List current group memberships of members")
