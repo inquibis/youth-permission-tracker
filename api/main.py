@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Depends, HTTPException, Request, Query, UploadFile, File, status
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 import base64, os
 from datetime import datetime
@@ -55,11 +56,10 @@ app.add_middleware(
 ###################
 ### USER SECTION
 ###################
-
+    
 def get_current_user(token: str = Security(oauth2_scheme)):
     try:
-        payload = decode_token(token)
-        return payload["sub"]
+        return decode_token(token)
     except Exception:
         raise HTTPException(status_code=401, detail="Invalid token")
     
@@ -78,8 +78,22 @@ def login(username: str = Form(), password: str = Form(), db: Session = Depends(
             "is_guardian":1,
             "username":username
         }
-    token = create_token()
+    token = create_token(user_data)
     return {"access_token": token, "token_type": "bearer"}
+
+
+@app.get("/list-roles", tags=["Users"])
+def get_roles():
+    return list("admin", "bishopric", "guardian", "presidency", "tester", "youth")
+
+
+@app.get("/list-groups", tags=["Users"], description="List potential group membership")
+def get_roles():
+    return list("Deacon","Teacher","Priest","Young Man","Young Woman", "Young Woman-younger","Young Woman-older")
+
+@app.get("/groups", tags=["Users"], description="List current group memberships of members")
+def get_current_groups(db: Session = Depends(get_db)):
+    return list({user.group for user in db.query(User).all()})
 
 
 @app.post("/users-groupload", tags=["Users"])
@@ -173,11 +187,6 @@ def update_user(user_id: int, user: UserCreate, db: Session = Depends(get_db),cu
     return db_user.to_dict()
 
 
-@app.get("/groups", tags=["Users"])
-def get_groups(db: Session = Depends(get_db)):
-    return list({user.group for user in db.query(User).all()})
-
-
 @app.get("/verify-token", tags=["Users"])
 def verify_token(token: str, db: Session = Depends(get_db)):
     record = db.query(PermissionToken).filter_by(token=token, used=False).first()
@@ -192,9 +201,15 @@ def verify_token(token: str, db: Session = Depends(get_db)):
         "date_end": record.activity.date_end.isoformat()
     }
 
+
+###################
+### BASE SECTION
+###################
+
 @app.get("/hello-world")
 def hello_world(current_user: dict = Depends(get_current_user)):
     return current_user
+
 
 ##########################
 ##  ACTIVITIES
