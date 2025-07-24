@@ -76,7 +76,7 @@
   } catch (err) {
     console.warn("Loading from local fallback:", err);
     try {
-      const fallback = await fetch("local-activities.json");
+      const fallback = await fetch("test_data/local-activities.json");
       const localActivities = await fallback.json();
       renderActivities(localActivities);
     } catch (fallbackErr) {

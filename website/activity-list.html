@@ -140,7 +140,7 @@
         allActivities = data;
       } catch (err) {
         console.warn("Loading fallback from example-activity-list.json due to:", err.message);
-        const fallback = await fetch("example-activity-list.json");
+        const fallback = await fetch("test_data/example-activity-list.json");
         allActivities = await fallback.json();
       }
 

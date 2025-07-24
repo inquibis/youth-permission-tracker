@@ -39,7 +39,7 @@
 
   if (!token) {
     // No token → use local fallback
-    fetch("parental-activity-examples.json")
+    fetch("test_data/parental-activity-examples.json")
       .then(res => {
         if (!res.ok) throw new Error("Failed to load fallback data");
         return res.json();

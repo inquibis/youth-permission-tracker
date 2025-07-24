@@ -94,7 +94,7 @@
         if (!res.ok) throw new Error("Login failed");
         return await res.json();
       } catch {
-        const res = await fetch("login_fallback.json");
+        const res = await fetch("test_data/login_fallback.json");
         const fallbackUsers = await res.json();
         const user = fallbackUsers.find(u => u.username === username && u.password === password);
         if (user) return { group_name: user.group_name };
@@ -103,7 +103,7 @@
     }
 
     async function loadNeeds() {
-      const needs = await fetchWithFallback(`/identified-needs/${groupName}`, "needs.json");
+      const needs = await fetchWithFallback(`/identified-needs/${groupName}`, "test_data/needs.json");
       renderNeeds(needs);
     }
 

@@ -49,7 +49,7 @@
     }
 
     async function fetchUsers() {
-      const users = await fetchWithFallback("/users", "user-examples.json");
+      const users = await fetchWithFallback("/users", "test_data/user-examples.json");
       usersMap = {};
       users.forEach(user => {
         usersMap[user.id] = user;
@@ -61,7 +61,7 @@
     }
 
     async function fetchGroups() {
-      const groups = await fetchWithFallback("/groups", "groups.json");
+      const groups = await fetchWithFallback("/groups", "test_data/groups.json");
       groups.forEach(group => {
         const option = document.createElement("option");
         option.value = group;
@@ -81,7 +81,7 @@
           throw new Error("Empty");
         }
       } catch {
-        const res = await fetch("user_activities.json");
+        const res = await fetch("test_data/user_activities.json");
         const data = await res.json();
         return data[userId] || [];
       }
@@ -98,7 +98,7 @@
           throw new Error("Empty");
         }
       } catch {
-        const res = await fetch("group_activities.json");
+        const res = await fetch("test_data/group_activities.json");
         const data = await res.json();
         return data[groupName] || {};
       }

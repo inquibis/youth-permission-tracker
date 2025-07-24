@@ -118,7 +118,7 @@
 
     try {
       if (useTestData || localStorage.getItem("token") === TEST_TOKEN) {
-        const res = await fetch("user-examples.json");
+        const res = await fetch("test_data/user-examples.json");
         if (!res.ok) throw new Error("Failed to load test data");
         users = await res.json();
       } else {
