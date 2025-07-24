@@ -36,6 +36,7 @@
   </div>
 
 <script>
+  const base_url = window.env?.BASE_URL || 'http://localhost:8000';
   const token = localStorage.getItem("token");
   const params = new URLSearchParams(window.location.search);
   const activityId = params.get("id");
@@ -71,7 +72,7 @@
     if (!activityId) return showError("Missing activity ID");
 
     try {
-      const res = await fetch(`/api/activity-permissions?id=${activityId}`, {
+      const res = await fetch(`${base_url}/activity-permissions?id=${activityId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -136,7 +137,7 @@
   }
 
   async function resendOne(permissionId) {
-    const res = await fetch(`/api/resend-permission?id=${permissionId}`, {
+    const res = await fetch(`${base_url}/resend-permission?id=${permissionId}`, {
       headers: { Authorization: `Bearer ${token}` }
     });
 
@@ -150,7 +151,7 @@
 
   document.getElementById("reRequestBtn").addEventListener("click", async () => {
     if (!confirm("Re-send waivers to all unsigned guardians?")) return;
-    const res = await fetch(`/api/request-permissions?id=${activityId}`, {
+    const res = await fetch(`${base_url}/request-permissions?id=${activityId}`, {
       headers: { Authorization: `Bearer ${token}` }
     });
 

@@ -88,6 +88,7 @@
   </div>
 
   <script>
+    const base_url = window.env?.BASE_URL || 'http://localhost:8000';
     function addBudgetItem() {
       const item = document.getElementById("budgetItem").value;
       const amount = document.getElementById("budgetAmount").value;
@@ -128,7 +129,7 @@
       is_travel_over_50_miles: document.getElementById("isTravelOver50Miles").checked
     };
 
-      const res = await fetch(`${window.BASE_URL || ''}/activity-information`, {
+      const res = await fetch(`${base_url}/activity-information`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)

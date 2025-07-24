@@ -236,6 +236,15 @@ def verify_token(token: str, db: Session = Depends(get_db)):
         "date_end": record.activity.date_end.isoformat()
     }
 
+@app.get("/permission-check", tags=["Users"])
+def verify_permission(db: Session = Depends(get_db),current_user: dict = Depends(get_current_user)):
+    if current_user.role == "admin" or current_user.role=="presidency":
+        current_user["is_admin"]=True
+    else:
+        current_user["is_admin"]=False
+    return current_user
+
+
 
 ###################
 ### BASE SECTION

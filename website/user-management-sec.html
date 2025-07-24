@@ -55,7 +55,7 @@
   </div>
 
  <script>
-  const BASE_URL = "/api";
+  const base_url = window.env?.BASE_URL || 'http://localhost:8000';
   const token = localStorage.getItem("token");
 
   const loginSection = document.getElementById("loginSection");

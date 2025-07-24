@@ -34,6 +34,7 @@
   </div>
 
   <script>
+  const base_url = window.env?.BASE_URL || 'http://localhost:8000';
   const params = new URLSearchParams(window.location.search);
   const token = params.get("token");
 
@@ -61,7 +62,7 @@
       });
   } else {
     // Token present → verify with API
-    fetch(`/api/verify-token?token=${token}`)
+    fetch(`${base_url}/api/verify-token?token=${token}`)
       .then(res => {
         if (!res.ok) throw new Error("Token invalid or expired");
         return res.json();
@@ -103,7 +104,7 @@
     btn.disabled = true;
     btn.textContent = "Submitting...";
 
-    const res = await fetch("/api/submit-permission", {
+    const res = await fetch(`${base_url}/api/submit-permission`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ token })

@@ -43,10 +43,10 @@
   <div id="usersContainer"></div>
 
   <script>
-    const BASE_URL = "/api";
+    const base_url = window.env?.BASE_URL || 'http://localhost:8000';
 
     async function loadUsers() {
-      const res = await fetch(`${BASE_URL}/users`);
+      const res = await fetch(`${base_url}/users`);
       const users = await res.json();
       const container = document.getElementById("usersContainer");
       container.innerHTML = '';
@@ -76,7 +76,7 @@
         is_active: formData.get("is_active") === "true",
         groups: Array.from(form.querySelector("select[name='groups']").selectedOptions).map(opt => opt.value)
       };
-      await fetch(`${BASE_URL}/users`, {
+      await fetch(`${base_url}/users`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)

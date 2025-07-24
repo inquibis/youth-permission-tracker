@@ -28,6 +28,7 @@
   </div>
 
   <script>
+    const base_url = window.env?.BASE_URL || 'http://localhost:8000';
     const userSelect = document.getElementById("userSelect");
     const groupSelect = document.getElementById("groupSelect");
     const results = document.getElementById("results");
@@ -49,7 +50,7 @@
     }
 
     async function fetchUsers() {
-      const users = await fetchWithFallback("/users", "test_data/user-examples.json");
+      const users = await fetchWithFallback(`${base_url}/users`, "test_data/user-examples.json");
       usersMap = {};
       users.forEach(user => {
         usersMap[user.id] = user;
@@ -61,7 +62,7 @@
     }
 
     async function fetchGroups() {
-      const groups = await fetchWithFallback("/groups", "test_data/groups.json");
+      const groups = await fetchWithFallback(`${base_url}/groups`, "test_data/groups.json");
       groups.forEach(group => {
         const option = document.createElement("option");
         option.value = group;
@@ -72,7 +73,7 @@
 
     async function fetchUserActivities(userId) {
       try {
-        const res = await fetch(`/selectedactivities/user/${userId}`);
+        const res = await fetch(`${base_url}/selectedactivities/user/${userId}`);
         if (!res.ok) throw new Error("API error");
         const data = await res.json();
         if (Array.isArray(data) && data.length > 0) {
@@ -89,7 +90,7 @@
 
     async function fetchGroupActivities(groupName) {
       try {
-        const res = await fetch(`/selectedactivities/group/${groupName}`);
+        const res = await fetch(`${base_url}/selectedactivities/group/${groupName}`);
         if (!res.ok) throw new Error("API error");
         const data = await res.json();
         if (Object.keys(data).length > 0) {
