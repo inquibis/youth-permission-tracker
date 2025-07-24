@@ -14,8 +14,13 @@ import csv
 import io
 
 
-from schema import ActivityInformationCreate, ActivityPermissionRequest, UserCreate, ActivityCreate, ActivityInformationOut, UserInterestIn, SelectedActivityOut
-from models import ActivityBudget, ActivityDriver, ActivityGroup, ActivityPermission, SelectedActivity, User, Activity, PermissionToken, ActivityPermissionMedical, ActivityInfo
+from schema import (ActivityInformationCreate, ActivityPermissionRequest, 
+                    ActivityReviewIn, ActivityReviewOut, BudgetItem, UserCreate, 
+                    ActivityCreate, ActivityInformationOut, UserInterestIn, 
+                    SelectedActivityOut,NeedCreate, NeedUpdate, NeedInDB)
+from models import (ActivityBudget, ActivityDriver, ActivityGroup, ActivityPermission, 
+ActivityReview, SelectedActivity, User, Activity, PermissionToken, Attendee, 
+ActivityPermissionMedical, ActivityInfo, IdentifiedNeed)
 from database import Base, engine, SessionLocal
 from pdf_func import create_signed_pdf, generate_waiver_pdf
 from auth import hash_password, decode_token
@@ -55,6 +60,15 @@ app.add_middleware(
 ###################
 ### USER SECTION
 ###################
+
+def generate_custom_user_id(db: Session, first_name: str, last_name: str) -> str:
+    prefix = (first_name[0] + last_name).lower()
+
+    # Count existing users with the same prefix
+    count = db.query(User).filter(User.id.like(f"{prefix}%")).count()
+
+    new_id = f"{prefix}{str(count + 1).zfill(3)}"  # e.g., jdoe001
+    return new_id
     
 def get_current_user(token: str = Security(oauth2_scheme)):
     try:
@@ -89,6 +103,7 @@ def get_roles():
 @app.get("/list-groups", tags=["Users"], description="List potential group membership")
 def get_groups():
     return list("Deacon","Teacher","Priest","Young Man","Young Woman", "Young Woman-younger","Young Woman-older")
+
 
 @app.get("/groups", tags=["Users"], description="List current group memberships of members")
 def get_current_groups(db: Session = Depends(get_db)):
@@ -149,21 +164,26 @@ def create_user(user: UserCreate, db: Session = Depends(get_db), current_user: d
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You do not have access to this resource"
         )
-    new_user = User(
-        first_name=user.first_name,
-        last_name=user.last_name,
-        guardian_name=user.guardian_name,
-        guardian_email=user.guardian_email,
-        guardian_cell=user.guardian_cell,
-        user_email=user.user_email,
-        user_cell=user.user_cell,
-        is_active=user.is_active,
-        groups=json.dumps(user.groups)
-    )
+    # TODO, hash guardian password
+    user_id = generate_custom_user_id(db, user.first_name, user.last_name)
+    new_user = User(id=user_id, **user.dict())
+    # new_user = User(
+    #     first_name=user.first_name,
+    #     last_name=user.last_name,
+    #     guardian_name=user.guardian_name,
+    #     guardian_email=user.guardian_email,
+    #     guardian_cell=user.guardian_cell,
+    #     user_email=user.user_email,
+    #     user_cell=user.user_cell,
+    #     is_active=user.is_active,
+    #     groups=json.dumps(user.groups),
+    #     role = user.role,
+    #     guardian_password = user.guardian_password
+    # )
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
-    return new_user.to_dict()
+    return new_user.to_dict()  # modify info which is returned TODO
 
 
 @app.put("/users/{user_id}", tags=["Users"])
@@ -184,6 +204,22 @@ def update_user(user_id: int, user: UserCreate, db: Session = Depends(get_db),cu
             setattr(db_user, field, value)
     db.commit()
     return db_user.to_dict()
+
+
+@app.delete("/users/{user_id}", tags=["Users"])
+def delete_user(user_id: int, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have access to this resource"
+        )
+    db_user = db.query(User).filter(User.id == user_id).first()
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    db.delete(db_user)
+    db.commit()
+    return {"detail": f"User {user_id} deleted successfully"}
 
 
 @app.get("/verify-token", tags=["Users"])
@@ -470,7 +506,7 @@ def get_activity_permissions(activity_id: int, db: Session = Depends(get_db), us
 #   }
 # ]
 
-@app.post("/activity-ideas",  tags=["Activities"])
+@app.get("/activity-ideas",  tags=["Activities"])
 def get_act_list():
     return activity_list
 
@@ -587,26 +623,71 @@ def get_group_activities(group_name: str, db: Session = Depends(get_db)):
 ##############################
 ##  group needs
 ##############################
-# @app.get("/identified-needs/{group_name}")
-# def get_needs(group_name: str, db: Session = Depends(get_db)):
-#     return db.query(IdentifiedNeed).filter_by(group_name=group_name).all()
+@app.get("/identified-needs/{group_name}", response_model=List[NeedInDB])
+def get_needs(group_name: str, db: Session = Depends(get_db)):
+    return db.query(IdentifiedNeed).filter(IdentifiedNeed.group_name == group_name).all()
 
-# @app.post("/identified-needs")
-# def create_need(need: IdentifiedNeedCreate, db: Session = Depends(get_db)):
-#     db_need = IdentifiedNeed(**need.dict())
-#     db.add(db_need)
-#     db.commit()
-#     db.refresh(db_need)
-#     return db_need
+@app.post("/identified-needs", response_model=NeedInDB)
+def create_need(need: NeedCreate, db: Session = Depends(get_db)):
+    new_need = IdentifiedNeed(**need.dict())
+    db.add(new_need)
+    db.commit()
+    db.refresh(new_need)
+    return new_need
 
-# @app.put("/identified-needs/{need_id}")
-# def update_need(need_id: int, need: IdentifiedNeedCreate, db: Session = Depends(get_db)):
-#     db.query(IdentifiedNeed).filter_by(id=need_id).update(need.dict())
-#     db.commit()
-#     return {"status": "updated"}
+@app.put("/identified-needs/{need_id}", response_model=NeedInDB)
+def update_need(need_id: int, need: NeedUpdate, db: Session = Depends(get_db)):
+    db_need = db.query(IdentifiedNeed).filter(IdentifiedNeed.id == need_id).first()
+    if not db_need:
+        raise HTTPException(status_code=404, detail="Need not found")
 
-# @app.delete("/identified-needs/{need_id}")
-# def delete_need(need_id: int, db: Session = Depends(get_db)):
-#     db.query(IdentifiedNeed).filter_by(id=need_id).delete()
-#     db.commit()
-#     return {"status": "deleted"}
+    db_need.group_name = need.group_name
+    db_need.need = need.need
+    db_need.priority = need.priority
+    # db_need.created_by = need.created_by  # optional to allow edit
+    db.commit()
+    db.refresh(db_need)
+    return db_need
+
+@app.delete("/identified-needs/{need_id}")
+def delete_need(need_id: int, db: Session = Depends(get_db)):
+    need = db.query(IdentifiedNeed).filter(IdentifiedNeed.id == need_id).first()
+    if not need:
+        raise HTTPException(status_code=404, detail="Need not found")
+    db.delete(need)
+    db.commit()
+    return {"detail": "Deleted"}
+
+
+@app.get("/activity-review", response_model=ActivityReviewOut)
+def get_activity_review(activity_id: int = Query(...), db: Session = Depends(get_db)):
+    activity = db.query(Activity).filter(Activity.id == activity_id).first()
+    if not activity:
+        raise HTTPException(status_code=404, detail="Activity not found")
+
+    attendees = db.query(Attendee).filter(Attendee.activity_id == activity_id).all()
+    budget_items = db.query(BudgetItem).filter(BudgetItem.activity_id == activity_id).all()
+
+    return {
+        "attendees": [a.name for a in attendees],
+        "budget": activity.budget,
+        "budget_items": [{"name": item.name, "cost": item.cost} for item in budget_items],
+        "description": activity.description
+    }
+
+@app.post("/activity-review")
+def post_activity_review(review: ActivityReviewIn, db: Session = Depends(get_db)):
+    if not db.query(Activity).filter(Activity.id == review.activity_id).first():
+        raise HTTPException(status_code=404, detail="Activity not found")
+
+    new_review = ActivityReview(
+        activity_id=review.activity_id,
+        general_thoughts=review.general_thoughts,
+        what_went_well=review.what_went_well,
+        what_did_not_go_well=review.what_did_not_go_well,
+        actual_costs=review.actual_costs
+    )
+    db.add(new_review)
+    db.commit()
+
+    return {"message": "Review submitted successfully"}

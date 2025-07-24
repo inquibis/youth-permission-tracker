@@ -5,7 +5,7 @@ from datetime import datetime, date
 import json
 from sqlalchemy.ext.mutable import MutableList
 from sqlalchemy.types import JSON
-
+from sqlalchemy.sql import func
 
 password_hash = Column(String(255))
 
@@ -58,8 +58,7 @@ class Activity(Base):
 
 class User(Base):
     __tablename__ = "users"
-
-    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String(100), primary_key=True, index=True)
     first_name = Column(String(100))
     last_name = Column(String(100))
     guardian_name = Column(String(100), nullable=True)
@@ -70,10 +69,11 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     groups = Column(Text)  # store as JSON array
     role = Column(String(20))
+    guardian_password = Column(String(25), nullable=True)
 
     def to_dict(self):
         return {
-            "id": self.id,
+            "user_id": self.user_id,
             "first_name": self.first_name,
             "last_name": self.last_name,
             "guardian_name": self.guardian_name,
@@ -84,6 +84,7 @@ class User(Base):
             "is_active": self.is_active,
             "groups": json.loads(self.groups or "[]"),
             "role": self.role,
+            "guardian_password": self.guardian_password,
         }
 
 
@@ -154,3 +155,21 @@ class IdentifiedNeed(Base):
     priority = Column(Integer, nullable=False)
     created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+class ActivityReview(Base):
+    __tablename__ = "activity_reviews"
+
+    id = Column(Integer, primary_key=True, index=True)
+    activity_id = Column(Integer, ForeignKey("activities.id"), nullable=False)
+    general_thoughts = Column(Text, nullable=False)
+    what_went_well = Column(Text, nullable=True)
+    what_did_not_go_well = Column(Text, nullable=True)
+    actual_costs = Column(Float, nullable=False)
+    submitted_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+class Attendee(Base):
+    __tablename__ = "attendees"
+
+    id = Column(Integer, primary_key=True)
+    activity_id = Column(Integer, ForeignKey("activities.id"), nullable=False)
+    name = Column(String(100), nullable=False)

@@ -22,14 +22,15 @@ class ActivityPermissionRequest(BaseModel):
 class UserCreate(BaseModel):
     first_name: str
     last_name: str
-    guardian_name: str
-    guardian_email: str
-    guardian_cell: str
+    guardian_name: Optional[str] = None
+    guardian_email: Optional[str] = None
+    guardian_cell: Optional[str] = None
     user_email: str
     user_cell: str
     is_active: Optional[bool] = True
     groups: List[str]
-    guardian_password: str
+    role: str
+    guardian_password: Optional[str] = None
 
 class ActivityCreate(BaseModel):
     activity_name: str
@@ -67,3 +68,41 @@ class SelectedActivityOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class BudgetItemOut(BaseModel):
+    name: str
+    cost: float
+
+class ActivityReviewOut(BaseModel):
+    attendees: List[str]
+    budget: float
+    budget_items: List[BudgetItemOut]
+    description: str
+
+class ActivityReviewIn(BaseModel):
+    activity_id: int
+    general_thoughts: str
+    what_went_well: str
+    what_did_not_go_well: str
+    actual_costs: float
+
+
+class NeedBase(BaseModel):
+    group_name: str
+    need: str
+    priority: int
+    created_by: int
+
+class NeedCreate(NeedBase):
+    pass
+
+class NeedUpdate(NeedBase):
+    id: int
+
+class NeedInDB(NeedBase):
+    id: int
+    created_at: datetime
+
+    class Config:
+        orm_mode = True
