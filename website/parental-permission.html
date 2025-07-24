@@ -72,7 +72,7 @@
 
       json.activity_id = activityId;
 
-      const response = await fetch(`${BASE_URL}/activity-permission`, {
+      const response = await fetch(`${BASE_URL}/activity-permission-medical`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(json)

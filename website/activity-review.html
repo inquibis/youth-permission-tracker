@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Activity Review</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+</head>
+<body class="bg-light">
+  <div class="container py-4">
+    <h2 class="mb-4">Activity Review</h2>
+
+    <!-- Activity Info Display -->
+    <div id="activityInfo" class="mb-4">
+      <h4>Description</h4>
+      <p id="description">Loading...</p>
+
+      <h5>Attendees</h5>
+      <ul id="attendees"></ul>
+
+      <h5>Budgeted Total: $<span id="budgetTotal">0.00</span></h5>
+
+      <h6>Budget Items</h6>
+      <ul id="budgetItems"></ul>
+    </div>
+
+    <!-- Review Form -->
+    <form id="reviewForm" class="border p-3 bg-white rounded">
+      <div class="mb-3">
+        <label for="generalThoughts" class="form-label">General Thoughts</label>
+        <textarea id="generalThoughts" class="form-control" rows="3" required></textarea>
+      </div>
+      <div class="mb-3">
+        <label for="whatWentWell" class="form-label">What Went Well</label>
+        <textarea id="whatWentWell" class="form-control" rows="2"></textarea>
+      </div>
+      <div class="mb-3">
+        <label for="whatDidNotGoWell" class="form-label">What Didn't Go Well</label>
+        <textarea id="whatDidNotGoWell" class="form-control" rows="2"></textarea>
+      </div>
+      <div class="mb-3">
+        <label for="actualCosts" class="form-label">Actual Costs</label>
+        <input type="number" id="actualCosts" class="form-control" step="0.01" required />
+      </div>
+      <button type="submit" class="btn btn-primary">Submit Review</button>
+    </form>
+  </div>
+
+  <script>
+    // Inject your base_url from a <script> tag or .env replacement
+    const base_url = window.env?.BASE_URL || 'http://localhost:8000';  // fallback for testing
+
+    const params = new URLSearchParams(window.location.search);
+    const activityId = params.get("activity_id");
+
+    async function loadActivityData() {
+      try {
+        const res = await fetch(`${base_url}/activity-review?activity_id=${activityId}`);
+        const data = await res.json();
+
+        document.getElementById("description").textContent = data.description || '';
+        document.getElementById("budgetTotal").textContent = data.budget.toFixed(2);
+
+        const attendeesList = document.getElementById("attendees");
+        attendeesList.innerHTML = '';
+        data.attendees?.forEach(name => {
+          const li = document.createElement('li');
+          li.textContent = name;
+          attendeesList.appendChild(li);
+        });
+
+        const budgetList = document.getElementById("budgetItems");
+        budgetList.innerHTML = '';
+        data.budget_items?.forEach(item => {
+          const li = document.createElement('li');
+          li.textContent = `${item.name}: $${item.cost.toFixed(2)}`;
+          budgetList.appendChild(li);
+        });
+      } catch (error) {
+        console.error("Failed to load activity info", error);
+        document.getElementById("activityInfo").innerHTML = `<p class="text-danger">Failed to load activity data.</p>`;
+      }
+    }
+
+    document.getElementById("reviewForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const payload = {
+        activity_id: activityId,
+        general_thoughts: document.getElementById("generalThoughts").value,
+        what_went_well: document.getElementById("whatWentWell").value,
+        what_did_not_go_well: document.getElementById("whatDidNotGoWell").value,
+        actual_costs: parseFloat(document.getElementById("actualCosts").value)
+      };
+
+      try {
+        const res = await fetch(`${base_url}/activity-review`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) throw new Error("Submission failed");
+
+        alert("Review submitted successfully!");
+        document.getElementById("reviewForm").reset();
+      } catch (error) {
+        alert("There was an error submitting the review.");
+        console.error(error);
+      }
+    });
+
+    loadActivityData();
+  </script>
+
+  <!-- Optional ENV injection (can also replace this server-side) -->
+  <script>
+    window.env = {
+      BASE_URL: "https://your-api-url.com"
+    };
+  </script>
+</body>
+</html>
