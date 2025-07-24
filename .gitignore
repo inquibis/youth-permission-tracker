@@ -16,6 +16,8 @@ api/.env
 
 # local setup
 .env
+api/.env
+api/tests/__pycache__/
 
 # venv
 sandbox/
