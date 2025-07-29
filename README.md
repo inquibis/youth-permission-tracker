@@ -93,3 +93,14 @@ Persuant the handbook all activity requests will be sent to the Bishop for appro
 5. Verify api is running: `http://localhost:8000/docs`
 6. Verify website is running: `http://localhost`
 
+
+
+# Run Program
+1. Create API image
+* 
+2. Create Website image: `docker build -t youth-permission-website -f web-dockerfile .`
+3. Start docker master network: `docker network create proxy-tier`
+4. Start proxy `cd docker\reverse-proxy && docker-compose up -d`
+5. Start db `cd docker\db && docker-compose up -d`
+6. Start API `cd docker\api && docker-compose up -d`
+7. Start Website `cd docker\website && docker-compose up -d`
