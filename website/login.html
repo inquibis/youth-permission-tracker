@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>Login</title>
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="scripts/styles.css">
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -72,7 +72,7 @@
     window.API_BASE = "http://localhost:8000";
   </script>
   <script type="module">
-    import { login } from "./api.js";
+    import { login } from "./scripts/api.js";
 
     document.getElementById("login-form").addEventListener("submit", e => {
       e.preventDefault();
@@ -88,7 +88,7 @@
           window.location.href = "index.html";
         })
         .catch(err => {
-          // Toast will already show via api.js
+          // Toast will already show via scripts/api.js
           console.error("Login failed:", err);
         });
     });
