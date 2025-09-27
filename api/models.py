@@ -14,12 +14,13 @@ class ActivityPermission(Base):
 
     id = Column(Integer, primary_key=True)
     activity_id = Column(Integer, ForeignKey("activities.id"))
-    user_id = Column(Integer, ForeignKey("users.id"))
+    user_id = Column(String(100), ForeignKey("users.user_id"))   # FIXED
     signed = Column(Boolean, default=False)
     last_requested_at = Column(DateTime)
     user = relationship("User")
     ip_address = Column(String, nullable=True)
     user_agent = Column(String, nullable=True)
+
 
 class ActivityPermissionMedical(Base):
     __tablename__ = "activity_permissions_medical"
@@ -58,7 +59,7 @@ class Activity(Base):
 
 class User(Base):
     __tablename__ = "users"
-    user_id = Column(String(100), primary_key=True, index=True)
+    user_id = Column(String(100), primary_key=True, index=True)   # PRIMARY KEY
     first_name = Column(String(100))
     last_name = Column(String(100))
     guardian_name = Column(String(100), nullable=True)
@@ -93,13 +94,14 @@ class PermissionToken(Base):
 
     id = Column(Integer, primary_key=True)
     token = Column(String, unique=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
+    user_id = Column(String(100), ForeignKey("users.user_id"))   # FIXED
     activity_id = Column(Integer, ForeignKey("activities.id"))
     expires_at = Column(DateTime)
     used = Column(Boolean, default=False)
 
     user = relationship("User")
     activity = relationship("Activity")
+
 
 class ActivityInfo(Base):
     __tablename__ = "activity_info"
@@ -111,10 +113,10 @@ class ActivityInfo(Base):
     date_end = Column(Date)
     purpose = Column(String)
 
-    # Optional - normalize relations
     budgets = relationship("ActivityBudget", back_populates="activity", cascade="all, delete-orphan")
     drivers = relationship("ActivityDriver", back_populates="activity", cascade="all, delete-orphan")
     groups = relationship("ActivityGroup", back_populates="activity", cascade="all, delete-orphan")
+
 
 class ActivityBudget(Base):
     __tablename__ = "activity_budget"
@@ -124,12 +126,14 @@ class ActivityBudget(Base):
     activity_id = Column(Integer, ForeignKey("activity_info.id"))
     activity = relationship("ActivityInfo", back_populates="budgets")
 
+
 class ActivityDriver(Base):
     __tablename__ = "activity_driver"
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String)
     activity_id = Column(Integer, ForeignKey("activity_info.id"))
     activity = relationship("ActivityInfo", back_populates="drivers")
+
 
 class ActivityGroup(Base):
     __tablename__ = "activity_group"
@@ -138,13 +142,15 @@ class ActivityGroup(Base):
     activity_id = Column(Integer, ForeignKey("activity_info.id"))
     activity = relationship("ActivityInfo", back_populates="groups")
 
+
 class SelectedActivity(Base):
     __tablename__ = "selectedactivities"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    user_id = Column(String(100), ForeignKey("users.user_id"), nullable=False)   # FIXED
     year = Column(Integer, nullable=False)
     activity_name = Column(String, nullable=False)
+
 
 class IdentifiedNeed(Base):
     __tablename__ = "identifiedneeds"
@@ -153,8 +159,9 @@ class IdentifiedNeed(Base):
     group_name = Column(String, nullable=False)
     need = Column(String, nullable=False)
     priority = Column(Integer, nullable=False)
-    created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
+    created_by = Column(String(100), ForeignKey("users.user_id"), nullable=False)   # FIXED
     created_at = Column(DateTime, default=datetime.utcnow)
+
 
 class ActivityReview(Base):
     __tablename__ = "activity_reviews"
@@ -166,6 +173,7 @@ class ActivityReview(Base):
     what_did_not_go_well = Column(Text, nullable=True)
     actual_costs = Column(Float, nullable=False)
     submitted_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
 
 class Attendee(Base):
     __tablename__ = "attendees"

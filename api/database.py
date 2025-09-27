@@ -1,31 +1,50 @@
-from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
 import os
-from dotenv import load_dotenv
+from urllib.parse import quote_plus
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, declarative_base
 
-load_dotenv()
 
-ENV = os.getenv("ENV", "test").lower()  #change
+# Require ENV to be set explicitly
+ENV = os.getenv("ENV")
+if not ENV:
+    raise RuntimeError("ENV must be set (e.g., 'test' or 'prod').")
 
 if ENV == "test":
-    DATABASE_URL = os.getenv("SQLITE_PATH", "sqlite:///./test.db")
-    # can use to verify ver 
-    # python -c "import sqlite3, sys; print(sys.version); print(sqlite3.sqlite_version)"
+    # --- SQLite for local/CI testing ---
+    # Always use a fixed absolute path to avoid multiple accidental DB files
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    default_sqlite_path = os.path.join(base_dir, "activitydb.db")
+
+    SQLALCHEMY_DATABASE_URL = os.getenv(
+        "TEST_DATABASE_URL",
+        f"sqlite:///{default_sqlite_path}"
+    )
     connect_args = {"check_same_thread": False}
+
 else:
-    DATABASE_URL = os.getenv("DATABASE_URL")
+    # --- MySQL for dev/staging/prod ---
+    try:
+        DB_USER = os.environ["DB_USER"]
+        DB_PASSWORD = os.environ["DB_PASSWORD"]
+        DB_HOST = os.environ["DB_HOST"]
+        DB_PORT = os.environ.get("DB_PORT", "3306")
+        DB_NAME = os.environ["DB_NAME"]
+    except KeyError as e:
+        raise RuntimeError(f"Missing required environment variable: {e.args[0]}")
+
+    SQLALCHEMY_DATABASE_URL = os.getenv(
+        "DATABASE_URL",
+        f"mysql+mysqlconnector://{DB_USER}:{quote_plus(DB_PASSWORD)}"
+        f"@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+    )
     connect_args = {}
 
-engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+# Engine & session factory
+engine = create_engine(
+    SQLALCHEMY_DATABASE_URL,
+    pool_pre_ping=True,
+    future=True,
+    connect_args=connect_args,
+)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
-
-# DB_URL = (
-#     f"mysql+mysqlconnector://{os.getenv('MYSQL_USER')}:{os.getenv('MYSQL_PASSWORD')}"
-#     f"@{os.getenv('MYSQL_HOST')}:{os.getenv('MYSQL_PORT')}/{os.getenv('MYSQL_DB')}"
-# )
-
-# engine = create_engine(DB_URL, echo=True)
-# SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
-# Base = declarative_base()

@@ -7,24 +7,36 @@ from alembic import context
 config = context.config
 fileConfig(config.config_file_name)
 
-# Use env vars for DB connection
-DB_USER = os.getenv("DB_USER", "root")
-DB_PASSWORD = os.getenv("DB_PASSWORD", "password")
-DB_HOST = os.getenv("DB_HOST", "localhost")
-DB_NAME = os.getenv("DB_NAME", "mydatabase")
+# Read ENV
+ENV = os.getenv("ENV", "prod")
 
-SQLALCHEMY_DATABASE_URL = f"mysql+mysqlconnector://{DB_USER}:{DB_PASSWORD}@{DB_HOST}/{DB_NAME}"
+if ENV == "test":
+    # Local SQLite database for tests
+    SQLALCHEMY_DATABASE_URL = "sqlite:///./activitydb.db"
+else:
+    # MySQL for everything else
+    DB_USER = os.getenv("DB_USER", "root")
+    DB_PASSWORD = os.getenv("DB_PASSWORD", "password")
+    DB_HOST = os.getenv("DB_HOST", "localhost")
+    DB_NAME = os.getenv("DB_NAME", "mydatabase")
+    SQLALCHEMY_DATABASE_URL = f"mysql+mysqlconnector://{DB_USER}:{DB_PASSWORD}@{DB_HOST}/{DB_NAME}"
 
-# Add your models' MetaData object here
-from myapp.models import Base  # assuming models are here
+# Import models’ metadata
+from models import Base  # make sure models.Base exists
 target_metadata = Base.metadata
 
 def run_migrations_offline():
-    context.configure(url=SQLALCHEMY_DATABASE_URL, target_metadata=target_metadata, literal_binds=True)
+    """Run migrations in 'offline' mode."""
+    context.configure(
+        url=SQLALCHEMY_DATABASE_URL,
+        target_metadata=target_metadata,
+        literal_binds=True,
+    )
     with context.begin_transaction():
         context.run_migrations()
 
 def run_migrations_online():
+    """Run migrations in 'online' mode."""
     connectable = create_engine(SQLALCHEMY_DATABASE_URL)
     with connectable.connect() as connection:
         context.configure(connection=connection, target_metadata=target_metadata)
