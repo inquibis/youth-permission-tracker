@@ -1,0 +1,80 @@
+#toast-container div {
+  animation: fadein 0.3s, fadeout 0.5s 3.5s;
+}
+
+@keyframes fadein {
+  from { opacity: 0; transform: translateY(-10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeout {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+/* Navbar container */
+.navbar {
+  background: #2c3e50;
+  padding: 10px 20px;
+}
+
+/* Top-level menu */
+.navbar-menu {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+}
+
+.navbar-menu > li {
+  position: relative;
+  margin-right: 20px;
+}
+
+.navbar-menu a,
+.navbar-menu span {
+  color: #ecf0f1;
+  text-decoration: none;
+  padding: 8px 12px;
+  display: block;
+}
+
+.navbar-menu a:hover,
+.navbar-menu span:hover {
+  background: #34495e;
+  border-radius: 4px;
+}
+
+/* Dropdown menus */
+.dropdown {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background: #34495e;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  min-width: 180px;
+  border-radius: 4px;
+}
+
+.dropdown li {
+  margin: 0;
+}
+
+.dropdown a {
+  padding: 8px 12px;
+  display: block;
+  color: #ecf0f1;
+}
+
+.dropdown a:hover {
+  background: #3d566e;
+}
+
+/* Show dropdown on hover */
+.navbar-menu li:hover > .dropdown {
+  display: block;
+}

@@ -2,7 +2,7 @@
 // API wrapper for Youth Permission Tracker website
 // ---------------------------------------------------
 
-const ENV = window.ENV || "prod";   // "test" or "prod"
+const ENV = window.ENV || "test";   // "test" or "prod"
 const API_BASE = window.API_BASE || "http://localhost:8000"; // backend base URL
 
 // --- Toast-style notification helper ---
@@ -101,6 +101,33 @@ export function getGroupActivities(groupName) {
 // ---------------- ACTIVITIES ----------------
 export function getAllActivities() {
   return fetchData("/activity-all", "example-activity-list.json");
+}
+
+// ✅ New helper for activity details
+export async function getActivityById(id) {
+  if (ENV === "test") {
+    const activities = await fetchData("", "example-activity-list.json");
+    return activities.find(a =>
+      a.id == id || a.activity_id == id || a.activityId == id
+    ) || null;
+  } else {
+    try {
+      // First try the dedicated endpoint
+      return await fetchData(`/activity/${id}`, "example-activity-list.json");
+    } catch (err) {
+      console.warn(`Direct fetch failed for /activity/${id}, falling back.`, err);
+      try {
+        // Fallback: fetch all and filter
+        const all = await fetchData("/activity-all", "example-activity-list.json");
+        return all.find(a =>
+          a.id == id || a.activity_id == id || a.activityId == id
+        ) || null;
+      } catch (err2) {
+        console.error("Fallback failed too:", err2);
+        return null;
+      }
+    }
+  }
 }
 
 export function getActivityInformation(activityName) {

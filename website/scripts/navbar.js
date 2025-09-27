@@ -1,4 +1,4 @@
-// navbar.js
+//navbar.js
 export function loadNavbar() {
   fetch("navbar.html")
     .then(res => res.text())
