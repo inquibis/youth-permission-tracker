@@ -1,4 +1,10 @@
-[
-  { "username": "admin1", "password": "pass123", "group_name": "AdminGroup" },
-  { "username": "test", "password": "tester", "group_name": "Teachers" }
-]
+{
+  "access_token": "dummy-token",
+  "token_type": "bearer",
+  "user": {
+    "email": "test@planner.com",
+    "role": "tester",
+    "first_name": "Test",
+    "last_name": "User"
+  }
+}

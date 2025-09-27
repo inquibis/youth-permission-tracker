@@ -97,6 +97,7 @@ export function getGroupActivities(groupName) {
   return fetchData(`/selectedactivities/group/${groupName}`, "group_activities.json");
 }
 
+
 // ---------------- ACTIVITIES ----------------
 export function getAllActivities() {
   return fetchData("/activity-all", "example-activity-list.json");
@@ -112,6 +113,23 @@ export function getActivityInformation(activityName) {
 export function getActivityReview(activityId) {
   return fetchData(`/activity-review?activity_id=${activityId}`, "example-activity-list.json");
 }
+
+export function saveUserInterest(userEmail, activities) {
+  if (ENV === "test") {
+    console.log("Simulated saveUserInterest", userEmail, activities);
+    return { status: "ok (test mode)" };
+  }
+  return fetchData("/user-interest", "", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      email: userEmail,
+      activities: activities
+    })
+  });
+}
+
+
 
 // ---------------- PERMISSIONS ----------------
 export function getActivityPermissions(activityId) {
