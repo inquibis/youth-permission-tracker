@@ -14,6 +14,9 @@ ENV MYSQL_DB=activitydb
 ENV BASE_URL=http://localhost/api
 # ENV DATABASE_URL=mysql+pymysql://user:password@mysql/db_name
 
+# Install vim and clean up apt cache
+RUN apt-get update && apt-get install -y --no-install-recommends vim && rm -rf /var/lib/apt/lists/*
+
 # Set work directory
 WORKDIR /app
 
@@ -29,6 +32,8 @@ RUN mkdir -p certs && \
 
 # Copy app files
 COPY api/ /app/
+COPY alembic/ /app/alembic/
+COPY alembic.ini .
 
 # Make sure alembic is installed
 RUN alembic --version
