@@ -4,6 +4,9 @@ FROM nginx:alpine
 # Set working directory
 WORKDIR /usr/share/nginx/html
 
+env ENV=test
+env BASE_URL=localhost:8000
+
 # Remove default nginx page
 RUN rm -rf ./*
 
