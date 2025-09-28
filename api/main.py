@@ -29,11 +29,10 @@ from contact import Contact
 from data import activity_list
 
 
-ENV = os.getenv("ENV", "prod")
+ENV = os.getenv("ENV", "prod").lower()
 print(f"Starting API\nEnvironment: {ENV}")
 
 # Initializations
-Base.metadata.create_all(bind=engine)
 app = FastAPI()
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
@@ -56,6 +55,33 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.on_event("startup")
+def startup_event():
+    # 1. Create tables automatically if ENV=test
+    if ENV == "test":
+        Base.metadata.create_all(bind=engine)
+
+    # 2. Insert default users if not already present
+    db: Session = SessionLocal()
+    try:
+        defaults = [
+            {"user_email": "tester", "guardian_password": "mytest", "role": "tester"},
+            {"user_email": "lbt", "guardian_password": "myadmin", "role": "admin"},
+        ]
+        for u in defaults:
+            existing = db.query(User).filter(User.user_email == u["user_email"]).first()
+            if not existing:
+                user = User(
+                    user_email=u["user_email"],
+                    guardian_password=hash_password(u["guardian_password"]),
+                    role=u["role"],
+                    first_name=u["user_email"].capitalize(),
+                    last_name="Default"
+                )
+                db.add(user)
+        db.commit()
+    finally:
+        db.close()
 
 ###################
 ### USER SECTION

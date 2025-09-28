@@ -59,18 +59,19 @@ class Activity(Base):
 
 class User(Base):
     __tablename__ = "users"
-    user_id = Column(String(100), primary_key=True, index=True)   # PRIMARY KEY
-    first_name = Column(String(100))
-    last_name = Column(String(100))
-    guardian_name = Column(String(100), nullable=True)
+
+    user_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    first_name = Column(String(50))
+    last_name = Column(String(50))
+    guardian_name = Column(String(50), nullable=True)
     guardian_email = Column(String(100), nullable=True)
     guardian_cell = Column(String(20), nullable=True)
-    user_email = Column(String(100))
-    user_cell = Column(String(20))
+    user_email = Column(String(100), unique=True, index=True)
+    user_cell = Column(String(20), nullable=True)
     is_active = Column(Boolean, default=True)
-    groups = Column(Text)  # store as JSON array
-    role = Column(String(20))
-    guardian_password = Column(String(25), nullable=True)
+    groups = Column(String(100), nullable=True)
+    role = Column(String(50))
+    guardian_password = Column(String(200))
 
     def to_dict(self):
         return {
