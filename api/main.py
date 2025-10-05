@@ -15,7 +15,7 @@ import io
 
 
 from schema import (ActivityInformationCreate, ActivityPermissionRequest, 
-                    ActivityReviewIn, ActivityReviewOut, BudgetItem, UserCreate, 
+                    ActivityReviewIn, ActivityReviewOut, BudgetItem, SignatureContact, UserCreate, 
                     ActivityCreate, ActivityInformationOut, UserInterestIn, 
                     SelectedActivityOut,NeedCreate, NeedUpdate, NeedInDB)
 from models import (ActivityBudget, ActivityDriver, ActivityGroup, ActivityPermission, 
@@ -27,10 +27,12 @@ from auth import hash_password, decode_token
 from auth import verify_password, create_token
 from contact import Contact
 from data import activity_list
+from lib import EnvManager
 
 
 ENV = os.getenv("ENV", "prod").lower()
 print(f"Starting API\nEnvironment: {ENV}")
+env_config = EnvManager()
 
 # Initializations
 app = FastAPI()
@@ -653,6 +655,29 @@ def get_group_activities(group_name: str, db: Session = Depends(get_db)):
     from collections import Counter
     counts = Counter([act.activity_name for act in activities])
     return dict(counts)
+
+##############################
+##  contact
+##############################
+@app.get("/contact/{level}", response_model=SignatureContact)
+def get_needs(level: int)->SignatureContact:
+    resp = SignatureContact(
+        lvl = level,
+        name = env_config.get(key = f"signature_name_{level!r}"),
+        text_number = env_config.get(key=f"signature_number_{level!r}")
+    )
+    return resp
+
+
+@app.post("/contact", response_model=NeedInDB)
+def create_need(data: SignatureContact):
+    env_config.set(key=f"signature_name_{data.lvl}",value=data.name)
+    env_config.set(key=f"signature_number_{data.lvl}",value=data.text_number)
+
+@app.post("/contact/call")
+def call_signature(level:int, activity_id):
+    contact_engine.request_signature_permission(level=level, activity_id=activity_id)
+    return "Done"
 
 
 ##############################

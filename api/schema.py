@@ -61,6 +61,11 @@ class UserInterestIn(BaseModel):
     name: str
     activities: List[str]
 
+class SignatureContact(BaseModel):
+    text_number: int
+    lvl: int
+    name: str
+
 class SelectedActivityOut(BaseModel):
     name: str
     year: int
