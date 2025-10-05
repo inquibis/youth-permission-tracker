@@ -660,7 +660,7 @@ def get_group_activities(group_name: str, db: Session = Depends(get_db)):
 ##  contact
 ##############################
 @app.get("/contact/{level}", response_model=SignatureContact)
-def get_needs(level: int)->SignatureContact:
+def get_signature_contact(level: int)->SignatureContact:
     resp = SignatureContact(
         lvl = level,
         name = env_config.get(key = f"signature_name_{level!r}"),
@@ -669,15 +669,17 @@ def get_needs(level: int)->SignatureContact:
     return resp
 
 
-@app.post("/contact", response_model=NeedInDB)
-def create_need(data: SignatureContact):
+@app.post("/contact")
+def update_signature_contact(data: SignatureContact):
     env_config.set(key=f"signature_name_{data.lvl}",value=data.name)
     env_config.set(key=f"signature_number_{data.lvl}",value=data.text_number)
+    return { "status": "Updated" }
+
 
 @app.post("/contact/call")
 def call_signature(level:int, activity_id):
     contact_engine.request_signature_permission(level=level, activity_id=activity_id)
-    return "Done"
+    return { "status": "Done" }
 
 
 ##############################
