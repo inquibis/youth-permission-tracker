@@ -125,17 +125,17 @@ def login(username: str = Form(), password: str = Form(), db: Session = Depends(
 
 @app.get("/list-roles", tags=["Users"])
 def get_roles():
-    return list("admin", "bishopric", "guardian", "presidency", "tester", "youth")
+    return ["admin", "bishopric", "guardian", "presidency", "tester", "youth"]
 
 
 @app.get("/list-groups", tags=["Users"], description="List potential group membership")
 def get_groups():
-    return list("Deacon","Teacher","Priest","Young Man","Young Woman", "Young Woman-younger","Young Woman-older")
+    return ["Deacon","Teacher","Priest","Young Man","Young Woman", "Young Woman-younger","Young Woman-older"]
 
 
 @app.get("/groups", tags=["Users"], description="List current group memberships of members")
 def get_current_groups(db: Session = Depends(get_db)):
-    return list({user.group for user in db.query(User).all()})
+    return {user.group for user in db.query(User).all()}
 
 
 @app.post("/users-groupload", tags=["Users"])
@@ -179,6 +179,11 @@ async def upload_users_from_file(file: UploadFile = File(...)):
     return {"message": f"Uploaded and added {added_users} users successfully."}
 
 
+@app.get("/current-user", tags=["Users"])
+def get_current_user(current_user: dict = Depends(get_current_user)):
+    return current_user
+
+
 @app.get("/users", tags=["Users"])
 def list_users(db: Session = Depends(get_db)):
     users = db.query(User).all()
@@ -187,7 +192,8 @@ def list_users(db: Session = Depends(get_db)):
 
 @app.post("/users", tags=["Users"])
 def create_user(user: UserCreate, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
-    if current_user.role != "admin":
+    print(current_user,flush=True)
+    if current_user["role"] != "admin" and current_user["role"] != "tester":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You do not have access to this resource"
@@ -216,7 +222,7 @@ def create_user(user: UserCreate, db: Session = Depends(get_db), current_user: d
 
 @app.put("/users/{user_id}", tags=["Users"])
 def update_user(user_id: int, user: UserCreate, db: Session = Depends(get_db),current_user: dict = Depends(get_current_user)):
-    if current_user.role != "admin":
+    if current_user["role"] != "admin" and current_user["role"] != "tester":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You do not have access to this resource"
@@ -236,7 +242,7 @@ def update_user(user_id: int, user: UserCreate, db: Session = Depends(get_db),cu
 
 @app.delete("/users/{user_id}", tags=["Users"])
 def delete_user(user_id: int, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
-    if current_user.role != "admin":
+    if current_user["role"] != "admin" and current_user["role"] != "tester":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You do not have access to this resource"
@@ -316,7 +322,7 @@ def create_activity(payload: ActivityCreate, db: Session = Depends(get_db), user
     db.commit()
     db.refresh(activity)
 
-    contact_engine.contact_users(groups=activity.groups, db=db)
+    #contact_engine.contact_users(groups=activity.groups, db=db,activity_name=payload.activity_name)
     return {"message": "Activity created", "id": activity.id}
 
 
@@ -339,7 +345,6 @@ def delete_activity(activity_id: int, db: Session = Depends(get_db), user=Depend
     activity = db.query(Activity).filter(Activity.id == activity_id).first()
     if not activity:
         raise HTTPException(status_code=404, detail="Activity not found")
-
     db.delete(activity)
     db.commit()
     return {"message": "Activity deleted"}

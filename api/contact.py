@@ -43,18 +43,19 @@ class Contact:
         act_url = f"{act_base_url}/activity?=activity_id={activity_id}"
         msg = f"{name.capitalize}, this is a request to approve a youth activity. {act_url}"
 
-        twilio_sid = os.getenv("TWILIO_ACCOUNT_SID")
-        twilio_token = os.getenv("TWILIO_AUTH_TOKEN")
-        twilio_from = os.getenv("TWILIO_FROM")
+        twilio_sid = env_config.get(key="TWILIO_ACCOUNT_SID")
+        twilio_token = env_config.get(key="TWILIO_AUTH_TOKEN")
+        twilio_from = env_config.get(key="TWILIO_FROM")
         client = Client(twilio_sid, twilio_token)
         try:
             client.messages.create(
                 body=msg,
                 from_=twilio_from,
-                to=phone
+                to=f"+{phone}"
             )
         except Exception as e:
             print(f"Failed to SMS {phone}: {e}")
+            raise e
 
 
 
