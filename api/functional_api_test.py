@@ -3,6 +3,7 @@ from main import app
 import json
 
 client = TestClient(app)
+base_url = "localhost"
 
 DUMMY_HEADERS = {
     "Authorization": "Bearer faketoken"
@@ -55,6 +56,14 @@ TEST_USER_INT = {
 
 def run_functional_test_sequence():
     print("🔄 Starting functional test...")
+
+    print("Getting token")
+    payload = {
+        "username":"tester",
+        "password":"testing123"
+    }
+    resp = client.post(f"{base_url}/token", payload=payload,verify=False)
+
 
     #######  USERS
     print("🧪 Creating user...")
