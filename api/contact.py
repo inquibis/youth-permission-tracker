@@ -10,6 +10,9 @@ import secrets
 from datetime import datetime, timedelta
 from jinja2 import Template
 from models import PermissionToken, ActivityPermission, User
+from lib import EnvManager
+
+env_config = EnvManager()
 
 class Contact:
 
@@ -31,6 +34,29 @@ class Contact:
 
        # self.email_guardians(invited, activity_name)
         self.sms_guardians(invited, activity_name)
+
+
+    def request_signature_permission(self, level:int, activity_id)->None:
+        name = env_config.get(key=f"signature_name_{level}")
+        phone = env_config.get(key=f"signature_number_{level}")
+        act_base_url = env_config.get(key="BaseActivitySiteURL")
+        act_url = f"{act_base_url}/activity?=activity_id={activity_id}"
+        msg = f"{name.capitalize}, this is a request to approve a youth activity. {act_url}"
+
+        twilio_sid = os.getenv("TWILIO_ACCOUNT_SID")
+        twilio_token = os.getenv("TWILIO_AUTH_TOKEN")
+        twilio_from = os.getenv("TWILIO_FROM")
+        client = Client(twilio_sid, twilio_token)
+        try:
+            client.messages.create(
+                body=msg,
+                from_=twilio_from,
+                to=phone
+            )
+        except Exception as e:
+            print(f"Failed to SMS {phone}: {e}")
+
+
 
 
     # def email_guardians(self, users: list, activity_name: str):

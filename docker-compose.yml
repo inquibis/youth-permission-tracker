@@ -1,0 +1,53 @@
+version: "3.9"
+
+services:
+  api:
+    image: youth-api
+    container_name: youth-api
+    environment:
+      - ENV=test   # change to "prod" when you want MySQL
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_USER=youth
+      - DB_PASSWORD=youthpass
+      - DB_NAME=youthdb
+    ports:
+      - "8000:8000"
+    depends_on:
+      - mysql
+    networks:
+      - activity-net
+
+  web:
+    image: youth-web
+    container_name: youth-web
+    environment:
+      - ENV=prod   # change to "prod" in production
+      - BASE_URL=http://127.0.0.1:8000
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
+    networks:
+      - activity-net
+
+  mysql:
+    image: mysql:8.0
+    container_name: youth-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: youthdb
+      MYSQL_USER: youth
+      MYSQL_PASSWORD: youthpass
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - activity-net
+
+networks:
+  activity-net:
+    driver: bridge
+
+volumes:
+  mysql_data:
