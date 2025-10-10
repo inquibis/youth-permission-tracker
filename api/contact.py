@@ -1,3 +1,4 @@
+from typing import List
 from sqlalchemy.orm import Session
 import smtplib
 from email.mime.multipart import MIMEMultipart
@@ -153,7 +154,7 @@ class Contact:
             server.send_message(msg)
 
 
-    def sms_guardians(self, users: list, activity_name: str):
+    def sms_guardians(self, users: List[User], activity_name: str):
         twilio_sid = os.getenv("TWILIO_ACCOUNT_SID")
         twilio_token = os.getenv("TWILIO_AUTH_TOKEN")
         twilio_from = os.getenv("TWILIO_FROM")
@@ -161,6 +162,7 @@ class Contact:
         client = Client(twilio_sid, twilio_token)
 
         for user in users:
+            #TODO get user information from db
             if not user.guardian_cell:
                 continue
             try:

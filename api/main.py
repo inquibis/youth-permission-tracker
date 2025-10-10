@@ -15,7 +15,7 @@ import io
 
 
 from schema import (ActivityInformationCreate, ActivityPermissionRequest, 
-                    ActivityReviewIn, ActivityReviewOut, BudgetItem, SignatureContact, UserCreate, 
+                    ActivityReviewIn, contact_request, ActivityReviewOut, BudgetItem, SignatureContact, UserCreate, 
                     ActivityCreate, ActivityInformationOut, UserInterestIn, 
                     SelectedActivityOut,NeedCreate, NeedUpdate, NeedInDB)
 from models import (ActivityBudget, ActivityDriver, ActivityGroup, ActivityPermission, 
@@ -39,6 +39,12 @@ app = FastAPI()
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
 contact_engine = Contact()
+
+def is_admin(user_role)->bool:
+    match user_role.lower():
+        case "bishopric"|"presidency"|"admin"|"tester":
+            return True
+        return False
 
 # Dependency to get DB session
 def get_db():
@@ -193,7 +199,7 @@ def list_users(db: Session = Depends(get_db)):
 @app.post("/users", tags=["Users"])
 def create_user(user: UserCreate, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
     print(current_user,flush=True)
-    if current_user["role"] != "admin" and current_user["role"] != "tester":
+    if is_admin(current_user["role"]) is False:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You do not have access to this resource"
@@ -222,7 +228,7 @@ def create_user(user: UserCreate, db: Session = Depends(get_db), current_user: d
 
 @app.put("/users/{user_id}", tags=["Users"])
 def update_user(user_id: int, user: UserCreate, db: Session = Depends(get_db),current_user: dict = Depends(get_current_user)):
-    if current_user["role"] != "admin" and current_user["role"] != "tester":
+    if is_admin(current_user["role"]) is False:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You do not have access to this resource"
@@ -242,7 +248,7 @@ def update_user(user_id: int, user: UserCreate, db: Session = Depends(get_db),cu
 
 @app.delete("/users/{user_id}", tags=["Users"])
 def delete_user(user_id: int, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
-    if current_user["role"] != "admin" and current_user["role"] != "tester":
+    if is_admin(current_user["role"]) is False:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You do not have access to this resource"
@@ -272,7 +278,7 @@ def verify_token(token: str, db: Session = Depends(get_db)):
 
 @app.get("/permission-check", tags=["Users"])
 def verify_permission(db: Session = Depends(get_db),current_user: dict = Depends(get_current_user)):
-    if current_user.role == "admin" or current_user.role=="presidency":
+    if is_admin(current_user["role"]) is False:
         current_user["is_admin"]=True
     else:
         current_user["is_admin"]=False
@@ -297,6 +303,7 @@ def get_activity(id: int = Query(..., alias="id"), db: Session = Depends(get_db)
     activity = db.query(Activity).filter(Activity.id == id).first()
     if not activity:
         raise HTTPException(status_code=404, detail="Activity not found")
+    print(f"Found activity {activity!r}")
     return {
         "activity_id": activity.id,
         "activity_name": activity.name,
@@ -356,7 +363,10 @@ def get_all_activities(db: Session = Depends(get_db), user=Depends(get_current_u
 
 
 ############### PERMISSIONS
-@app.post("/submit-permission",  tags=["Permission"])
+@app.post("/submit-permission",  tags=["Permission","Activities"])
+#TODO read guardian from token
+# if tester then ...
+# ask activity id
 def submit_permission(token: str, db: Session = Depends(get_db)):
     record = db.query(PermissionToken).filter_by(token=token, used=False).first()
     if not record or record.expires_at < datetime.utcnow():
@@ -374,7 +384,7 @@ def submit_permission(token: str, db: Session = Depends(get_db)):
     return {"status": "signed"}
 
 
-@app.post("/submit-permission-detail",  tags=["Permission"])
+@app.post("/submit-permission-detail",  tags=["Permission","Activities"])
 def submit_permission_detail(data: dict, request: Request, db: Session = Depends(get_db)):
     token = data.get("token")
     if not token:
@@ -425,7 +435,7 @@ def submit_permission_detail(data: dict, request: Request, db: Session = Depends
     return {"status": "signed"}
 
 
-@app.post("/activity-permission-medical",  tags=["Permission"])
+@app.post("/activity-permission-medical",  tags=["Permission","Activities"])
 def submit_permission_medical(data: ActivityPermissionRequest, request: Request, db: Session = Depends(get_db)):
     # Save signature to file (optional)
     signature_path = None
@@ -464,7 +474,7 @@ def submit_permission_medical(data: ActivityPermissionRequest, request: Request,
     return {"status": "success", "entry_id": entry.id}
 
 
-@app.get("/request-permissions",  tags=["Permission"])
+@app.get("/request-permissions",  tags=["Permission,","Activities"])
 def request_permissions(activity_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
     if not user.is_admin:
         raise HTTPException(status_code=403, detail="Admin only")
@@ -497,7 +507,7 @@ def request_permissions(activity_id: int, db: Session = Depends(get_db), user=De
     }
 
 
-@app.get("/resend-permission",  tags=["Permission"])
+@app.get("/resend-permission",  tags=["Permission","Activities"])
 def resend_permission(id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
     if not user.is_admin:
         raise HTTPException(status_code=403)
@@ -514,7 +524,7 @@ def resend_permission(id: int, db: Session = Depends(get_db), user=Depends(get_c
     return {"status": "resent"}
 
 
-@app.get("/activity-permissions",  tags=["Permission"])
+@app.get("/activity-permissions",  tags=["Permission","Activities"])
 def get_activity_permissions(activity_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
     permissions = (
         db.query(ActivityPermission)
@@ -548,7 +558,7 @@ def get_activity_permissions(activity_id: int, db: Session = Depends(get_db), us
 #   }
 # ]
 
-@app.get("/activity-ideas",  tags=["Activities"])
+@app.get("/activity-ideas",  tags=["Activities-pre"])
 def get_act_list():
     return activity_list
 
@@ -611,7 +621,7 @@ def get_activity_info(
     )
 
 
-@app.post("/user-interest",  tags=["Users","Activities"])
+@app.post("/user-interest",  tags=["Users","Activities-pre"])
 def save_user_interest(payload: UserInterestIn, db: Session = Depends(get_db)):
     # Find user by name (adjust query if needed)
     user = db.query(User).filter(User.first_name + " " + User.last_name == payload.name).first()
@@ -629,7 +639,7 @@ def save_user_interest(payload: UserInterestIn, db: Session = Depends(get_db)):
     return {"status": "success", "user_id": user.id, "year": year, "activities_saved": len(payload.activities)}
 
 
-@app.get("/user-interest", response_model=List[SelectedActivityOut],  tags=["Users","Activities"])
+@app.get("/user-interest", response_model=List[SelectedActivityOut],  tags=["Users","Activities-pre"])
 def list_user_interests(db: Session = Depends(get_db)):
     #TODO filter by activity group
     rows = db.query(User).join(SelectedActivity).all()
@@ -647,11 +657,11 @@ def list_user_interests(db: Session = Depends(get_db)):
             ))
     return result
 
-@app.get("/selectedactivities/user/{user_id}",  tags=["Users","Activities"])
+@app.get("/selectedactivities/user/{user_id}",  tags=["Users","Activities-pre"])
 def get_user_activities(user_id: int, db: Session = Depends(get_db)):
     return db.query(SelectedActivity).filter_by(user_id=user_id).all()
 
-@app.get("/selectedactivities/group/{group_name}",  tags=["Users","Activities"])
+@app.get("/selectedactivities/group/{group_name}",  tags=["Users","Activities-pre"])
 def get_group_activities(group_name: str, db: Session = Depends(get_db)):
     users = db.query(User).filter_by(group=group_name).all()
     user_ids = [u.id for u in users]
@@ -664,7 +674,7 @@ def get_group_activities(group_name: str, db: Session = Depends(get_db)):
 ##############################
 ##  contact
 ##############################
-@app.get("/contact/{level}", response_model=SignatureContact)
+@app.get("/contact/{level}", tags=["contacting"], response_model=SignatureContact)
 def get_signature_contact(level: int)->SignatureContact:
     resp = SignatureContact(
         lvl = level,
@@ -674,27 +684,32 @@ def get_signature_contact(level: int)->SignatureContact:
     return resp
 
 
-@app.post("/contact")
+@app.post("/contact",tags=["contacting"])
 def update_signature_contact(data: SignatureContact):
     env_config.set(key=f"signature_name_{data.lvl}",value=data.name)
     env_config.set(key=f"signature_number_{data.lvl}",value=data.text_number)
     return { "status": "Updated" }
 
 
-@app.post("/contact/call")
+@app.post("/contact/approvers"tags=["contacting"])
 def call_signature(level:int, activity_id):
     contact_engine.request_signature_permission(level=level, activity_id=activity_id)
     return { "status": "Done" }
 
+@app.post("/contact/guardians",tags=["contacting"])
+def call_guardians(data:contact_request):
+    #TODO get user information from db
+    users_list = []
+    contact_engine.sms_guardians(users=users_list, activity_name=data.activity_name)
 
 ##############################
 ##  group needs
 ##############################
-@app.get("/identified-needs/{group_name}", response_model=List[NeedInDB])
+@app.get("/identified-needs/{group_name}",tags=["Activities-pre"], response_model=List[NeedInDB])
 def get_needs(group_name: str, db: Session = Depends(get_db)):
     return db.query(IdentifiedNeed).filter(IdentifiedNeed.group_name == group_name).all()
 
-@app.post("/identified-needs", response_model=NeedInDB)
+@app.post("/identified-needs", tags=["Activities-pre"],response_model=NeedInDB)
 def create_need(need: NeedCreate, db: Session = Depends(get_db)):
     new_need = IdentifiedNeed(**need.dict())
     db.add(new_need)
@@ -702,7 +717,7 @@ def create_need(need: NeedCreate, db: Session = Depends(get_db)):
     db.refresh(new_need)
     return new_need
 
-@app.put("/identified-needs/{need_id}", response_model=NeedInDB)
+@app.put("/identified-needs/{need_id}",tags=["Activities-pre"], response_model=NeedInDB)
 def update_need(need_id: int, need: NeedUpdate, db: Session = Depends(get_db)):
     db_need = db.query(IdentifiedNeed).filter(IdentifiedNeed.id == need_id).first()
     if not db_need:
@@ -716,7 +731,7 @@ def update_need(need_id: int, need: NeedUpdate, db: Session = Depends(get_db)):
     db.refresh(db_need)
     return db_need
 
-@app.delete("/identified-needs/{need_id}")
+@app.delete("/identified-needs/{need_id}",tags=["Activities-pre"])
 def delete_need(need_id: int, db: Session = Depends(get_db)):
     need = db.query(IdentifiedNeed).filter(IdentifiedNeed.id == need_id).first()
     if not need:
@@ -726,7 +741,7 @@ def delete_need(need_id: int, db: Session = Depends(get_db)):
     return {"detail": "Deleted"}
 
 
-@app.get("/activity-review", response_model=ActivityReviewOut)
+@app.get("/activity-review",tags=["Activities-post"], response_model=ActivityReviewOut)
 def get_activity_review(activity_id: int = Query(...), db: Session = Depends(get_db)):
     activity = db.query(Activity).filter(Activity.id == activity_id).first()
     if not activity:
@@ -742,7 +757,7 @@ def get_activity_review(activity_id: int = Query(...), db: Session = Depends(get
         "description": activity.description
     }
 
-@app.post("/activity-review")
+@app.post("/activity-review",tags=["Activities-post"])
 def post_activity_review(review: ActivityReviewIn, db: Session = Depends(get_db)):
     if not db.query(Activity).filter(Activity.id == review.activity_id).first():
         raise HTTPException(status_code=404, detail="Activity not found")

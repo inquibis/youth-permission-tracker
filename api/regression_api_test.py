@@ -32,7 +32,8 @@ header = {"Authorization": f"Bearer {token}"}
 
 ####################
 ###  base data
-print("Verify user groups")
+print("Checking base data")
+print("Verify user roles list")
 resp = post(endpoint="/list-roles")
 assert list(resp.text) == ["admin",
   "bishopric",
@@ -53,10 +54,126 @@ assert list(resp.text) == [
   "Young Woman-younger",
   "Young Woman-older"
 ]
-
 print("verify user list")
 resp = get(endpoint="/users")
 assert len(list(resp.text)) == 2
+
+
+print("Verify activity list")
+resp = get(endpoint="/activity-ideas",payload={})
+assert resp.json() == [
+  "Airport Tour",
+  "Alpine skiing",
+  "Archery",
+  "Arts",
+  "Assist the disabled",
+  "Auto mechanics & repair",
+  "Aviation",
+  "Backpacking",
+  "Barbecue party",
+  "Beach party",
+  "Block party",
+  "Bowling",
+  "Camping trip",
+  "Canoeing",
+  "Car wash",
+  "Career clinic",
+  "Chemistry",
+  "Child care",
+  "Christmas party",
+  "Cinematography",
+  "Civil defense",
+  "College panel discussion",
+  "Communications",
+  "Community cleanup proj.",
+  "Conservation proj.",
+  "Cooking",
+  "COPE",
+  "Cross-country skiing",
+  "Cycling",
+  "Dance",
+  "Dating panel",
+  "Diet & nutrition",
+  "Emergency prep.",
+  "Energy",
+  "Ethics debate",
+  "Fashion show",
+  "Financial investing",
+  "Fire safety",
+  "First aid/CPR/EMT",
+  "Fishing",
+  "Food drive",
+  "Genealogy",
+  "Go-carts",
+  "Gourmet cooking",
+  "Halloween party",
+  "Ham radio",
+  "Home repairs",
+  "Horseback riding",
+  "How to buy a car",
+  "Hunting",
+  "Ice-skating",
+  "Job interview skills",
+  "Leadership skills",
+  "Leave no Trace",
+  "Lifesaving",
+  "Long boat cruise",
+  "Military obstacle course",
+  "Mountaineering",
+  "Olympics",
+  "Orienteering",
+  "Part-time job clinic",
+  "Photography",
+  "Physical fitness",
+  "Picnic",
+  "Pistol shooting",
+  "Planetarium",
+  "Plants & wildlife",
+  "Produce a play",
+  "Public speaking",
+  "Rappelling",
+  "Rifle shooting",
+  "River rafting",
+  "Road rally",
+  "Rock climbing",
+  "Rocketry",
+  "Sailing/cruise",
+  "Scholarships",
+  "Scuba",
+  "Service projects",
+  "Shotgun shooting",
+  "Snorkeling",
+  "Spelunking",
+  "Sports day/Olympics",
+  "Sports medicine",
+  "Swim meet",
+  "Swimming party",
+  "Tennis clinic",
+  "Train trip",
+  "University visit",
+  "Visit a court",
+  "Visit ballet",
+  "Visit opera",
+  "Visit symphony",
+  "Water skiing",
+  "Watercraft",
+  "Wilderness survival",
+  "Winter sports"
+]
+
+
+
+##########
+###  USER SECTION
+print("Verify current user")
+resp = get(endpoint="/current-user",payload={})
+assert resp.json() == {
+  "role": "tester",
+  "is_guardian": 1,
+  "username": "tester",
+  "exp": 1760124213
+}
+
 
 print("create user")
 payload = {
@@ -74,6 +191,8 @@ payload = {
   "role": "counselor",
   "guardian_password": "p123"
 }
+
+
 
 ##################
 ## SIGNATORS
@@ -110,6 +229,7 @@ print("Verify actifity list to begin is empty")
 resp = get(endpoint="/activity-all")
 assert resp.text == "[]"
 
+
 print("Create an activity")
 payload = {
   "activity_name": "my first activity",
@@ -123,7 +243,47 @@ payload = {
     "priests","young men"
   ]
 }
+resp = post(endpoint="/activity",payload=payload)
+assert resp.json()["id"] == 1
 
+
+print("verify activity was created")
+payload = {
+    "id":1
+}
+resp = get(endpoint="/activity",payload=payload)
+
+
+print("Testing new activity creation method")
+payload = {
+  "activity_name": "my new activity",
+  "description": "activity testing",
+  "groups": [
+    "priest","young men"
+  ],
+  "drivers": [
+    "mr. shabo"
+  ],
+  "budget": [
+    {
+      "item": "monkey",
+      "amount": 1200
+    }
+  ],
+  "date_start": "2025-10-10",
+  "date_end": "2025-10-10",
+  "purpose": "to have fun"
+}
+resp = post(endpoint="/activity-information",payload=payload)
+assert resp.json()["id"] == 1
+
+
+print("Verify activity created")
+payload = {
+    "activity_id":1,
+    "activity_name":"my new activity"
+}
+resp = get(endpoint="/activity-information",payload=payload)
 
 
 ####################

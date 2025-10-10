@@ -40,6 +40,10 @@ class ActivityCreate(BaseModel):
     description: str = ""
     groups: List[str]
 
+class contact_request(BaseModel):
+    activity_id:int
+    guardians:List[str] #list of youth ids
+
 class BudgetItem(BaseModel):
     item: str
     amount: float
