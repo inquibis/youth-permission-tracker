@@ -44,7 +44,7 @@ def is_admin(user_role)->bool:
     match user_role.lower():
         case "bishopric"|"presidency"|"admin"|"tester":
             return True
-        return False
+    return False
 
 # Dependency to get DB session
 def get_db():
@@ -691,7 +691,7 @@ def update_signature_contact(data: SignatureContact):
     return { "status": "Updated" }
 
 
-@app.post("/contact/approvers"tags=["contacting"])
+@app.post("/contact/approvers", tags=["contacting"])
 def call_signature(level:int, activity_id):
     contact_engine.request_signature_permission(level=level, activity_id=activity_id)
     return { "status": "Done" }

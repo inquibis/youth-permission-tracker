@@ -37,11 +37,11 @@ class Contact:
         self.sms_guardians(invited, activity_name)
 
 
-    def request_signature_permission(self, level:int, activity_id)->None:
+    def request_signature_permission(self, level:int, activity_id:any)->None:
         name = env_config.get(key=f"signature_name_{level}")
         phone = env_config.get(key=f"signature_number_{level}")
         act_base_url = env_config.get(key="BaseActivitySiteURL")
-        act_url = f"{act_base_url}/activity?=activity_id={activity_id}"
+        act_url = f"{act_base_url}/parental-permission2?=activity_id={activity_id}"
         msg = f"{name.capitalize}, this is a request to approve a youth activity. {act_url}"
 
         twilio_sid = env_config.get(key="TWILIO_ACCOUNT_SID")
@@ -128,7 +128,7 @@ class Contact:
 
     #     db.commit()
 
-    def send_admin_confirmation(self, user_name, guardian_name, activity_name, pdf_path):
+    def send_admin_confirmation(self, user_name:str, guardian_name:str, activity_name:str, pdf_path:str):
         msg = MIMEMultipart()
         msg['Subject'] = f"Signed Waiver: {user_name} - {activity_name}"
         msg['From'] = "noreply@notic.com"
