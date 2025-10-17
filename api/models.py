@@ -174,6 +174,16 @@ class ActivityReview(Base):
     what_did_not_go_well = Column(Text, nullable=True)
     actual_costs = Column(Float, nullable=False)
     submitted_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    who_attended = Column(String(100), nullable=True)
+
+class Budget(Base):
+    __tablename__ = "Budget"
+
+    group = Column(String, nullable=False)
+    year = Column(Integer, nullable=False)
+    budget = Column(Float, nullable=False)
+    remaining = Column(Float, nullable=False)
+    spending = Column(String(100), nullable=True)
 
 
 class Attendee(Base):

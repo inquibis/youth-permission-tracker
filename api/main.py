@@ -15,11 +15,11 @@ import io
 
 
 from schema import (ActivityInformationCreate, ActivityPermissionRequest, 
-                    ActivityReviewIn, contact_request, ActivityReviewOut, BudgetItem, SignatureContact, UserCreate, 
+                    ActivityReviewIn, AnnualBudget, contact_request, ActivityReviewOut, BudgetItem, SignatureContact, UserCreate, 
                     ActivityCreate, ActivityInformationOut, UserInterestIn, 
                     SelectedActivityOut,NeedCreate, NeedUpdate, NeedInDB)
 from models import (ActivityBudget, ActivityDriver, ActivityGroup, ActivityPermission, 
-ActivityReview, SelectedActivity, User, Activity, PermissionToken, Attendee, 
+ActivityReview, Budget, SelectedActivity, User, Activity, PermissionToken, Attendee, 
 ActivityPermissionMedical, ActivityInfo, IdentifiedNeed)
 from database import Base, engine, SessionLocal
 from pdf_func import create_signed_pdf, generate_waiver_pdf
@@ -558,6 +558,24 @@ def get_activity_permissions(activity_id: int, db: Session = Depends(get_db), us
 #   }
 # ]
 
+
+############### ACTIVITY PREP
+@app.post("/budget", tags=["Activities-pre"])
+def set_annual_budget(budget:AnnualBudget, db: Session = Depends(get_db)):
+    budg = Budget(
+        group = budget.group,
+        year = budget.year,
+        budget = budget.budget,
+        remaining = budget.budget,
+        spending = "[0]"
+    )
+    db.add(Budget)
+    db.flush()
+
+@app.get("/budget", tags=["Activities-pre"])
+def get_budget(year:int, group:str):
+    #TODO
+
 @app.get("/activity-ideas",  tags=["Activities-pre"])
 def get_act_list():
     return activity_list
@@ -583,6 +601,7 @@ def create_activity_info(payload: ActivityInformationCreate, db: Session = Depen
 
     db.commit()
     return { "status": "ok", "activity_id": activity.id }
+
 
 
 @app.get("/activity-information", response_model=ActivityInformationOut,  tags=["Activities"])
@@ -767,7 +786,8 @@ def post_activity_review(review: ActivityReviewIn, db: Session = Depends(get_db)
         general_thoughts=review.general_thoughts,
         what_went_well=review.what_went_well,
         what_did_not_go_well=review.what_did_not_go_well,
-        actual_costs=review.actual_costs
+        actual_costs=review.actual_costs,
+        who_attended=review.who_attended
     )
     db.add(new_review)
     db.commit()

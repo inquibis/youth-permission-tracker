@@ -5,7 +5,6 @@ from datetime import date
 
 class ActivityPermissionRequest(BaseModel):
     activity_id: str
-
     allergies: Optional[str] = None
     restrictions: Optional[str] = None
     special_diet: Optional[str] = None
@@ -95,6 +94,7 @@ class ActivityReviewIn(BaseModel):
     what_went_well: str
     what_did_not_go_well: str
     actual_costs: float
+    who_attended: List[str]
 
 
 class NeedBase(BaseModel):
@@ -115,3 +115,8 @@ class NeedInDB(NeedBase):
 
     class Config:
         orm_mode = True
+
+class AnnualBudget(BaseModel):
+    group:str
+    year:int
+    budget:float
