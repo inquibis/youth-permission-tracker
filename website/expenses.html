@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Enter Expense</title>
+  <style>
+    :root { --gap: 12px; --radius: 12px; }
+    html, body { height: 100%; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 0; background:#0b1020; color:#f5f7fb; }
+    .container { max-width: 980px; margin: 24px auto; padding: 0 16px; }
+    .card { background: #111834; border: 1px solid #1e2a57; border-radius: var(--radius); box-shadow: 0 6px 24px rgba(0,0,0,.25); }
+    .card h2 { margin: 0; padding: 16px 20px; border-bottom: 1px solid #1e2a57; font-size: 20px; font-weight: 700; }
+    form { display: grid; grid-template-columns: repeat(12, 1fr); gap: var(--gap); padding: 16px 20px 20px; }
+    .field { display: flex; flex-direction: column; gap: 6px; grid-column: span 6; }
+    .field.wide { grid-column: span 12; }
+    label { font-size: 12px; letter-spacing: .02em; opacity: .85; }
+    input[type="text"], input[type="number"], input[type="file"] {
+      background: #0c1229; color: #e9edfb; border: 1px solid #283767; border-radius: 10px; padding: 10px 12px; outline: none;
+    }
+    input[type="text"]:focus, input[type="number"]:focus { border-color:#4f7cff; box-shadow: 0 0 0 3px rgba(79,124,255,.25); }
+    .actions { grid-column: span 12; display:flex; gap: var(--gap); align-items:center; justify-content:flex-end; }
+    button { all: unset; background: linear-gradient(135deg,#4f7cff,#7a5cff); padding: 10px 16px; border-radius: 10px; cursor: pointer; font-weight:700; }
+    button.secondary { background: #0c1229; border: 1px solid #2a3a72; }
+
+    .row { display: grid; grid-template-columns: 1fr; gap: 16px; }
+    @media (min-width: 900px) { .row { grid-template-columns: 1fr 1fr; } }
+
+    .list-card { margin-top: 16px; }
+    .toolbar { display:flex; gap: 10px; align-items:center; padding: 14px 20px; }
+    .toolbar .spacer { flex: 1; }
+    .pill { display:inline-flex; padding:6px 10px; border-radius: 999px; border:1px solid #2a3a72; background:#0c1229; font-size:12px; }
+
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 10px 12px; border-bottom: 1px solid #1e2a57; text-align: left; font-size: 14px; }
+    th { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; opacity: .8; }
+
+    .total { font-weight: 800; font-size: 18px; }
+    .muted { opacity: .7; }
+    .ok { color: #89ffa6; }
+    .warn { color: #ffd98e; }
+    .err { color: #ff8e8e; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="row">
+      <!-- Entry form -->
+      <section class="card">
+        <h2>Enter Expense</h2>
+        <form id="expenseForm">
+          <div class="field">
+            <label for="activity_id">Activity ID</label>
+            <input id="activity_id" name="activity_id" type="number" inputmode="numeric" min="0" required />
+          </div>
+          <div class="field">
+            <label for="organization">Organization</label>
+            <input id="organization" name="organization" type="text" placeholder="e.g., Young Men" required />
+          </div>
+          <div class="field">
+            <label for="year">Year</label>
+            <input id="year" name="year" type="number" min="2000" step="1" required />
+          </div>
+          <div class="field">
+            <label for="expense_description">Description</label>
+            <input id="expense_description" name="expense_description" type="text" placeholder="e.g., Team lunch" required />
+          </div>
+          <div class="field">
+            <label for="amount">Amount</label>
+            <input id="amount" name="amount" type="number" step="0.01" min="0" required />
+          </div>
+          <div class="field">
+            <label for="sales_tax">Sales Tax</label>
+            <input id="sales_tax" name="sales_tax" type="number" step="0.01" min="0" value="0" required />
+          </div>
+          <div class="field wide">
+            <label for="file">Receipt (image/pdf)</label>
+            <input id="file" name="file" type="file" accept="image/*,application/pdf" required />
+          </div>
+          <div class="actions">
+            <button type="button" class="secondary" id="resetBtn">Reset</button>
+            <button type="submit">Save Expense</button>
+          </div>
+        </form>
+      </section>
+
+      <!-- Results -->
+      <section class="card list-card">
+        <h2>Activity Expenses</h2>
+        <div class="toolbar">
+          <div class="pill">Activity: <span id="pActivity" style="margin-left:6px" class="ok">—</span></div>
+          <div class="pill">Year: <span id="pYear" style="margin-left:6px" class="ok">—</span></div>
+          <span class="spacer"></span>
+          <div class="pill">Total (this activity, all years): <span id="totalAllYears" style="margin-left:6px" class="warn">$0.00</span></div>
+        </div>
+        <div style="padding: 0 20px 16px;">
+          <div class="muted" style="margin-bottom: 8px;">Showing entries for the selected <strong>activity</strong> and <strong>year</strong>.</div>
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Description</th>
+                <th>Amount</th>
+                <th>Sales Tax</th>
+                <th>Original File</th>
+              </tr>
+            </thead>
+            <tbody id="rows">
+              <tr><td class="muted" colspan="5">No entries yet.</td></tr>
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colspan="2" class="total">Total (this year)</td>
+                <td colspan="3" class="total" id="totalForYear">$0.00</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    // If the API is on the same origin/port as this page, leave empty string
+    // Otherwise, set to e.g., "http://localhost:8000"
+    const API_BASE = '';
+
+    const el = {
+      form: document.getElementById('expenseForm'),
+      resetBtn: document.getElementById('resetBtn'),
+      activity: document.getElementById('activity_id'),
+      organization: document.getElementById('organization'),
+      year: document.getElementById('year'),
+      desc: document.getElementById('expense_description'),
+      amount: document.getElementById('amount'),
+      tax: document.getElementById('sales_tax'),
+      file: document.getElementById('file'),
+      rows: document.getElementById('rows'),
+      totalAllYears: document.getElementById('totalAllYears'),
+      totalForYear: document.getElementById('totalForYear'),
+      pActivity: document.getElementById('pActivity'),
+      pYear: document.getElementById('pYear'),
+    };
+
+    // Prefill year with current year
+    el.year.value = new Date().getFullYear();
+
+    // Helper: format currency
+    const money = (n) => new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD' }).format(Number(n||0));
+
+    // Load list for current activity/year
+    async function loadList() {
+      const activityId = Number(el.activity.value);
+      const year = Number(el.year.value);
+      if (!activityId || !year) return;
+
+      el.pActivity.textContent = activityId;
+      el.pYear.textContent = year;
+
+      // 1) List for this activity+year
+      const listUrl = `${API_BASE}/expenses/search?year=${encodeURIComponent(year)}&activity_id=${encodeURIComponent(activityId)}`;
+      const listRes = await fetch(listUrl);
+      if (!listRes.ok) {
+        console.error('Failed to load list');
+        return;
+      }
+      const items = await listRes.json();
+
+      // Render table
+      el.rows.innerHTML = '';
+      if (!items.length) {
+        el.rows.innerHTML = '<tr><td class="muted" colspan="5">No entries yet.</td></tr>';
+      } else {
+        let yearTotal = 0;
+        for (const it of items) {
+          yearTotal += (Number(it.amount) + Number(it.sales_tax));
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${it.id}</td>
+            <td>${escapeHtml(it.expense_description)}</td>
+            <td>${money(it.amount)}</td>
+            <td>${money(it.sales_tax)}</td>
+            <td class="muted">${escapeHtml(it.original_filename || '')}</td>
+          `;
+          el.rows.appendChild(tr);
+        }
+        el.totalForYear.textContent = money(yearTotal);
+      }
+
+      // 2) Total for activity (all years)
+      const totalUrl = `${API_BASE}/expenses/total-by-activity/${encodeURIComponent(activityId)}`;
+      const totalRes = await fetch(totalUrl);
+      if (totalRes.ok) {
+        const data = await totalRes.json();
+        el.totalAllYears.textContent = money(data.total || 0);
+      }
+    }
+
+    // Submit handler: create expense
+    el.form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const activityId = el.activity.value.trim();
+      const organization = el.organization.value.trim();
+      const year = el.year.value.trim();
+      const desc = el.desc.value.trim();
+      const amount = el.amount.value.trim();
+      const sales_tax = el.tax.value.trim();
+      const file = el.file.files[0];
+
+      if (!activityId || !organization || !year || !desc || !amount || file == null) {
+        alert('Please fill all required fields and attach a file.');
+        return;
+      }
+
+      const fd = new FormData();
+      fd.append('activity_id', activityId);
+      fd.append('organization', organization);
+      fd.append('year', year);
+      fd.append('expense_description', desc);
+      fd.append('amount', amount);
+      fd.append('sales_tax', sales_tax || '0');
+      fd.append('file', file);
+
+      const res = await fetch(`${API_BASE}/expenses`, { method: 'POST', body: fd });
+      if (!res.ok) {
+        const msg = await safeText(res);
+        alert('Failed to save expense.\n' + msg);
+        return;
+      }
+
+      // Clear only description, amount, tax, file (keep activity/org/year sticky)
+      el.desc.value = '';
+      el.amount.value = '';
+      el.tax.value = '0';
+      el.file.value = '';
+
+      await loadList();
+    });
+
+    el.resetBtn.addEventListener('click', () => {
+      el.form.reset();
+      el.year.value = new Date().getFullYear();
+      el.rows.innerHTML = '<tr><td class="muted" colspan="5">No entries yet.</td></tr>';
+      el.totalForYear.textContent = '$0.00';
+      el.totalAllYears.textContent = '$0.00';
+      el.pActivity.textContent = '—';
+      el.pYear.textContent = '—';
+    });
+
+    // Refresh list whenever activity or year changes (on blur/change)
+    el.activity.addEventListener('change', loadList);
+    el.year.addEventListener('change', loadList);
+
+    // Helpers
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[s]));
+    }
+    async function safeText(res) {
+      try { return await res.text(); } catch { return String(res.status || ''); }
+    }
+  </script>
+</body>
+</html>
