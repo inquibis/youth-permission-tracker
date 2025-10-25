@@ -192,3 +192,17 @@ class Attendee(Base):
     id = Column(Integer, primary_key=True)
     activity_id = Column(Integer, ForeignKey("activities.id"), nullable=False)
     name = Column(String(100), nullable=False)
+
+
+class ExpenseORM(Base):
+    __tablename__ = "expenses"
+    id = Column(Integer, primary_key=True, index=True)
+    activity_id = Column(Integer, nullable=False, index=True)
+    expense_description = Column(String, nullable=False)
+    amount = Column(Float, nullable=False)
+    organization = Column(String, nullable=False)
+    year = Column(Integer, nullable=False)
+    sales_tax = Column(Float, nullable=False)
+    file_path = Column(String, nullable=False)          # where we stored the file
+    original_filename = Column(String, nullable=False)  # original client filename
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)

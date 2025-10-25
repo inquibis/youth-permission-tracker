@@ -1,10 +1,9 @@
-from fastapi import FastAPI, Depends, HTTPException, Request, Query, UploadFile, File, status
+from fastapi import FastAPI, Depends, HTTPException, Request, Query, UploadFile, File, status, Form
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-import base64, os
+import base64
 from datetime import datetime
 import json
-from fastapi import Form, Request
 from fastapi.security import OAuth2PasswordBearer
 from fastapi import Security
 from fastapi import Query
@@ -12,15 +11,17 @@ from typing import List, Optional
 import os
 import csv
 import io
-
+from pathlib import Path
+from uuid import uuid4
+from typing import Annotated
 
 from schema import (ActivityInformationCreate, ActivityPermissionRequest, 
                     ActivityReviewIn, AnnualBudget, contact_request, ActivityReviewOut, BudgetItem, SignatureContact, UserCreate, 
-                    ActivityCreate, ActivityInformationOut, UserInterestIn, 
-                    SelectedActivityOut,NeedCreate, NeedUpdate, NeedInDB)
+                    ActivityCreate, ActivityInformationOut, UserInterestIn, TotalOut,
+                    SelectedActivityOut,NeedCreate, NeedUpdate, NeedInDB, Expenses, ExpenseOut)
 from models import (ActivityBudget, ActivityDriver, ActivityGroup, ActivityPermission, 
 ActivityReview, Budget, SelectedActivity, User, Activity, PermissionToken, Attendee, 
-ActivityPermissionMedical, ActivityInfo, IdentifiedNeed)
+ActivityPermissionMedical, ActivityInfo, IdentifiedNeed, ExpenseORM)
 from database import Base, engine, SessionLocal
 from pdf_func import create_signed_pdf, generate_waiver_pdf
 from auth import hash_password, decode_token
@@ -33,6 +34,11 @@ from lib import EnvManager
 ENV = os.getenv("ENV", "prod").lower()
 print(f"Starting API\nEnvironment: {ENV}")
 env_config = EnvManager()
+
+
+# ------------ Config ------------
+UPLOAD_DIR = Path("./uploads")
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 # Initializations
 app = FastAPI()
@@ -793,3 +799,108 @@ def post_activity_review(review: ActivityReviewIn, db: Session = Depends(get_db)
     db.commit()
 
     return {"message": "Review submitted successfully"}
+
+@app.post("/expenses", tags=["Activities-post"], response_model=ExpenseOut)
+async def create_expense(
+    expense: Annotated[Expenses, Depends(Expenses.as_form)],
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+):
+    # Create a unique, safe filename while preserving extension
+    ext = Path(file.filename).suffix
+    unique_name = f"{uuid4().hex}{ext}"
+    dest_path = UPLOAD_DIR / unique_name
+
+    # Save the uploaded file to local storage (streamed, non-blocking)
+    async with aiofiles.open(dest_path, "wb") as out:
+        while True:
+            chunk = await file.read(1024 * 1024)  # 1MB chunks
+            if not chunk:
+                break
+            await out.write(chunk)
+
+    # Persist to SQLite
+    row = ExpenseORM(
+        activity_id=expense.activity_id,
+        expense_description=expense.expense_description,
+        amount=expense.amount,
+        organization=expense.organization,
+        year=expense.year,
+        sales_tax=expense.sales_tax,
+        file_path=str(dest_path.resolve()),
+        original_filename=file.filename or "",
+    )
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+
+    return ExpenseOut.model_validate(row)
+
+# =====================================================================
+# 1) GET /expenses/search?year=YYYY&activity_id=###  OR  ?year=YYYY&organization=ORG
+#    Returns all matching entries for the given year filtered by either activity_id OR organization
+# =====================================================================
+@app.get("/expenses/search",tags=["Activities-post"],  response_model=list[ExpenseOut])
+def search_expenses(
+    year: int = Query(..., description="Year to filter by (required)"),
+    activity_id: Optional[int] = Query(None, description="Filter by activity_id"),
+    organization: Optional[str] = Query(None, description="Filter by organization"),
+    db: Session = Depends(get_db),
+):
+    if (activity_id is None and organization is None) or (activity_id is not None and organization is not None):
+        raise HTTPException(
+            status_code=400,
+            detail="Provide exactly one of 'activity_id' or 'organization' along with 'year'.",
+        )
+
+    q = select(ExpenseORM).where(ExpenseORM.year == year)
+    if activity_id is not None:
+        q = q.where(ExpenseORM.activity_id == activity_id)
+    if organization is not None:
+        q = q.where(ExpenseORM.organization == organization)
+
+    rows = db.execute(q).scalars().all()
+    return [ExpenseOut.model_validate(r) for r in rows]
+
+# =====================================================================
+# 2) GET /expenses/total-by-activity/{activity_id}
+#    Returns grand total (amount + sales_tax) aggregated across ALL years for given activity_id
+# =====================================================================
+@app.get("/expenses/total-by-activity/{activity_id}",tags=["Activities-post"],  response_model=TotalOut)
+def total_by_activity(
+    activity_id: int,
+    db: Session = Depends(get_db),
+):
+    total_expr = (func.coalesce(func.sum(ExpenseORM.amount + ExpenseORM.sales_tax), 0.0))
+    subtotal_expr = func.coalesce(func.sum(ExpenseORM.amount), 0.0)
+    tax_expr = func.coalesce(func.sum(ExpenseORM.sales_tax), 0.0)
+
+    q = select(total_expr.label("total"),
+               subtotal_expr.label("subtotal"),
+               tax_expr.label("sales_tax")
+    ).where(ExpenseORM.activity_id == activity_id)
+
+    row = db.execute(q).mappings().one()
+    return TotalOut(total=row["total"], subtotal=row["subtotal"], sales_tax=row["sales_tax"])
+
+# =====================================================================
+# 3) GET /expenses/total-by-organization?organization=ORG&year=YYYY
+#    Returns grand total (amount + sales_tax) aggregated for a given org in a given year
+# =====================================================================
+@app.get("/expenses/total-by-organization",tags=["Activities-post"],  response_model=TotalOut)
+def total_by_organization(
+    organization: str = Query(...),
+    year: int = Query(...),
+    db: Session = Depends(get_db),
+):
+    total_expr = (func.coalesce(func.sum(ExpenseORM.amount + ExpenseORM.sales_tax), 0.0))
+    subtotal_expr = func.coalesce(func.sum(ExpenseORM.amount), 0.0)
+    tax_expr = func.coalesce(func.sum(ExpenseORM.sales_tax), 0.0)
+
+    q = select(total_expr.label("total"),
+               subtotal_expr.label("subtotal"),
+               tax_expr.label("sales_tax")
+    ).where(and_(ExpenseORM.organization == organization, ExpenseORM.year == year))
+
+    row = db.execute(q).mappings().one()
+    return TotalOut(total=row["total"], subtotal=row["subtotal"], sales_tax=row["sales_tax"])

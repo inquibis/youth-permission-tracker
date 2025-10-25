@@ -1,7 +1,8 @@
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional, List, Annotated
 from datetime import datetime
 from datetime import date
+from fastapi import Form
 
 class ActivityPermissionRequest(BaseModel):
     activity_id: str
@@ -120,3 +121,52 @@ class AnnualBudget(BaseModel):
     group:str
     year:int
     budget:float
+
+class Expenses(BaseModel):
+    activity_id:int
+    expense_description:str
+    amount:float
+    sales_tax:float
+    organization:str
+
+     # Allow receiving the model via multipart/form-data (so it can travel with a file)
+    @classmethod
+    def as_form(
+        cls,
+        activity_id: Annotated[int, Form()],
+        expense_description: Annotated[str, Form()],
+        amount: Annotated[float, Form()],
+        organization: Annotated[float, Form()],
+        year: Annotated[int, Form()],
+        sales_tax: Annotated[float, Form()],
+    ):
+        return cls(
+            activity_id=activity_id,
+            expense_description=expense_description,
+            organization=organization,
+            year=year,
+            amount=amount,
+            sales_tax=sales_tax,
+        )
+
+
+class ExpenseOut(BaseModel):
+    id: int
+    activity_id: int
+    expense_description: str
+    amount: float
+    organization: str
+    year: int
+    sales_tax: float
+    file_path: str
+    original_filename: str
+
+    class Config:
+        from_attributes = True  # pydantic v2: allows ORM -> model
+
+
+class TotalOut(BaseModel):
+    total: float
+    # Optional helpful breakdown
+    subtotal: Optional[float] = None
+    sales_tax: Optional[float] = None
