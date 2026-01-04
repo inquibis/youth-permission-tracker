@@ -42,12 +42,135 @@ To reset the database use api/reset_db.py.  From inside api folder run `python r
 ## Security & Compliance
 **Hippa**
 Per HIPPA adult users will be required to use credentials in order to access health information.  Credentials will be stored hashed and salted.  PHI will be stored in a table separate from PII.  A UID will be used to correlate PII to PHI.
+HIPAA requires (not optional):
+* Access controls
+* Audit logs
+* Encryption
+* Risk assessments
+* Written policies & training
 
 **Signing**
 - 2FA and unique guardian code for signing
 - Audit Trail: Keep detailed logs (IP address, timestamp, device info, consent).
 - Consent to Sign Electronically: Present a checkbox or agreement before signing.
 - Document Integrity: Lock the document post-signature (no edits).
+
+### Technical Security Controls (HIPAA Security Rule core)
+**A. Encryption (Non-Negotiable)**
+At Rest
+* AES-256
+* Encrypted disks, databases, backups
+* Separate key management (KMS / HSM)
+
+In Transit
+* TLS 1.2+ (prefer 1.3)
+* mTLS for internal services
+* No plaintext APIs
+
+**B. Identity & Access Management (IAM)**
+* Principle of Least Privilege
+* Role-based access (RBAC)
+* Attribute-based access (ABAC) for PHI
+* No shared accounts
+* Authentication
+* MFA for all admin access
+* MFA for clinicians/users accessing PHI
+* Strong password policies
+
+**C. Audit Logging (HIPAA requires this)**
+Logging
+* Who accessed PHI
+* What was accessed
+* When
+* From where
+* What was changed
+
+Logs must be:
+* Tamper-resistant
+* Retained per policy (often 6+ years)
+* Monitored for anomalies
+
+**D. Application-Level Protections**
+* Secure Development Practices
+* Input validation everywhere
+* Parameterized queries (no SQL injection)
+* Secure file upload handling
+* Strict CORS rules
+* Rate limiting & abuse detection
+* Session & Token Security
+* Short-lived access tokens
+* Refresh token rotation
+* Secure cookies (HttpOnly, Secure, SameSite)
+
+**E. Infrastructure & Hosting Compliance**
+Hosting Environment Must Be:
+* Hardened OS images
+* Regular patching
+* Network segmentation
+* Firewalls & WAFs
+* Intrusion detection (IDS/IPS)
+ 
+**F. Data Lifecycle Management**
+* Data Minimization
+* Collect only what you need
+* Avoid “future use” hoarding
+* Retention Policies
+* Define retention period per data type
+* Auto-delete after expiration
+* Secure deletion (crypto-shred)
+
+Backups
+* Encrypted
+* Access-controlled
+
+Tested restores
+* Same compliance level as primary data
+
+**G. Incident Response & Breach Handling**
+HIPAA expects:
+* Written incident response plan
+* Defined escalation paths
+* Breach assessment procedures
+* Timelines for notification (as short as 60 days)
+* You must assume breach will happen and plan accordingly.
+
+**H. Administrative Safeguards**
+You need:
+* Security officer designation
+* Software use & HIPAA training
+* Vendor risk assessments
+* Business Associate Agreements
+* Annual risk analysis documentation
+⚠️ Lack of paperwork alone can cause penalties, even without a breach.
+
+**I. Architecture Patterns That Reduce Risk**
+Recommended Patterns
+* Split-system architecture
+* Identity service separate from health data
+* Tokenization
+* Replace PHI with tokens in most services
+* Zero Trust networking
+* Read-only replicas for analytics
+* Air-gapped backups
+
+Avoid
+* Monolithic databases with mixed data
+* Shared admin credentials
+* Logging PHI by accident
+* Dev/test environments with real data
+
+## Practical Compliance Checklist
+Minimum baseline before production
+- [ ] Legal determination: HIPAA / GDPR applicability
+- [ ] Threat model & risk assessment
+- [ ] Encryption everywhere
+- [ ] RBAC + MFA
+- [ ] Audit logging
+- [ ] Secure backups
+- [ ] Incident response plan
+- [ ] Vendor BAAs
+- [ ] Written policies
+- [ ] User training
 
 **Safety**
 Depending on the nature of the activity corresponding training/certifications will be automatically identified.
