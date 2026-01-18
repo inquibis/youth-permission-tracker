@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Youth Medical & Permission Form</title>
+
+<style>
+body {
+  font-family: Arial, sans-serif;
+  margin: 2rem;
+  max-width: 900px;
+}
+fieldset {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+}
+legend {
+  font-weight: bold;
+}
+label {
+  display: block;
+  margin-top: 0.5rem;
+}
+input, textarea {
+  width: 100%;
+  padding: 0.4rem;
+}
+canvas {
+  border: 1px solid #333;
+  cursor: crosshair;
+}
+button {
+  margin-top: 1rem;
+}
+</style>
+</head>
+
+<body>
+
+<h2>Youth Permission & Medical Information</h2>
+
+<form id="permissionForm">
+
+<fieldset>
+<legend>Parental Permission Code</legend>
+<label>
+6-Digit Code
+<input type="text" id="permission_code" pattern="\d{6}" required />
+</label>
+</fieldset>
+
+<fieldset>
+<legend>Youth Information</legend>
+<label>First Name <input required id="youth_first" /></label>
+<label>Last Name <input required id="youth_last" /></label>
+<label>Date of Birth <input type="date" id="youth_dob" /></label>
+<label>Gender <input id="youth_gender" /></label>
+</fieldset>
+
+<fieldset>
+<legend>Parent / Guardian</legend>
+<label>Name <input required id="parent_name" /></label>
+<label>Relationship <input id="parent_relationship" /></label>
+<label>Phone <input required id="parent_phone" /></label>
+<label>Email <input type="email" id="parent_email" /></label>
+</fieldset>
+
+<fieldset>
+<legend>Medical Information</legend>
+<label>Medical Conditions <textarea id="conditions"></textarea></label>
+<label>Medications <textarea id="medications"></textarea></label>
+<label>Allergies <textarea id="allergies"></textarea></label>
+<label>Dietary Restrictions <textarea id="diet"></textarea></label>
+<label>Activity Limitations <textarea id="limitations"></textarea></label>
+<label>Special Accommodations <textarea id="accommodations"></textarea></label>
+</fieldset>
+
+<fieldset>
+<legend>Emergency Contact</legend>
+<label>Name <input id="emergency_name" /></label>
+<label>Phone <input id="emergency_phone" /></label>
+</fieldset>
+
+<fieldset>
+<legend>Signature</legend>
+<p>Sign below using your mouse:</p>
+<canvas id="signatureCanvas" width="500" height="150"></canvas><br />
+<button type="button" onclick="clearSignature()">Clear Signature</button>
+</fieldset>
+
+<button type="submit">Submit</button>
+
+</form>
+
+<script>
+const canvas = document.getElementById("signatureCanvas");
+const ctx = canvas.getContext("2d");
+let drawing = false;
+
+canvas.addEventListener("mousedown", e => {
+  drawing = true;
+  ctx.beginPath();
+  ctx.moveTo(e.offsetX, e.offsetY);
+});
+
+canvas.addEventListener("mousemove", e => {
+  if (!drawing) return;
+  ctx.lineTo(e.offsetX, e.offsetY);
+  ctx.stroke();
+});
+
+canvas.addEventListener("mouseup", () => drawing = false);
+canvas.addEventListener("mouseleave", () => drawing = false);
+
+function clearSignature() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+}
+
+document.getElementById("permissionForm").addEventListener("submit", async e => {
+  e.preventDefault();
+
+  const payload = {
+    permission_code: document.getElementById("permission_code").value,
+    youth: {
+      first_name: youth_first.value,
+      last_name: youth_last.value,
+      birth_date: youth_dob.value,
+      gender: youth_gender.value
+    },
+    parent_guardian: {
+      name: parent_name.value,
+      relationship: parent_relationship.value,
+      phone: parent_phone.value,
+      email: parent_email.value
+    },
+    medical: {
+      conditions: conditions.value,
+      medications: medications.value,
+      allergies: allergies.value,
+      dietary_restrictions: diet.value,
+      limitations: limitations.value,
+      special_accommodations: accommodations.value
+    },
+    emergency_contact: {
+      name: emergency_name.value,
+      phone: emergency_phone.value
+    },
+    signature: {
+      signed_by: parent_name.value,
+      signature_image_base64: canvas.toDataURL()
+    },
+    signed_at: new Date().toISOString()
+  };
+
+  const response = await fetch("/api/youth-permission", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+
+  if (response.ok) {
+    alert("Form submitted successfully.");
+  } else {
+    alert("Submission failed.");
+  }
+});
+</script>
+
+</body>
+</html>

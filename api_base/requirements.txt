@@ -1,0 +1,14 @@
+fastapi
+uvicorn
+pydantic
+aiosqlite
+
+# QR code generation
+qrcode[pil]
+pillow
+
+# iCalendar generation
+icalendar
+
+# Optional alternative QR library
+segno
