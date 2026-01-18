@@ -1,0 +1,15 @@
+create activity page
+* create activity information
+* set budget
+reconcile page
+* reconcile budget
+* record who attended
+invitation page
+* create QR for permission
+* create calendar invite
+* Send email
+* text parents (QR)
+Dockerfile
+* db outside so peristent
+* host web
+* host api
