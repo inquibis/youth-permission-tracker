@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Activity Permission</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            max-width: 600px;
+            width: 100%;
+            padding: 40px;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        .activity-info {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin-bottom: 30px;
+            border-radius: 5px;
+        }
+        
+        .activity-info h2 {
+            font-size: 18px;
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+        
+        .info-group {
+            margin-bottom: 12px;
+        }
+        
+        .info-label {
+            font-weight: 600;
+            color: #555;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+        
+        .info-value {
+            color: #333;
+            font-size: 14px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        input[type="text"],
+        textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        
+        input[type="text"]:focus,
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 30px;
+        }
+        
+        button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 5px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .btn-approve {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-approve:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-approve:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .btn-cancel {
+            background: #e9ecef;
+            color: #555;
+        }
+        
+        .btn-cancel:hover {
+            background: #dee2e6;
+        }
+        
+        .calendar-link {
+            display: inline-block;
+            padding: 10px 20px;
+            background: #17a2b8;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        
+        .calendar-link:hover {
+            background: #138496;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(23, 162, 184, 0.3);
+        }
+            display: none;
+            text-align: center;
+            padding: 20px;
+            color: #667eea;
+        }
+        
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 12px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            border: 1px solid #f5c6cb;
+            display: none;
+        }
+        
+        .success {
+            background: #d4edda;
+            color: #155724;
+            padding: 12px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            border: 1px solid #c3e6cb;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Activity Permission Form</h1>
+        
+        <div id="errorMessage" class="error"></div>
+        <div id="successMessage" class="success"></div>
+        
+        <div id="activityInfo" class="activity-info" style="display: none;">
+            <h2>Activity Details</h2>
+            <div class="info-group">
+                <div class="info-label">Activity Name</div>
+                <div class="info-value" id="activityName">-</div>
+            </div>
+            <div class="info-group">
+                <div class="info-label">Start Date</div>
+                <div class="info-value" id="dateStart">-</div>
+            </div>
+            <div class="info-group">
+                <div class="info-label">End Date</div>
+                <div class="info-value" id="dateEnd">-</div>
+            </div>
+            <div class="info-group">
+                <div class="info-label">Description</div>
+                <div class="info-value" id="description">-</div>
+            </div>
+            <div class="info-group">
+                <div class="info-label">Drivers Required</div>
+                <div class="info-value" id="drivers">-</div>
+            </div>
+            <div class="info-group">
+                <div class="info-label">Groups</div>
+                <div class="info-value" id="groups">-</div>
+            </div>
+        </div>
+        
+        <form id="permissionForm" style="display: none;">
+            <div class="form-group">
+                <label for="permissionCode">Permission Code *</label>
+                <input 
+                    type="text" 
+                    id="permissionCode" 
+                    name="permissionCode" 
+                    placeholder="Enter your permission code"
+                    required
+                >
+            </div>
+            
+            <div class="form-group">
+                <label for="notes">Additional Notes</label>
+                <textarea 
+                    id="notes" 
+                    name="notes" 
+                    placeholder="Enter any additional notes or comments (optional)"
+                ></textarea>
+            </div>
+            
+            <div class="button-group">
+                <button type="button" class="btn-cancel" onclick="goBack()">Cancel</button>
+                <button type="submit" class="btn-approve">Approve</button>
+            </div>
+        </form>
+        
+        <div style="margin-top: 30px; text-align: center; border-top: 1px solid #ddd; padding-top: 20px;">
+            <a id="calendarDownload" href="#" class="calendar-link" style="display: none;">
+                📅 Download Calendar Invite
+            </a>
+        </div>
+        
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <p>Processing your permission...</p>
+        </div>
+    </div>
+
+    <script>
+        const BASE_URL = new URL(window.location.origin).origin;
+        let activityId = null;
+        let userIpAddress = null;
+
+        // Initialize the page
+        async function init() {
+            try {
+                // Get activity_id from URL parameters
+                const urlParams = new URLSearchParams(window.location.search);
+                activityId = urlParams.get('activity_id');
+                
+                // Fetch user's IP address
+                try {
+                    const ipResponse = await fetch('https://api.ipify.org?format=json');
+                    const ipData = await ipResponse.json();
+                    userIpAddress = ipData.ip;
+                } catch (err) {
+                    console.warn('Could not fetch IP address:', err);
+                    userIpAddress = 'unknown';
+                }
+                
+                // Fetch activity information
+                if (activityId) {
+                    await loadActivityInfo();
+                } else {
+                    console.log('No activity ID provided, loading test data...');
+                    await loadTestData();
+                }
+                
+            } catch (error) {
+                showError('Failed to initialize the page: ' + error.message);
+            }
+        }
+
+        async function loadActivityInfo() {
+            try {
+                showLoading(true);
+                
+                const url = `${BASE_URL}/activities/permission-info/${activityId}`;
+                const response = await fetch(url);
+                
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch activity info (${response.status})`);
+                }
+                
+                const data = await response.json();
+                displayActivityInfo(data);
+                
+            } catch (error) {
+                showLoading(false);
+                showError('Failed to load activity information: ' + error.message);
+            }
+        }
+
+        async function loadTestData() {
+            try {
+                showLoading(true);
+                
+                // Set a test activity ID
+                activityId = 'test-activity-' + Date.now();
+                
+                const response = await fetch('./test/permission.json');
+                
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch test data (${response.status})`);
+                }
+                
+                const data = await response.json();
+                displayActivityInfo(data);
+                
+            } catch (error) {
+                showLoading(false);
+                showError('Failed to load test data: ' + error.message);
+            }
+        }
+
+        function displayActivityInfo(data) {
+            // Populate activity information
+            document.getElementById('activityName').textContent = data.activity_name || '-';
+            document.getElementById('dateStart').textContent = formatDate(data.date_start) || '-';
+            document.getElementById('dateEnd').textContent = formatDate(data.date_end) || '-';
+            document.getElementById('description').textContent = data.description || '-';
+            document.getElementById('drivers').textContent = Array.isArray(data.drivers) && data.drivers.length > 0 ? 'Yes' : 'No';
+            document.getElementById('groups').textContent = Array.isArray(data.groups) ? data.groups.join(', ') : (data.groups || '-');
+            
+            // Setup calendar download link
+            const calendarDownload = document.getElementById('calendarDownload');
+            calendarDownload.href = `${BASE_URL}/activity-calendar?activity_id=${activityId}`;
+            calendarDownload.download = `activity-${activityId}.ics`;
+            calendarDownload.style.display = 'inline-block';
+            
+            // Show the form and activity info
+            document.getElementById('activityInfo').style.display = 'block';
+            document.getElementById('permissionForm').style.display = 'block';
+            showLoading(false);
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return '-';
+            try {
+                const date = new Date(dateString);
+                return date.toLocaleDateString('en-US', { 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            } catch {
+                return dateString;
+            }
+        }
+
+        document.getElementById('permissionForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            try {
+                const permissionCode = document.getElementById('permissionCode').value.trim();
+                const notes = document.getElementById('notes').value.trim();
+                
+                if (!permissionCode) {
+                    showError('Permission code is required');
+                    return;
+                }
+                
+                showLoading(true);
+                
+                const payload = {
+                    activity_id: activityId,
+                    permission_code: permissionCode,
+                    notes: notes,
+                    ip_address: userIpAddress,
+                    timestamp: new Date().toISOString()
+                };
+                
+                const response = await fetch(`${BASE_URL}/activity-permissions`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload)
+                });
+                
+                showLoading(false);
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || `Request failed (${response.status})`);
+                }
+                
+                const result = await response.json();
+                showSuccess('Permission approved successfully! ' + (result.message || ''));
+                
+                // Clear form and disable submit
+                document.getElementById('permissionForm').style.display = 'none';
+                setTimeout(() => {
+                    goBack();
+                }, 2000);
+                
+            } catch (error) {
+                showLoading(false);
+                showError('Failed to submit permission: ' + error.message);
+            }
+        });
+
+        function showError(message) {
+            const errorEl = document.getElementById('errorMessage');
+            errorEl.textContent = message;
+            errorEl.style.display = 'block';
+        }
+
+        function showSuccess(message) {
+            const successEl = document.getElementById('successMessage');
+            successEl.textContent = message;
+            successEl.style.display = 'block';
+        }
+
+        function showLoading(show) {
+            document.getElementById('loading').style.display = show ? 'block' : 'none';
+        }
+
+        function goBack() {
+            window.history.back();
+        }
+
+        // Initialize on page load
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>
