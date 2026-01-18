@@ -9,6 +9,12 @@ invitation page
 * create calendar invite
 * Send email
 * text parents (QR)
+permission page
+* load activity from variable
+* display activity information (base)
+* can enter code
+* record permission and audit information
+* can download calendar invitation
 Dockerfile
 * db outside so peristent
 * host web
