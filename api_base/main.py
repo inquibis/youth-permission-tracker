@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi import Query, Response
 from io import BytesIO
 import qrcode
-from schema import PermissionGiven, YouthPermissionSubmission, Activity
+from schema import ActivityBase, PermissionGiven, YouthPermissionSubmission, Activity
 import sqlite3
 import os
 import json
@@ -66,7 +66,7 @@ async def create_user(user_data: YouthPermissionSubmission):
     db = get_db()
     cursor = db.cursor()
     sql = """
-    INSERT INTO youth_permission_submissions 
+    INSERT INTO youth_medical 
             (youth_id, permission_code, youth, parent_guardian, medical, emergency_contact, signature, signed_at) 
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     """
@@ -92,7 +92,7 @@ async def get_user(youth_id: str):
     db = get_db()
     cursor = db.cursor()
     cursor.execute(     
-        "SELECT * FROM youth_permission_submissions WHERE youth_id = ?", (youth_id.lower(),)
+        "SELECT * FROM youth_medical WHERE youth_id = ?", (youth_id.lower(),)
     )
     row = cursor.fetchone()
     if row:
@@ -106,7 +106,7 @@ async def delete_user(youth_id: str):
     db = get_db()
     cursor = db.cursor()
     cursor.execute(
-        "DELETE FROM youth_permission_submissions WHERE youth_id = ?", (youth_id.lower(),)
+        "DELETE FROM youth_medical WHERE youth_id = ?", (youth_id.lower(),)
     )
     db.commit()
     if cursor.rowcount > 0:
@@ -119,7 +119,7 @@ async def update_user(youth_id: str, user_data: YouthPermissionSubmission):
     db = get_db()
     cursor = db.cursor()
     sql = """
-    UPDATE youth_permission_submissions 
+    UPDATE youth_medical 
     SET permission_code = ?, youth = ?, parent_guardian = ?, medical = ?, emergency_contact = ?, signature = ?, signed_at = ?
     WHERE youth_id = ?
     """
@@ -207,11 +207,79 @@ async def update_activity(activity_id: str, activity_data: Activity):
     return {"message": "Activity updated successfully."}    
 
 
+
+
+
+
+
+
+@app.get("/activities/permission-info/{activity_id}",tags=["activities"],description="Get permission info for activity by ID")
+async def get_activity_permission_info(activity_id: str)->ActivityBase:
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute(
+        "SELECT  activity_name, date_start, date_end, drivers, description, groups FROM activities WHERE activity_id = ?", (activity_id,)    
+    )    
+    row = cursor.fetchone()
+    return_data = ActivityBase(**row)
+    if row:
+        return return_data
+    else:
+        return {"message": "Activity not found."}
+
+
 @app.post("/activity-permissions", tags=["activity-permissions"], description="Assign permission to activity")
 async def assign_permission_to_activity(permission_data: PermissionGiven):
-    # Implementation for assigning permission to an activity
-    return {"message": "Permission assigned to activity successfully."} 
+
+    db = get_db()
+    cursor = db.cursor()
     
+    # Create the permission_given table if it doesn't exist
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS permission_given (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            youth_id TEXT,
+            activity_id TEXT,
+            permission_code TEXT,
+            data JSON,
+            created_at TEXT DEFAULT (datetime('now'))
+        )
+        """
+    )
+    
+    # Get the youth_id from youth_medical table using permission_code
+    cursor.execute(
+        "SELECT youth_id FROM youth_medical WHERE permission_code = ?",
+        (permission_data.permission_code,)
+    )
+    row = cursor.fetchone()
+    
+    if not row:
+        return {"message": "Permission code not found."}
+    
+    youth_id = row[0]
+    
+    # Insert the permission data into permission_given table
+    if hasattr(permission_data, "json"):
+        data_json = permission_data.json()
+    else:
+        data_json = json.dumps(permission_data)
+    
+    cursor.execute(
+        "INSERT INTO permission_given (youth_id, activity_id, permission_code, data) VALUES (?, ?, ?, ?)",
+        (youth_id, permission_data.activity_id, permission_data.permission_code, data_json)
+    )
+    db.commit()
+    
+    return {"message": "Permission to attend activity recorded.", "youth_id": youth_id} 
+    
+
+
+
+
+
+
 
 @app.get("/activity-qrcode", summary="Generate QR for the activity")
 def generate_qr(acivity_id: str = Query(..., description="The ID of the activity")):
@@ -228,12 +296,18 @@ def generate_qr(acivity_id: str = Query(..., description="The ID of the activity
 
 
 @app.get("/activity-calendar", summary="Generate calendar invite for the activity")
-def invite(
-    activity_id: str = Query(..., description="The ID of the activity")
-):
-    #TODO get calendar details from the activity
-    dt_start = datetime.fromisoformat(start)
-    dt_end = dt_start + timedelta(minutes=duration_minutes)
+def invite(activity_id: str = Query(..., description="The ID of the activity")):
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute(
+        "SELECT  activity_name, date_start, date_end, drivers, description, groups FROM activities WHERE activity_id = ?", (activity_id,)    
+    )    
+    row = cursor.fetchone()
+    if not row:
+        return Response(content="Activity not found.", status_code=404)
+    activity_data = ActivityBase(**row)
+    dt_start = datetime.fromisoformat(activity_data.date_start)
+    dt_end = datetime.fromisoformat(activity_data.date_end)
 
     cal = Calendar()
     cal.add("prodid", "-//Your App//youth-permission//EN")
@@ -244,12 +318,11 @@ def invite(
     evt.add("dtstamp", datetime.utcnow())
     evt.add("dtstart", dt_start)
     evt.add("dtend", dt_end)
-    evt.add("summary", summary)
-    if description:
-        evt.add("description", description)
-    if location:
-        evt.add("location", vText(location))
-
+    evt.add("summary", activity_data.activity_name)
+    if activity_data.description:
+        evt.add("description", activity_data.description)
+    if activity_data.groups:
+        evt.add("location", vText(activity_data.groups))
     cal.add_component(evt)
     ics_bytes = cal.to_ical()
 

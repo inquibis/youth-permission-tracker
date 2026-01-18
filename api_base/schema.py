@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field
 from typing import Optional, List, Any
+from datetime import datetime
 
 class Youth(BaseModel):
     first_name: str
@@ -63,5 +64,14 @@ class Activity(BaseModel):
 class PermissionGiven(BaseModel):
     youth_id: str
     activity_id: str
-    granted_at: str
-    granted_by: str # id entered
+    granted_at: datetime
+    permission_code: str
+    granted_ip: str
+
+class ActivityBase(BaseModel):
+    activity_name: str
+    date_start: datetime
+    date_end: datetime
+    drivers: List[str]
+    description: str
+    groups: List[str]

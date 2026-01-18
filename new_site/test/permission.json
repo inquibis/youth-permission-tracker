@@ -1,0 +1,8 @@
+{
+    "activity_name": "Test activity",
+    "date_start": "2023-04-01",
+    "date_end": "2023-04-05",
+    "drivers": ["driver1", "driver2"],
+    "description": "A test activity for demonstration purposes.",
+    "groups": ["Deacons", "Teachers"]
+}
