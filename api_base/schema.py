@@ -54,12 +54,32 @@ class Activity(BaseModel):
     date: str
     location: str
     budget: budget
-    participants_youth_ids: List[str] | None = None
     groups: List[str]
     start_time: str | None = None
     end_time: str | None = None
     is_overnight: bool | None = None
     is_coed: bool | None = None
+
+class FullActivity(BaseModel):
+    activity_id: str
+    activity_name: str
+    description: str
+    location: str
+    budget: budget
+    total_cost: float | None = None
+    actual_cost: float | None = None
+    participants_youth_ids: List[str] | None = None
+    groups: List[str]
+    drivers: List[str]
+    date_start: str | None = None
+    date_end: str | None = None
+    is_overnight: bool | None = None
+    is_coed: bool | None = None
+    thoughts:str | None = None
+    bishop_approval: bool | None = None
+    bishop_approval_date: str | None = None
+    stake_approval: bool | None = None
+    stake_approval_date: str | None = None
 
 class PermissionGiven(BaseModel):
     youth_id: str

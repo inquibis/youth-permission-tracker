@@ -60,10 +60,15 @@
     <div id="drivers_list" class="muted"></div>
 
     <h3>Groups</h3>
-    <div class="row">
-      <input type="text" id="group_input" placeholder="Group name" />
-      <button type="button" id="addGroupBtn" class="small">Add</button>
-    </div>
+    <label>Select Group(s)
+      <select id="groups_select" multiple>
+        <option value="Deacons">Deacons</option>
+        <option value="Teachers">Teachers</option>
+        <option value="Priests">Priests</option>
+        <option value="Younger Young Women">Younger Young Women</option>
+        <option value="Older Young Women">Older Young Women</option>
+      </select>
+    </label>
     <div id="groups_list" class="muted"></div>
 
     <div style="margin-top:16px">
@@ -128,11 +133,13 @@
     document.getElementById('driver_input').value = '';
     renderLists();
   });
-  document.getElementById('addGroupBtn').addEventListener('click', ()=>{
-    const v = document.getElementById('group_input').value.trim();
-    if(!v) return;
-    groups.push(v);
-    document.getElementById('group_input').value = '';
+  
+  document.getElementById('groups_select').addEventListener('change', ()=>{
+    const selectElement = document.getElementById('groups_select');
+    groups.length = 0;
+    for(const option of selectElement.selectedOptions){
+      groups.push(option.value);
+    }
     renderLists();
   });
 
