@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Activity Permission Request</title>
+  <style>
+    body{font-family:Arial,Helvetica,sans-serif;padding:20px;max-width:1200px;margin:auto}
+    label{display:block;margin-top:12px;font-weight:600}
+    input,select,textarea{width:100%;padding:8px;margin-top:6px;box-sizing:border-box}
+    .row{display:flex;gap:12px}
+    .col{flex:1}
+    button{margin-top:12px;padding:10px 14px;cursor:pointer}
+    .small{width:auto;padding:6px 10px}
+    .success{color:green;margin-top:12px;font-weight:bold}
+    .error{color:red;margin-top:12px;font-weight:bold}
+    .info{color:#0066cc;margin-top:12px}
+    .qr-container{margin-top:20px;padding:20px;border:1px solid #ccc;text-align:center}
+    #qrCode{display:inline-block}
+    .button-group{margin-top:16px;display:flex;gap:8px}
+    .button-group button{margin-top:0}
+    table{width:100%;border-collapse:collapse;margin-top:12px}
+    th,td{border:1px solid #ccc;padding:8px;text-align:left}
+    th{background:#f0f0f0;font-weight:bold}
+    tr:nth-child(even){background:#fafafa}
+    .action-buttons{display:flex;gap:4px}
+    .action-buttons button{padding:4px 8px;font-size:12px}
+    section{margin-top:24px;padding-top:20px;border-top:2px solid #ddd}
+  </style>
+</head>
+<body>
+  <h1>Activity Permission Request</h1>
+
+  <section id="activitiesSection">
+    <h2>All Activities</h2>
+    <div id="activitiesStatus" class="info"></div>
+    <table id="activitiesTable" style="display:none">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Name</th>
+          <th>Start</th>
+          <th>End</th>
+          <th>Groups</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="activitiesTableBody"></tbody>
+    </table>
+  </section>
+
+  <section id="requestSection">
+    <h2>Request Permission for Activity</h2>
+    <p>Generate a QR code for guardians to approve youth participation, or send SMS reminders to parents.</p>
+    <label>Activity ID
+      <input type="text" id="activity_id" placeholder="Enter activity ID" required>
+    </label>
+    
+    <div class="button-group">
+      <button type="button" id="generateQrBtn">Generate QR Code</button>
+      <button type="button" id="sendSmsBtn">Send SMS to Parents</button>
+    </div>
+
+    <div id="status"></div>
+
+    <div id="qrContainer" class="qr-container" style="display:none">
+      <h3>Guardian Approval QR Code</h3>
+      <p>Scan this code to request parent/guardian approval:</p>
+      <img id="qrImage" style="margin:20px 0;border:1px solid #ccc;max-width:300px" />
+      <button type="button" id="downloadQrBtn" class="small">Download QR Code</button>
+    </div>
+  </section>
+
+<script>
+(function(){
+  // Get base URLs from environment variables or localStorage, with defaults
+  const WEB_BASE_URL = window.WEB_BASE_URL || localStorage.getItem('WEB_BASE_URL') || 'http://youth.lthome.com';
+  const API_BASE_URL = window.API_BASE_URL || window.BASE_URL || localStorage.getItem('API_BASE_URL') || localStorage.getItem('BASE_URL') || 'http://localhost:8000';
+  
+  const status = document.getElementById('status');
+  const qrContainer = document.getElementById('qrContainer');
+  const qrImage = document.getElementById('qrImage');
+  const activitiesStatus = document.getElementById('activitiesStatus');
+  const activitiesTable = document.getElementById('activitiesTable');
+  const activitiesTableBody = document.getElementById('activitiesTableBody');
+
+  function clearStatus(){
+    status.textContent = '';
+    status.className = '';
+  }
+
+  function showStatus(message, className){
+    status.textContent = message;
+    status.className = className;
+  }
+
+  function escapeHtml(text) {
+    if (!text) return '';
+    const map = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#039;'
+    };
+    return String(text).replace(/[&<>"']/g, m => map[m]);
+  }
+
+  function renderActivities(activities) {
+    activitiesTableBody.innerHTML = '';
+    activities.forEach(activity => {
+      const row = document.createElement('tr');
+      const groupsText = Array.isArray(activity.groups) ? activity.groups.join(', ') : activity.groups || '';
+      row.innerHTML = `
+        <td>${escapeHtml(activity.activity_id)}</td>
+        <td>${escapeHtml(activity.activity_name)}</td>
+        <td>${escapeHtml(activity.date_start)}</td>
+        <td>${escapeHtml(activity.date_end)}</td>
+        <td>${escapeHtml(groupsText)}</td>
+        <td>
+          <div class="action-buttons">
+            <button class="edit-btn small" data-id="${escapeHtml(activity.activity_id)}">Edit</button>
+            <button class="delete-btn small" data-id="${escapeHtml(activity.activity_id)}">Delete</button>
+            <button class="invite-btn small" data-id="${escapeHtml(activity.activity_id)}">Invite</button>
+          </div>
+        </td>
+      `;
+      activitiesTableBody.appendChild(row);
+    });
+    
+    activitiesTable.style.display = activities.length > 0 ? 'table' : 'none';
+    if (activitiesStatus.textContent && !activitiesStatus.textContent.includes('test data')) {
+      activitiesStatus.textContent = '';
+      activitiesStatus.className = '';
+    }
+  }
+
+  // Load activities on page load
+  async function loadActivities() {
+    try {
+      activitiesStatus.textContent = 'Loading activities...';
+      activitiesStatus.className = 'info';
+      
+      const res = await fetch(API_BASE_URL + '/activities-all?include_past=false');
+      if (!res.ok) {
+        throw new Error('Failed to load activities: ' + res.status);
+      }
+      
+      const data = await res.json();
+      renderActivities(data.activities || []);
+    } catch (err) {
+      console.error('Error loading from API, attempting fallback:', err);
+      activitiesStatus.textContent = 'Loading from test data (API unavailable)...';
+      
+      try {
+        const testRes = await fetch('test/test-activities.json');
+        if (!testRes.ok) {
+          throw new Error('Test data not available');
+        }
+        const testData = await testRes.json();
+        renderActivities(testData.activities || []);
+        activitiesStatus.textContent = '(Using test data - API is unavailable)';
+        activitiesStatus.className = 'info';
+      } catch (testErr) {
+        activitiesStatus.textContent = 'Error loading activities: ' + err.message;
+        activitiesStatus.className = 'error';
+      }
+    }
+  }
+
+    function clearStatus(){
+      status.textContent = '';
+      status.className = '';
+    }
+
+    function showStatus(message, className){
+      status.textContent = message;
+      status.className = className;
+    }
+
+
+  document.getElementById('generateQrBtn').addEventListener('click', async function(){
+    const activityId = document.getElementById('activity_id').value.trim();
+    if(!activityId){
+      showStatus('Please enter an Activity ID.', 'error');
+      return;
+    }
+
+    clearStatus();
+    showStatus('Generating QR code...', 'info');
+    
+    try{
+      const res = await fetch(API_BASE_URL + '/activity-qrcode?acivity_id=' + encodeURIComponent(activityId));
+      if(!res.ok){
+        throw new Error('API returned ' + res.status);
+      }
+      
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      qrImage.src = url;
+      qrImage.alt = 'QR Code for ' + activityId;
+      
+      qrContainer.style.display = 'block';
+      showStatus('QR code generated successfully.', 'success');
+    }
+  });
+
+  document.getElementById('sendSmsBtn').addEventListener('click', async function(){
+    const activityId = document.getElementById('activity_id').value.trim();
+    if(!activityId){
+      showStatus('Please enter an Activity ID.', 'error');
+      return;
+    }
+
+    clearStatus();
+    showStatus('Sending SMS to parents...', 'info');
+
+    try{
+      const res = await fetch(API_BASE_URL + '/sms-activity-permission', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({activity_id: activityId})
+      });
+
+      if(res.ok){
+        showStatus('SMS sent successfully to parents.', 'success');
+      }else{
+        const text = await res.text();
+        showStatus('Error: ' + res.status + ' ' + text, 'error');
+      }
+    }catch(err){
+      showStatus('Network error: ' + err.message, 'error');
+    }
+  });
+
+  document.getElementById('downloadQrBtn').addEventListener('click', function(){
+    if(!qrImage.src){
+      showStatus('Generate a QR code first.', 'error');
+      return;
+    }
+    
+    const link = document.createElement('a');
+    link.href = qrImage.src;
+    link.download = 'activity-permission-' + document.getElementById('activity_id').value.trim() + '.png';
+    link.click();
+  });
+
+  // Activity table event handlers
+  activitiesTableBody.addEventListener('click', async (e) => {
+    const editBtn = e.target.closest('.edit-btn');
+    const deleteBtn = e.target.closest('.delete-btn');
+    const inviteBtn = e.target.closest('.invite-btn');
+
+    if (editBtn) {
+      const activityId = editBtn.dataset.id;
+      window.location.href = 'activity-plan.html?activity_id=' + encodeURIComponent(activityId);
+    } else if (deleteBtn) {
+      const activityId = deleteBtn.dataset.id;
+      if (!confirm('Are you sure you want to delete this activity?')) return;
+      
+      try {
+        const res = await fetch(API_BASE_URL + '/activities/' + encodeURIComponent(activityId), {
+          method: 'DELETE'
+        });
+        
+        if (res.ok) {
+          activitiesStatus.textContent = 'Activity deleted successfully.';
+          activitiesStatus.className = 'success';
+          loadActivities();
+        } else {
+          activitiesStatus.textContent = 'Error deleting activity: ' + res.status;
+          activitiesStatus.className = 'error';
+        }
+      } catch (err) {
+        activitiesStatus.textContent = 'Network error: ' + err.message;
+        activitiesStatus.className = 'error';
+      }
+    } else if (inviteBtn) {
+      const activityId = inviteBtn.dataset.id;
+      document.getElementById('activity_id').value = activityId;
+      showStatus('Activity selected. Click "Send SMS to Parents" to send invites.', 'info');
+    }
+  });
+
+  // Load activities on startup
+  loadActivities();
+})();
+</script>
+</body>
+</html>

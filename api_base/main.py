@@ -419,7 +419,6 @@ async def assign_permission_to_activity(permission_data: PermissionGiven):
     db = get_db()
     cursor = db.cursor()
 
-    
     # Get the youth_id from youth_medical table using permission_code
     cursor.execute(
         "SELECT youth_id FROM youth_medical WHERE permission_code = ?",
@@ -434,7 +433,7 @@ async def assign_permission_to_activity(permission_data: PermissionGiven):
     
     # Insert the permission data into permission_given table
     if hasattr(permission_data, "json"):
-        data_json = permission_data.json()
+        data_json = permission_data.model_dump_json()
     else:
         data_json = json.dumps(permission_data)
     
@@ -447,7 +446,19 @@ async def assign_permission_to_activity(permission_data: PermissionGiven):
     return {"message": "Permission to attend activity recorded.", "youth_id": youth_id} 
     
 
-
+@app.get("/activities-all", tags=["activities"], description="Get all activities")
+def get_all_activities(include_past: bool = Query(False, description="Include past activities")):
+    db = get_db()
+    cursor = db.cursor()
+    if include_past:
+        cursor.execute("SELECT activity_id, activity_name, date_start, date_end, drivers, description, groups FROM activities")
+    else:
+        cursor.execute("SELECT activity_id, activity_name, date_start, date_end, drivers, description, groups FROM activities WHERE date_end >= date('now')")
+    rows = cursor.fetchall()
+    activities = []
+    for row in rows:
+        activities.append(ActivityBase(**row))
+    return {"activities": activities}
 
 
 ###################
@@ -470,7 +481,7 @@ def email_activity_permission(activity_id: str = Query(..., description="The ID 
     activity_data = ActivityBase(**row)
     text_content = f"Permission Request for {activity_data.activity_name} on {activity_data.date_start} {act_url}"
     #TODO send text message
-    return {"Mesages Sent": email_content}
+    return {"Mesages Sent": "successful"}
 
 
 @app.get("/email-activity-permission/{activity_id}", summary="Generate email content for activity permission")
