@@ -259,7 +259,7 @@ async def update_user(youth_id: str, user_data: YouthPermissionSubmission)->dict
 
     
 ##### create activity management endpoints
-def list_participants(group:str)->list:
+def list_group_participants(group:str)->list:
     # get list of user ids in the group
     db = get_db()
     cursor = db.cursor()
@@ -290,7 +290,7 @@ async def create_activity(activity_data: Activity):
     activity_data.is_overnight = is_overnighter
     all_users = []
     for group in activity_data.groups:
-        participants = list_participants(group)
+        participants = list_group_participants(group)
         all_users.extend(participants)
     db = get_db()
     cursor = db.cursor()
@@ -373,6 +373,18 @@ async def get_activity_participants(activity_id: str):
         return {"message": "Activity not found."}
 
 
+@app.get("/group-membership/{group}", tags=["activities"], description="Get participants for a group")
+async def get_group_membership(group: str):
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute(
+        "SELECT participants_youth_ids FROM activities WHERE groups LIKE ?", (f"%{group}%",)
+    )
+    rows = cursor.fetchall()
+    all_participants = []
+    for row in rows:
+        all_participants.extend(json.loads(row[0]))
+    return {"participants": all_participants}
 
 
 @app.get("/activities/permission-info/{activity_id}",tags=["activities"],description="Get permission info for activity by ID")
