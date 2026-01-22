@@ -91,6 +91,9 @@
 
 <script>
 (function(){
+  // Get base URL from environment variable (window.BASE_URL) or localStorage, default to localhost:8000
+  const BASE_URL = window.BASE_URL || localStorage.getItem('BASE_URL') || 'http://localhost:8000';
+  
   const canvas = document.getElementById('sigCanvas');
   const ctx = canvas.getContext('2d');
   let drawing = false;
@@ -226,7 +229,7 @@
     };
 
     try{
-      const res = await fetch('/users/', {
+      const res = await fetch(BASE_URL + '/users/', {
         method: 'POST',
         headers: {'Content-Type':'application/json'},
         body: JSON.stringify(payload)

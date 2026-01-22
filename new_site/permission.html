@@ -281,7 +281,7 @@
     </div>
 
     <script>
-        const BASE_URL = new URL(window.location.origin).origin;
+        const BASE_URL = window.BASE_URL || localStorage.getItem('BASE_URL') || 'http://localhost:8000';
         let activityId = null;
         let userIpAddress = null;
 

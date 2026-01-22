@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi import Query, Response
 from io import BytesIO
 import qrcode
-from schema import ActivityBase, FullActivity, PermissionGiven, YouthPermissionSubmission, Activity
+from schema import ActivityBase, FullActivity, PermissionGiven, YouthPermissionSubmission, Activity, ParentGuardian, MedicalInfo, EmergencyContact, Signature
 import sqlite3
 import os
 import json
@@ -186,11 +186,11 @@ async def create_user(user_data: YouthPermissionSubmission):
         (
             f"{user_data.youth.first_name.lower()}_{user_data.youth.last_name.lower()}",
             user_data.permission_code,
-            user_data.youth.json(),
-            user_data.parent_guardian.json(),
-            user_data.medical.json(),
-            user_data.emergency_contact.json(),
-            user_data.signature.json(),
+            user_data.youth.model_dump_json(),
+            user_data.parent_guardian.model_dump_json(),
+            user_data.medical.model_dump_json(),
+            user_data.emergency_contact.model_dump_json(),
+            user_data.signature.model_dump_json(),
             user_data.signed_at,
         ),
     )   
@@ -207,9 +207,20 @@ async def get_user(youth_id: str)->YouthPermissionSubmission:
     )
     row = cursor.fetchone()
     if row:
-        #TODO convert row to YouthPermissionSubmission
-
-        return {key: row[key] for key in row.keys()}
+        parent_info = ParentGuardian(**json.loads(row["parent_guardian"]))
+        medical_info = MedicalInfo(**json.loads(row["medical"]))
+        emergency_info = EmergencyContact(**json.loads(row["emergency_contact"]))
+        signature_info = Signature(**json.loads(row["signature"]))
+        resp = YouthPermissionSubmission(
+            permission_code=row["permission_code"],
+            youth=json.loads(row["youth"]),
+            parent_guardian=parent_info,
+            medical=medical_info,
+            emergency_contact=emergency_info,
+            signature=signature_info,
+            signed_at=row["signed_at"],
+        )
+        return resp
     else:
         return {"message": "User not found."}
 	
@@ -241,11 +252,11 @@ async def update_user(youth_id: str, user_data: YouthPermissionSubmission)->dict
         sql,
         (
             user_data.permission_code,
-            user_data.youth.json(),
-            user_data.parent_guardian.json(),
-            user_data.medical.json(),
-            user_data.emergency_contact.json(),
-            user_data.signature.json(),
+            user_data.youth.model_dump_json(),
+            user_data.parent_guardian.model_dump_json(),
+            user_data.medical.model_dump_json(),
+            user_data.emergency_contact.model_dump_json(),
+            user_data.signature.model_dump_json(),
             user_data.signed_at,
             youth_id.lower(),
         ),
