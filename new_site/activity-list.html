@@ -191,8 +191,8 @@
           <td>${activity.groups.join(", ")}</td>
           <td>
             <button class="btn btn-sm btn-warning me-2" onclick="window.location.href='activity-plan.html?activity_id=${encodeURIComponent(activity.id)}'">Edit</button>
-            <button class="btn btn-sm btn-danger" onclick='deleteActivity(${activity.id})'>Delete</button>
-            <button class="btn btn-sm btn-danger" onclick='inviteActivity(${activity.id})'>Invite</button>
+            <button class="btn btn-sm btn-danger me-2" onclick='deleteActivity(${activity.id})'>Delete</button>
+            <button class="btn btn-sm btn-success" onclick='inviteActivity(${activity.id})'>Invite</button>
           </td>
         `;
         body.appendChild(row);

@@ -1,0 +1,29 @@
+[
+    {
+      "activity_id": "test-001",
+      "activity_name": "Young Men's Service Project",
+      "date_start": "2026-02-15T09:00:00",
+      "date_end": "2026-02-15T12:00:00",
+      "drivers": ["John Smith", "Mike Johnson"],
+      "description": "Community service cleanup and park maintenance",
+      "groups": ["Deacons", "Teachers"]
+    },
+    {
+      "activity_id": "test-002",
+      "activity_name": "Young Women's Retreat",
+      "date_start": "2026-03-01T08:00:00",
+      "date_end": "2026-03-02T17:00:00",
+      "drivers": ["Sarah Williams", "Mary Brown"],
+      "description": "Overnight retreat with activities and training",
+      "groups": ["Younger Young Women", "Older Young Women"]
+    },
+    {
+      "activity_id": "test-003",
+      "activity_name": "Joint Youth Dance",
+      "date_start": "2026-02-28T18:00:00",
+      "date_end": "2026-02-28T21:00:00",
+      "drivers": ["David Lee"],
+      "description": "Recreation and social activity for all youth",
+      "groups": ["Deacons", "Teachers", "Priests", "Younger Young Women", "Older Young Women"]
+    }
+]
