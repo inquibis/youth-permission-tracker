@@ -278,22 +278,22 @@
       }
     }
 
-      async function inviteActivity(id) {
-      try{
+    async function inviteActivity(id) {
+      try {
         const res = await fetch(API_BASE_URL + '/sms-activity-permission', {
           method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({activity_id: activityId})
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ activity_id: id })
         });
 
-        if(res.ok){
-          showStatus('SMS sent successfully to guardians.', 'success');
-        }else{
+        if (res.ok) {
+          alert('SMS sent successfully to guardians.');
+        } else {
           const text = await res.text();
-          showStatus('Error: ' + res.status + ' ' + text, 'error');
+          alert('Error: ' + res.status + ' ' + text);
         }
-      }catch(err){
-        showStatus('Network error: ' + err.message, 'error');
+      } catch (err) {
+        alert('Network error: ' + err.message);
       }
     }
 
