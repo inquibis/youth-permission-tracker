@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Activity Approval - Ecclesiastical Leadership</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
+  <style>
+    :root {
+      --primary-color: #1f3a93;
+      --secondary-color: #d4a574;
+      --accent-color: #2d5f8d;
+      --success-color: #27ae60;
+      --danger-color: #e74c3c;
+      --light-bg: #f8f9fa;
+      --text-dark: #333;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: var(--light-bg);
+      color: var(--text-dark);
+      padding: 20px 0;
+    }
+
+    .container {
+      max-width: 1400px;
+    }
+
+    h1 {
+      color: var(--primary-color);
+      margin-bottom: 30px;
+      text-align: center;
+      font-weight: 700;
+    }
+
+    h2 {
+      color: var(--primary-color);
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .card {
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      border: none;
+      margin-bottom: 25px;
+      border-radius: 8px;
+    }
+
+    .card-header {
+      background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
+      color: white;
+      font-weight: 600;
+      padding: 18px 20px;
+      border-radius: 8px 8px 0 0;
+    }
+
+    .card-body {
+      padding: 25px;
+    }
+
+    /* Role Selection */
+    .role-selection {
+      display: flex;
+      gap: 15px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+
+    .role-selection label {
+      font-weight: 600;
+      color: var(--primary-color);
+      margin-bottom: 0;
+    }
+
+    .form-select {
+      max-width: 300px;
+      border-radius: 6px;
+      border: 2px solid #ddd;
+      padding: 8px 12px;
+      font-weight: 500;
+    }
+
+    .form-select:focus {
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 0.2rem rgba(31, 58, 147, 0.25);
+    }
+
+    /* Activities Table */
+    .activities-table-wrapper {
+      overflow-x: auto;
+    }
+
+    .activities-table {
+      background-color: white;
+      border-collapse: collapse;
+      width: 100%;
+    }
+
+    .activities-table thead {
+      background-color: #f8f9fa;
+      border-bottom: 3px solid var(--primary-color);
+    }
+
+    .activities-table th {
+      padding: 15px;
+      font-weight: 600;
+      color: var(--primary-color);
+      text-align: left;
+    }
+
+    .activities-table tbody tr {
+      border-bottom: 1px solid #ecf0f1;
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+
+    .activities-table tbody tr:hover {
+      background-color: #f8f9fa;
+    }
+
+    .activities-table tbody tr.selected {
+      background-color: #e8f4f8;
+      border-left: 4px solid var(--primary-color);
+    }
+
+    .activities-table td {
+      padding: 15px;
+      color: #555;
+    }
+
+    .activities-table .activity-name {
+      font-weight: 600;
+      color: var(--primary-color);
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-align: center;
+    }
+
+    .status-pending {
+      background-color: #fff3cd;
+      color: #856404;
+    }
+
+    .status-approved {
+      background-color: #d4edda;
+      color: #155724;
+    }
+
+    .status-disapproved {
+      background-color: #f8d7da;
+      color: #721c24;
+    }
+
+    /* Action Buttons */
+    .action-buttons {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+    }
+
+    .btn-sm-action {
+      padding: 6px 12px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-approve {
+      background-color: var(--success-color);
+      color: white;
+    }
+
+    .btn-approve:hover {
+      background-color: #229954;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(39, 174, 96, 0.3);
+    }
+
+    .btn-disapprove {
+      background-color: var(--danger-color);
+      color: white;
+    }
+
+    .btn-disapprove:hover {
+      background-color: #c0392b;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(231, 76, 60, 0.3);
+    }
+
+    .btn-sm-action:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* Details Section */
+    .details-section {
+      background-color: #f8f9fa;
+      padding: 25px;
+      border-radius: 8px;
+      border-left: 4px solid var(--secondary-color);
+      margin-top: 30px;
+      display: none;
+    }
+
+    .details-section.show {
+      display: block;
+    }
+
+    .detail-row {
+      display: grid;
+      grid-template-columns: 250px 1fr;
+      gap: 20px;
+      margin-bottom: 20px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid #e0e0e0;
+    }
+
+    .detail-row:last-child {
+      border-bottom: none;
+      margin-bottom: 0;
+      padding-bottom: 0;
+    }
+
+    .detail-label {
+      font-weight: 600;
+      color: var(--primary-color);
+    }
+
+    .detail-value {
+      color: #555;
+    }
+
+    .badge-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .badge-item {
+      display: inline-block;
+      background-color: var(--secondary-color);
+      color: white;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 0.9rem;
+    }
+
+    .expenses-detail-table {
+      width: 100%;
+      background-color: white;
+      border-collapse: collapse;
+      margin-top: 15px;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .expenses-detail-table thead {
+      background-color: var(--primary-color);
+      color: white;
+    }
+
+    .expenses-detail-table th {
+      padding: 12px;
+      font-weight: 600;
+      text-align: left;
+    }
+
+    .expenses-detail-table th.text-end {
+      text-align: right;
+    }
+
+    .expenses-detail-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #ecf0f1;
+    }
+
+    .expenses-detail-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .expenses-detail-table .total-row {
+      background-color: #f8f9fa;
+      font-weight: 600;
+      color: var(--primary-color);
+    }
+
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #95a5a6;
+    }
+
+    .empty-state i {
+      font-size: 3rem;
+      color: #bdc3c7;
+      margin-bottom: 15px;
+    }
+
+    .empty-state p {
+      font-size: 1.1rem;
+      margin: 0;
+    }
+
+    /* Loading */
+    .loading {
+      text-align: center;
+      padding: 40px;
+    }
+
+    .spinner-border {
+      color: var(--primary-color);
+    }
+
+    /* Alerts */
+    .alert {
+      border-radius: 6px;
+      border: none;
+      margin-bottom: 20px;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .role-selection {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .form-select {
+        max-width: 100%;
+        width: 100%;
+      }
+
+      .detail-row {
+        grid-template-columns: 1fr;
+        gap: 10px;
+      }
+
+      .action-buttons {
+        flex-direction: column;
+      }
+
+      .btn-sm-action {
+        width: 100%;
+        justify-content: center;
+      }
+
+      .activities-table {
+        font-size: 0.9rem;
+      }
+
+      .activities-table td,
+      .activities-table th {
+        padding: 10px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1><i class="fas fa-check-circle"></i> Activity Approval Portal</h1>
+
+    <!-- Role Selection -->
+    <div class="card">
+      <div class="card-header">
+        <i class="fas fa-user-check"></i> Step 1: Select Your Role
+      </div>
+      <div class="card-body">
+        <div class="role-selection">
+          <label for="roleSelect">I am a:</label>
+          <select id="roleSelect" class="form-select" onchange="loadActivitiesForApproval()">
+            <option value="">-- Select Role --</option>
+            <option value="bishop">Bishop</option>
+            <option value="stake_president">Stake President</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Activities List Card -->
+    <div class="card">
+      <div class="card-header">
+        <i class="fas fa-list"></i> Step 2: Review Activities for Approval
+      </div>
+      <div class="card-body">
+        <div id="loadingState" class="loading" style="display: none;">
+          <div class="spinner-border" role="status">
+            <span class="visually-hidden">Loading...</span>
+          </div>
+          <p>Loading activities...</p>
+        </div>
+
+        <div id="errorAlert" class="alert alert-danger" style="display: none;"></div>
+
+        <div id="activitiesContainer">
+          <div class="empty-state">
+            <i class="fas fa-inbox"></i>
+            <p>Select a role above to view activities requiring approval</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Activity Details Card -->
+    <div class="card">
+      <div class="card-header">
+        <i class="fas fa-info-circle"></i> Step 3: Activity Details
+      </div>
+      <div class="card-body">
+        <div id="detailsEmpty" class="empty-state">
+          <i class="fas fa-arrow-up"></i>
+          <p>Select an activity above to view its full details</p>
+        </div>
+        <div id="detailsSection" class="details-section">
+          <!-- Details will be populated here -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Success Alert -->
+    <div id="successAlert" class="alert alert-success" style="display: none; position: fixed; bottom: 20px; right: 20px; z-index: 1000; min-width: 300px;">
+      <i class="fas fa-check-circle"></i> <span id="successMessage"></span>
+    </div>
+  </div>
+
+  <script>
+    // Configuration
+    const API_BASE = window.API_BASE || "http://localhost:8000";
+    const ENV = window.ENV || "test";
+
+    let allActivities = [];
+    let selectedActivityId = null;
+
+    // Load activities for approval
+    async function loadActivitiesForApproval() {
+      const role = document.getElementById('roleSelect').value;
+      
+      if (!role) {
+        showEmptyState();
+        return;
+      }
+
+      showLoading();
+      try {
+        let endpoint;
+        if (ENV === "test") {
+          endpoint = "test/group_admin_activities.json";
+        } else {
+          endpoint = `${API_BASE}/activity-permission-ecclesiastical?role=${role}`;
+        }
+
+        const res = await fetch(endpoint);
+        if (!res.ok) throw new Error("Failed to load activities");
+
+        let data = await res.json();
+        allActivities = Array.isArray(data) ? data : [];
+
+        // Filter to only show activities pending approval
+        allActivities = allActivities.filter(activity => {
+          if (role === "bishop") {
+            return !activity.bishop_approval;
+          } else if (role === "stake_president") {
+            return !activity.stake_approval;
+          }
+          return false;
+        });
+
+        displayActivitiesTable();
+      } catch (error) {
+        showError("Failed to load activities: " + error.message);
+      }
+    }
+
+    // Display activities in table format
+    function displayActivitiesTable() {
+      const container = document.getElementById('activitiesContainer');
+      
+      // Hide loading state and show container
+      document.getElementById('loadingState').style.display = 'none';
+      container.style.display = 'block';
+      
+      if (allActivities.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <i class="fas fa-check"></i>
+            <p>No activities pending approval at this time!</p>
+          </div>
+        `;
+        return;
+      }
+
+      let html = `
+        <div class="activities-table-wrapper">
+          <table class="activities-table">
+            <thead>
+              <tr>
+                <th>Activity Name</th>
+                <th>Date</th>
+                <th>Groups</th>
+                <th>Status</th>
+                <th style="width: 180px; text-align: center;">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+      `;
+
+      allActivities.forEach(activity => {
+        const dateStart = activity.date_start ? new Date(activity.date_start).toLocaleDateString() : 'N/A';
+        const groups = (Array.isArray(activity.groups) ? activity.groups : []).join(', ') || 'N/A';
+        const statusBadge = getStatusBadge(activity);
+
+        html += `
+          <tr onclick="selectActivity('${activity.activity_id}')">
+            <td class="activity-name">${activity.activity_name || 'Untitled'}</td>
+            <td>${dateStart}</td>
+            <td>${groups}</td>
+            <td>${statusBadge}</td>
+            <td>
+              <div class="action-buttons">
+                <button class="btn-sm-action btn-approve" onclick="approveActivity(event, '${activity.activity_id}')">
+                  <i class="fas fa-check"></i> Approve
+                </button>
+                <button class="btn-sm-action btn-disapprove" onclick="disapproveActivity(event, '${activity.activity_id}')">
+                  <i class="fas fa-times"></i> Disapprove
+                </button>
+              </div>
+            </td>
+          </tr>
+        `;
+      });
+
+      html += `
+            </tbody>
+          </table>
+        </div>
+      `;
+
+      container.innerHTML = html;
+    }
+
+    // Get status badge HTML
+    function getStatusBadge(activity) {
+      const role = document.getElementById('roleSelect').value;
+      
+      if (role === "bishop") {
+        if (activity.bishop_approval) {
+          return '<span class="status-badge status-approved">Bishop Approved</span>';
+        }
+      } else if (role === "stake_president") {
+        if (activity.stake_approval) {
+          return '<span class="status-badge status-approved">Stake Approved</span>';
+        }
+      }
+      
+      return '<span class="status-badge status-pending">Pending Approval</span>';
+    }
+
+    // Select activity to view details
+    function selectActivity(activityId) {
+      selectedActivityId = activityId;
+      
+      // Update table highlighting
+      document.querySelectorAll('.activities-table tbody tr').forEach(row => {
+        row.classList.remove('selected');
+      });
+      event.currentTarget.classList.add('selected');
+
+      // Display activity details
+      displayActivityDetails();
+    }
+
+    // Display activity details
+    function displayActivityDetails() {
+      const activity = allActivities.find(a => a.activity_id === selectedActivityId);
+      if (!activity) return;
+
+      const detailsSection = document.getElementById('detailsSection');
+      const detailsEmpty = document.getElementById('detailsEmpty');
+
+      const dateStart = activity.date_start ? new Date(activity.date_start).toLocaleDateString() : 'N/A';
+      const dateEnd = activity.date_end ? new Date(activity.date_end).toLocaleDateString() : 'N/A';
+      const groups = Array.isArray(activity.groups) ? activity.groups.join(', ') : 'N/A';
+      const drivers = Array.isArray(activity.drivers) ? activity.drivers.join(', ') : 'N/A';
+      const type = (activity.is_overnight ? 'Overnight ' : 'Day ') + (activity.is_coed ? 'Co-ed' : 'Single Gender');
+
+      let budgetHtml = '';
+      if (activity.budget && Array.isArray(activity.budget.items)) {
+        budgetHtml = `
+          <div class="detail-row">
+            <div class="detail-label">Budget Breakdown:</div>
+            <div class="detail-value">
+              <table class="expenses-detail-table">
+                <thead>
+                  <tr>
+                    <th>Item</th>
+                    <th class="text-end">Cost</th>
+                    <th class="text-end">Tax Rate</th>
+                    <th class="text-end">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+        `;
+
+        let subtotal = 0;
+        let totalTax = 0;
+
+        activity.budget.items.forEach(item => {
+          const cost = parseFloat(item.cost) || 0;
+          const taxRate = parseFloat(item.tax_rate) || 0;
+          const taxAmount = cost * (taxRate / 100);
+          const total = cost + taxAmount;
+
+          budgetHtml += `
+            <tr>
+              <td>${item.name || 'N/A'}</td>
+              <td class="text-end">$${cost.toFixed(2)}</td>
+              <td class="text-end">${taxRate.toFixed(1)}%</td>
+              <td class="text-end">$${total.toFixed(2)}</td>
+            </tr>
+          `;
+
+          subtotal += cost;
+          totalTax += taxAmount;
+        });
+
+        const grandTotal = subtotal + totalTax;
+
+        budgetHtml += `
+                  <tr class="total-row">
+                    <td colspan="2">TOTAL</td>
+                    <td class="text-end">$${subtotal.toFixed(2)}</td>
+                    <td class="text-end">$${grandTotal.toFixed(2)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        `;
+      }
+
+      const html = `
+        <div class="detail-row">
+          <div class="detail-label">Activity Name:</div>
+          <div class="detail-value">${activity.activity_name || 'N/A'}</div>
+        </div>
+
+        <div class="detail-row">
+          <div class="detail-label">Description:</div>
+          <div class="detail-value">${activity.description || 'N/A'}</div>
+        </div>
+
+        <div class="detail-row">
+          <div class="detail-label">Location:</div>
+          <div class="detail-value">${activity.location || 'N/A'}</div>
+        </div>
+
+        <div class="detail-row">
+          <div class="detail-label">Date Range:</div>
+          <div class="detail-value">${dateStart} to ${dateEnd}</div>
+        </div>
+
+        <div class="detail-row">
+          <div class="detail-label">Activity Type:</div>
+          <div class="detail-value">${type}</div>
+        </div>
+
+        <div class="detail-row">
+          <div class="detail-label">Groups:</div>
+          <div class="detail-value">${groups}</div>
+        </div>
+
+        <div class="detail-row">
+          <div class="detail-label">Drivers/Leaders:</div>
+          <div class="detail-value">${drivers}</div>
+        </div>
+
+        <div class="detail-row">
+          <div class="detail-label">Budgeted Amount:</div>
+          <div class="detail-value"><strong>$${(activity.budget?.total_amount || 0).toFixed(2)}</strong></div>
+        </div>
+
+        ${budgetHtml}
+
+        <div class="detail-row">
+          <div class="detail-label">Participants:</div>
+          <div class="detail-value">${(activity.participants_youth_ids || []).length} youth</div>
+        </div>
+
+        ${activity.thoughts ? `
+        <div class="detail-row">
+          <div class="detail-label">Notes:</div>
+          <div class="detail-value">${activity.thoughts}</div>
+        </div>
+        ` : ''}
+      `;
+
+      detailsSection.innerHTML = html;
+      detailsSection.classList.add('show');
+      detailsEmpty.style.display = 'none';
+    }
+
+    // Approve activity
+    async function approveActivity(event, activityId) {
+      event.stopPropagation();
+      
+      const role = document.getElementById('roleSelect').value;
+      await submitApproval(activityId, true, role);
+    }
+
+    // Disapprove activity
+    async function disapproveActivity(event, activityId) {
+      event.stopPropagation();
+      
+      if (!confirm('Are you sure you want to disapprove this activity?')) {
+        return;
+      }
+
+      const role = document.getElementById('roleSelect').value;
+      await submitApproval(activityId, false, role);
+    }
+
+    // Submit approval/disapproval
+    async function submitApproval(activityId, approved, role) {
+      try {
+        if (ENV === "test") {
+          // Simulate API call in test mode
+          const activity = allActivities.find(a => a.activity_id === activityId);
+          if (activity) {
+            if (role === "bishop") {
+              activity.bishop_approval = approved;
+            } else if (role === "stake_president") {
+              activity.stake_approval = approved;
+            }
+          }
+          showSuccess(approved ? 'Activity approved successfully!' : 'Activity disapproved.');
+          loadActivitiesForApproval();
+          selectedActivityId = null;
+          document.getElementById('detailsSection').classList.remove('show');
+          document.getElementById('detailsEmpty').style.display = 'block';
+          return;
+        }
+
+        const payload = {
+          activity_id: activityId,
+          approved: approved,
+          role: role
+        };
+
+        const res = await fetch(`${API_BASE}/activity-permission-ecclesiastical`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) throw new Error("Failed to submit approval");
+
+        showSuccess(approved ? 'Activity approved successfully!' : 'Activity disapproved.');
+        loadActivitiesForApproval();
+        selectedActivityId = null;
+        document.getElementById('detailsSection').classList.remove('show');
+        document.getElementById('detailsEmpty').style.display = 'block';
+      } catch (error) {
+        showError("Failed to submit approval: " + error.message);
+      }
+    }
+
+    // Show empty state
+    function showEmptyState() {
+      document.getElementById('activitiesContainer').innerHTML = `
+        <div class="empty-state">
+          <i class="fas fa-inbox"></i>
+          <p>Select a role above to view activities requiring approval</p>
+        </div>
+      `;
+      document.getElementById('detailsSection').classList.remove('show');
+      document.getElementById('detailsEmpty').style.display = 'block';
+    }
+
+    // Show loading state
+    function showLoading() {
+      document.getElementById('loadingState').style.display = 'block';
+      document.getElementById('activitiesContainer').style.display = 'none';
+      document.getElementById('errorAlert').style.display = 'none';
+    }
+
+    // Show error
+    function showError(message) {
+      const alert = document.getElementById('errorAlert');
+      alert.textContent = message;
+      alert.style.display = 'block';
+      document.getElementById('loadingState').style.display = 'none';
+      document.getElementById('activitiesContainer').style.display = 'none';
+    }
+
+    // Show success
+    function showSuccess(message) {
+      const alert = document.getElementById('successAlert');
+      document.getElementById('successMessage').textContent = message;
+      alert.style.display = 'block';
+      setTimeout(() => {
+        alert.style.display = 'none';
+      }, 3000);
+    }
+  </script>
+</body>
+</html>
