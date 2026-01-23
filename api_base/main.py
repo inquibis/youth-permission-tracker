@@ -1,3 +1,4 @@
+from typing import List
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import Query, Response
@@ -460,6 +461,39 @@ def get_all_activities(include_past: bool = Query(False, description="Include pa
         activities.append(ActivityBase(**row))
     return {"activities": activities}
 
+
+################
+## Ecclesiastical Activity Endpoints
+###############
+@app.get("/activity-permission-ecclesiastical", summary="Get activity permission details for Bishop/Stake President")
+def get_activity_permission_ecclesiastical(is_bishop: bool = Query(..., description="Is the requester a bishop?"), is_stake_president: bool = Query(..., description="Is the requester a stake president"))->List[FullActivity]:
+# get a list of all activities needing ecclesiastical approval
+    db = get_db()
+    cursor = db.cursor()
+    if is_bishop:
+        where = "bishop_approval IS NULL"
+    elif is_stake_president:
+        where = "stake_approval IS NULL"
+    cursor.execute("SELECT activity_id, activity_name, date_start, date_end, drivers, description, groups FROM activities {where}".format(where=where))
+    rows = cursor.fetchall()
+    activities = []
+    for row in rows:
+        activities.append(FullActivity(**row))
+    return activities
+
+@app.post("/activity-permission-ecclesiastical/{activity_id}/approve", summary="Approve activity permission for Bishop/Stake President")
+def approve_activity_permission_ecclesiastical(activity_id: str = Query(..., description="The ID of the activity"), is_bishop: bool = Query(..., description="Is the requester a bishop?"), is_stake_president: bool = Query(..., description="Is the requester a stake president")):
+    db = get_db()
+    cursor = db.cursor()
+    if is_bishop:
+        cursor.execute("UPDATE activities SET bishop_approval = 1, bishop_approval_date = datetime('now') WHERE activity_id = ?", (activity_id,))
+    elif is_stake_president:
+        cursor.execute("UPDATE activities SET stake_approval = 1, stake_approval_date = datetime('now') WHERE activity_id = ?", (activity_id,))
+    db.commit()
+    if cursor.rowcount > 0:
+        return {"message": "Activity approved successfully."}
+    else:
+        return {"message": "Activity not found."}   
 
 ###################
 ## Activity Helper Functions
