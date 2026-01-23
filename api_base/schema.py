@@ -54,6 +54,7 @@ class Activity(BaseModel):
     date: str
     location: str
     budget: budget
+    drivers: List[str]
     groups: List[str]
     start_time: str | None = None
     end_time: str | None = None

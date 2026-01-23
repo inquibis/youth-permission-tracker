@@ -1,4 +1,4 @@
-from typing import List
+from typing import Dict, List, Union
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import Query, Response
@@ -163,7 +163,7 @@ async def health():
 
 
 @app.get("/")
-async def read_root():
+async def read_root()->dict:
 	db = get_db()
 	db.execute("INSERT INTO visits (created_at) VALUES (datetime('now'))")
 	db.commit()
@@ -200,7 +200,7 @@ async def create_user(user_data: YouthPermissionSubmission):
 
 
 @app.get("/users/{youth_id}",tags=["users"],description="Get user by youth ID")
-async def get_user(youth_id: str)->YouthPermissionSubmission:
+async def get_user(youth_id: str)->Union[YouthPermissionSubmission,dict]:
     db = get_db()
     cursor = db.cursor()
     cursor.execute(     
@@ -241,7 +241,7 @@ async def delete_user(youth_id: str):
 
 
 @app.put("/users/{youth_id}", tags=["users"], description="Update user by youth ID")
-async def update_user(youth_id: str, user_data: YouthPermissionSubmission)->dict:     
+async def update_user(youth_id: str, user_data: YouthPermissionSubmission)->Dict[str, str]:     
     db = get_db()
     cursor = db.cursor()
     sql = """
@@ -279,6 +279,7 @@ def list_group_participants(group:str)->list:
         "SELECT youth_id, youth FROM youth_medical WHERE json_extract(youth, '$.group') = ?", (group,)
     )
     rows = cursor.fetchall()
+    #TODO return as a datamodel
     return [{"youth_id": row[0], "youth": json.loads(row[1])} for row in rows}]
 
 
@@ -290,10 +291,10 @@ async def create_activity(activity_data: Activity):
         coed = True
     is_overnighter = False
     if hasattr(activity_data, 'date_start') and hasattr(activity_data, 'date_end'):
-        if activity_data.date_start and activity_data.date_end:
+        if activity_data.start_time and activity_data.end_time:
             try:
-                start_date = datetime.fromisoformat(activity_data.date_start).date()
-                end_date = datetime.fromisoformat(activity_data.date_end).date()
+                start_date = datetime.fromisoformat(activity_data.start_time).date()
+                end_date = datetime.fromisoformat(activity_data.end_time).date()
                 is_overnighter = start_date != end_date
             except (ValueError, AttributeError):
                 pass
@@ -322,10 +323,10 @@ async def create_activity(activity_data: Activity):
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         (
             activity_id,
-            activity_data.activity_name,
+            activity_data.name,
             activity_data.description,
-            activity_data.date_start,
-            activity_data.date_end,
+            activity_data.start_time,
+            activity_data.end_time,
             getattr(activity_data, 'location', None),
             budget_json,
             all_users,
@@ -500,7 +501,7 @@ def approve_activity_permission_ecclesiastical(activity_id: str = Query(..., des
 ##################
 
 @app.get("/sms-activity-permission/{activity_id}", summary="Generate SMS content for activity permission")
-def email_activity_permission(activity_id: str = Query(..., description="The ID of the activity")):
+def sms_activity_permission(activity_id: str = Query(..., description="The ID of the activity")):
     db = get_db()
     cursor = db.cursor()
     cursor.execute(
