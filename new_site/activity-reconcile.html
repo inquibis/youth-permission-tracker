@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Activity Reconciliation</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <style>
+    body {
+      background-color: #f8f9fa;
+      padding: 20px 0;
+    }
+    .container {
+      max-width: 900px;
+    }
+    h1 {
+      color: #2c3e50;
+      margin-bottom: 30px;
+      text-align: center;
+    }
+    .card {
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      margin-bottom: 25px;
+      border: none;
+    }
+    .card-header {
+      background-color: #3498db;
+      color: white;
+      font-weight: 600;
+      padding: 15px 20px;
+    }
+    .card-body {
+      padding: 20px;
+    }
+    .section-title {
+      font-size: 1.1em;
+      font-weight: 600;
+      margin-top: 20px;
+      margin-bottom: 15px;
+      color: #2c3e50;
+    }
+    .form-label {
+      font-weight: 500;
+      color: #34495e;
+      margin-top: 12px;
+    }
+    .form-control, .form-select {
+      border-radius: 4px;
+      border: 1px solid #ddd;
+      padding: 8px 12px;
+    }
+    .form-control:focus, .form-select:focus {
+      border-color: #3498db;
+      box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.25);
+    }
+    #activityInfo {
+      background-color: #ecf0f1;
+      padding: 15px;
+      border-radius: 4px;
+      margin-bottom: 20px;
+      display: none;
+    }
+    #activityInfo h5 {
+      color: #2c3e50;
+      margin-bottom: 10px;
+    }
+    #activityInfo p {
+      margin-bottom: 8px;
+      color: #555;
+    }
+    .expense-row {
+      background-color: #f8f9fa;
+      padding: 15px;
+      margin-bottom: 12px;
+      border-radius: 4px;
+      border-left: 4px solid #3498db;
+    }
+    .expense-row.error {
+      border-left-color: #e74c3c;
+      background-color: #fadbd8;
+    }
+    .expense-row .row {
+      align-items: flex-end;
+    }
+    .btn-remove-expense {
+      background-color: #e74c3c;
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.9em;
+    }
+    .btn-remove-expense:hover {
+      background-color: #c0392b;
+    }
+    .btn-add-expense {
+      background-color: #27ae60;
+      color: white;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.95em;
+      margin-top: 10px;
+    }
+    .btn-add-expense:hover {
+      background-color: #229954;
+    }
+    .attendee-tag {
+      display: inline-block;
+      background-color: #3498db;
+      color: white;
+      padding: 6px 12px;
+      border-radius: 20px;
+      margin-right: 8px;
+      margin-bottom: 8px;
+      font-size: 0.9em;
+    }
+    .attendee-tag .remove {
+      margin-left: 6px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .attendee-input-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 15px;
+    }
+    .attendee-input-row input {
+      flex: 1;
+    }
+    .btn-primary {
+      background-color: #3498db;
+      border: none;
+      padding: 10px 20px;
+      font-weight: 500;
+      margin-right: 10px;
+    }
+    .btn-primary:hover {
+      background-color: #2980b9;
+    }
+    .btn-secondary {
+      background-color: #95a5a6;
+      border: none;
+      padding: 10px 20px;
+      font-weight: 500;
+    }
+    .btn-secondary:hover {
+      background-color: #7f8c8d;
+    }
+    .button-group {
+      display: flex;
+      gap: 10px;
+      margin-top: 25px;
+      justify-content: center;
+    }
+    .summary-section {
+      background-color: #ecf0f1;
+      padding: 15px;
+      border-radius: 4px;
+      margin-top: 15px;
+    }
+    .summary-item {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 10px;
+      font-size: 1em;
+    }
+    .summary-item .label {
+      font-weight: 500;
+      color: #2c3e50;
+    }
+    .summary-item .value {
+      color: #555;
+    }
+    .summary-item.total {
+      border-top: 2px solid #3498db;
+      padding-top: 10px;
+      font-weight: 600;
+      color: #3498db;
+    }
+    .alert {
+      margin-bottom: 20px;
+    }
+    .loading-spinner {
+      text-align: center;
+      padding: 40px;
+    }
+    .spinner-border {
+      color: #3498db;
+    }
+  </style>
+</head>
+<body class="bg-light">
+  <div class="container">
+    <h1>Activity Reconciliation</h1>
+
+    <!-- Activity Selection Card -->
+    <div class="card">
+      <div class="card-header">Step 1: Select Activity</div>
+      <div class="card-body">
+        <div class="mb-3">
+          <label for="activitySelect" class="form-label">Select an Activity to Reconcile:</label>
+          <select id="activitySelect" class="form-select">
+            <option value="">-- Choose an Activity --</option>
+          </select>
+        </div>
+        <button type="button" class="btn btn-primary" onclick="loadActivityData()">Load Activity</button>
+      </div>
+    </div>
+
+    <!-- Activity Details Display -->
+    <div id="activityInfo" class="card">
+      <div class="card-header">Activity Details</div>
+      <div class="card-body">
+        <h5 id="activityName"></h5>
+        <p><strong>Description:</strong> <span id="activityDescription"></span></p>
+        <p><strong>Location:</strong> <span id="activityLocation"></span></p>
+        <p><strong>Date Range:</strong> <span id="activityDateRange"></span></p>
+        <p><strong>Groups:</strong> <span id="activityGroups"></span></p>
+        <p><strong>Drivers:</strong> <span id="activityDrivers"></span></p>
+        <p><strong>Budgeted Total:</strong> $<span id="budgetedTotal">0.00</span></p>
+      </div>
+    </div>
+
+    <!-- Reconciliation Form Card -->
+    <div id="reconcileForm" class="card" style="display: none;">
+      <div class="card-header">Step 2: Enter Reconciliation Information</div>
+      <div class="card-body">
+        <form id="mainForm" onsubmit="submitReconciliation(event)">
+
+          <!-- Total Costs Section -->
+          <div class="section-title">Total Costs</div>
+          <div class="mb-3">
+            <label for="totalCost" class="form-label">Total Activity Cost (including all expenses and tax):</label>
+            <input type="number" id="totalCost" class="form-control" step="0.01" min="0" required placeholder="0.00">
+          </div>
+
+          <!-- Expenses Section -->
+          <div class="section-title">Expenses Breakdown</div>
+          <p class="text-muted">Add individual expense items with costs and tax:</p>
+          <div id="expensesContainer"></div>
+          <button type="button" class="btn-add-expense" onclick="addExpenseRow()">+ Add Expense</button>
+
+          <!-- Summary Section -->
+          <div class="summary-section">
+            <div class="summary-item">
+              <span class="label">Subtotal (before tax):</span>
+              <span class="value">$<span id="subtotal">0.00</span></span>
+            </div>
+            <div class="summary-item">
+              <span class="label">Total Tax:</span>
+              <span class="value">$<span id="totalTax">0.00</span></span>
+            </div>
+            <div class="summary-item total">
+              <span class="label">Calculated Total:</span>
+              <span class="value">$<span id="calculatedTotal">0.00</span></span>
+            </div>
+          </div>
+
+          <!-- Attendees Section -->
+          <div class="section-title">Attendees</div>
+          <p class="text-muted">Add the names of youth and adults who attended:</p>
+          <div class="attendee-input-row">
+            <input type="text" id="attendeeInput" class="form-control" placeholder="Enter name">
+            <button type="button" class="btn btn-primary" onclick="addAttendee()" style="white-space: nowrap;">Add Attendee</button>
+          </div>
+          <div id="attendeesList"></div>
+
+          <!-- Notes Section -->
+          <div class="section-title">Notes</div>
+          <div class="mb-3">
+            <label for="notes" class="form-label">Any additional notes about the activity:</label>
+            <textarea id="notes" class="form-control" rows="4" placeholder="Enter any notes..."></textarea>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="button-group">
+            <button type="submit" class="btn btn-primary">Save Reconciliation</button>
+            <button type="button" class="btn btn-secondary" onclick="resetForm()">Clear Form</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Status Messages -->
+    <div id="successAlert" class="alert alert-success" style="display: none; margin-top: 20px;">
+      <strong>Success!</strong> Activity reconciliation has been saved.
+    </div>
+    <div id="errorAlert" class="alert alert-danger" style="display: none; margin-top: 20px;"></div>
+  </div>
+
+  <script>
+    // Configuration
+    const API_BASE = window.API_BASE || "http://localhost:8000";
+    const ENV = window.ENV || "test";
+
+    let currentActivityId = null;
+    let attendeesList = [];
+    let expenseRowCount = 0;
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+      loadActivityList();
+    });
+
+    // Load list of activities for selection
+    async function loadActivityList() {
+      try {
+        const endpoint = ENV === "test" 
+          ? "test/group_activities.json" 
+          : `${API_BASE}/activities`;
+        
+        const res = await fetch(endpoint);
+        if (!res.ok) throw new Error("Failed to load activities");
+        
+        const activities = await res.json();
+        populateActivitySelect(activities);
+      } catch (error) {
+        showError("Failed to load activity list: " + error.message);
+      }
+    }
+
+    // Populate the activity select dropdown
+    function populateActivitySelect(activities) {
+      const select = document.getElementById('activitySelect');
+      select.innerHTML = '<option value="">-- Choose an Activity --</option>';
+      
+      if (Array.isArray(activities)) {
+        activities.forEach(activity => {
+          const option = document.createElement('option');
+          option.value = activity.activity_id || activity.id;
+          option.textContent = activity.activity_name || activity.name;
+          select.appendChild(option);
+        });
+      }
+    }
+
+    // Load activity data from the reconcile endpoint
+    async function loadActivityData() {
+      const activitySelect = document.getElementById('activitySelect');
+      const activityId = activitySelect.value;
+      
+      if (!activityId) {
+        showError("Please select an activity");
+        return;
+      }
+
+      try {
+        currentActivityId = activityId;
+        const endpoint = ENV === "test"
+          ? "test/permission.json"
+          : `${API_BASE}/activities/reconcile/${activityId}`;
+
+        const res = await fetch(endpoint);
+        if (!res.ok) throw new Error("Failed to load activity details");
+        
+        const activity = await res.json();
+        displayActivityInfo(activity);
+        showReconcileForm();
+        initializeExpenses(activity);
+      } catch (error) {
+        showError("Failed to load activity: " + error.message);
+      }
+    }
+
+    // Display activity information
+    function displayActivityInfo(activity) {
+      document.getElementById('activityName').textContent = activity.activity_name || activity.name || 'N/A';
+      document.getElementById('activityDescription').textContent = activity.description || 'N/A';
+      document.getElementById('activityLocation').textContent = activity.location || 'N/A';
+      
+      const dateStart = activity.date_start ? new Date(activity.date_start).toLocaleDateString() : 'N/A';
+      const dateEnd = activity.date_end ? new Date(activity.date_end).toLocaleDateString() : 'N/A';
+      document.getElementById('activityDateRange').textContent = `${dateStart} to ${dateEnd}`;
+      
+      document.getElementById('activityGroups').textContent = 
+        (Array.isArray(activity.groups) ? activity.groups.join(', ') : 'N/A') || 'N/A';
+      document.getElementById('activityDrivers').textContent = 
+        (Array.isArray(activity.drivers) ? activity.drivers.join(', ') : 'N/A') || 'N/A';
+      
+      const budgetedAmount = activity.budget?.total_amount || activity.total_cost || 0;
+      document.getElementById('budgetedTotal').textContent = parseFloat(budgetedAmount).toFixed(2);
+      
+      document.getElementById('activityInfo').style.display = 'block';
+    }
+
+    // Show the reconciliation form
+    function showReconcileForm() {
+      document.getElementById('reconcileForm').style.display = 'block';
+    }
+
+    // Initialize with existing expenses if available
+    function initializeExpenses(activity) {
+      document.getElementById('expensesContainer').innerHTML = '';
+      expenseRowCount = 0;
+      
+      if (activity.budget && Array.isArray(activity.budget.items) && activity.budget.items.length > 0) {
+        activity.budget.items.forEach(item => {
+          addExpenseRow(item);
+        });
+      } else {
+        addExpenseRow();
+      }
+    }
+
+    // Add a new expense row
+    function addExpenseRow(item = {}) {
+      const container = document.getElementById('expensesContainer');
+      const rowId = `expense-${expenseRowCount++}`;
+      
+      const row = document.createElement('div');
+      row.className = 'expense-row';
+      row.id = rowId;
+      row.innerHTML = `
+        <div class="row g-2">
+          <div class="col-md-4">
+            <label class="form-label">Item Description</label>
+            <input type="text" class="form-control expense-item" placeholder="e.g., Food, Transportation" value="${item.name || ''}">
+          </div>
+          <div class="col-md-2">
+            <label class="form-label">Cost</label>
+            <input type="number" class="form-control expense-cost" step="0.01" min="0" placeholder="0.00" value="${item.cost || ''}">
+          </div>
+          <div class="col-md-2">
+            <label class="form-label">Sales Tax %</label>
+            <input type="number" class="form-control expense-tax" step="0.01" min="0" max="100" placeholder="0" value="${item.tax_rate || '0'}">
+          </div>
+          <div class="col-md-2">
+            <label class="form-label">Total</label>
+            <input type="number" class="form-control expense-total" step="0.01" min="0" placeholder="0.00" readonly value="${item.total || ''}" style="background-color: #ecf0f1;">
+          </div>
+          <div class="col-md-2 d-flex align-items-end">
+            <button type="button" class="btn-remove-expense" onclick="removeExpenseRow('${rowId}')">Remove</button>
+          </div>
+        </div>
+      `;
+      
+      container.appendChild(row);
+      
+      // Add event listeners for calculations
+      const costInput = row.querySelector('.expense-cost');
+      const taxInput = row.querySelector('.expense-tax');
+      costInput.addEventListener('input', updateExpenseCalculations);
+      taxInput.addEventListener('input', updateExpenseCalculations);
+    }
+
+    // Remove an expense row
+    function removeExpenseRow(rowId) {
+      const row = document.getElementById(rowId);
+      if (row) {
+        row.remove();
+        updateExpenseCalculations();
+      }
+    }
+
+    // Update expense calculations
+    function updateExpenseCalculations() {
+      const rows = document.querySelectorAll('.expense-row');
+      let subtotal = 0;
+      let totalTax = 0;
+
+      rows.forEach(row => {
+        const cost = parseFloat(row.querySelector('.expense-cost').value) || 0;
+        const taxRate = parseFloat(row.querySelector('.expense-tax').value) || 0;
+        const tax = cost * (taxRate / 100);
+        const total = cost + tax;
+
+        row.querySelector('.expense-total').value = total.toFixed(2);
+        subtotal += cost;
+        totalTax += tax;
+      });
+
+      const calculatedTotal = subtotal + totalTax;
+      document.getElementById('subtotal').textContent = subtotal.toFixed(2);
+      document.getElementById('totalTax').textContent = totalTax.toFixed(2);
+      document.getElementById('calculatedTotal').textContent = calculatedTotal.toFixed(2);
+    }
+
+    // Add an attendee
+    function addAttendee() {
+      const input = document.getElementById('attendeeInput');
+      const name = input.value.trim();
+
+      if (!name) {
+        showError("Please enter an attendee name");
+        return;
+      }
+
+      if (attendeesList.includes(name)) {
+        showError("This attendee has already been added");
+        return;
+      }
+
+      attendeesList.push(name);
+      input.value = '';
+      renderAttendeesList();
+    }
+
+    // Remove an attendee
+    function removeAttendee(name) {
+      attendeesList = attendeesList.filter(a => a !== name);
+      renderAttendeesList();
+    }
+
+    // Render attendees list
+    function renderAttendeesList() {
+      const container = document.getElementById('attendeesList');
+      container.innerHTML = '';
+
+      attendeesList.forEach(name => {
+        const tag = document.createElement('div');
+        tag.className = 'attendee-tag';
+        tag.innerHTML = `${name}<span class="remove" onclick="removeAttendee('${name.replace(/'/g, "\\'")}')">×</span>`;
+        container.appendChild(tag);
+      });
+    }
+
+    // Submit reconciliation
+    async function submitReconciliation(event) {
+      event.preventDefault();
+
+      if (!currentActivityId) {
+        showError("No activity selected");
+        return;
+      }
+
+      const totalCost = parseFloat(document.getElementById('totalCost').value);
+      const notes = document.getElementById('notes').value.trim();
+
+      if (isNaN(totalCost) || totalCost < 0) {
+        showError("Please enter a valid total cost");
+        return;
+      }
+
+      // Build expenses array
+      const expenses = [];
+      document.querySelectorAll('.expense-row').forEach(row => {
+        const item = row.querySelector('.expense-item').value.trim();
+        const cost = parseFloat(row.querySelector('.expense-cost').value) || 0;
+        const taxRate = parseFloat(row.querySelector('.expense-tax').value) || 0;
+        const total = parseFloat(row.querySelector('.expense-total').value) || 0;
+
+        if (item && cost > 0) {
+          expenses.push({
+            name: item,
+            cost: cost,
+            tax_rate: taxRate,
+            total: total
+          });
+        }
+      });
+
+      const payload = {
+        activity_id: currentActivityId,
+        total_cost: totalCost,
+        actual_cost: totalCost,
+        participants_youth_ids: attendeesList,
+        thoughts: notes,
+        budget: {
+          items: expenses,
+          total_amount: totalCost
+        }
+      };
+
+      try {
+        const endpoint = ENV === "test"
+          ? "#"
+          : `${API_BASE}/activities/reconcile/${currentActivityId}`;
+
+        if (ENV === "test") {
+          showSuccess("Activity reconciliation saved successfully (test mode)");
+          resetForm();
+          return;
+        }
+
+        const res = await fetch(endpoint, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) throw new Error("Failed to save reconciliation");
+
+        showSuccess("Activity reconciliation saved successfully!");
+        setTimeout(() => {
+          resetForm();
+          document.getElementById('reconcileForm').style.display = 'none';
+          document.getElementById('activityInfo').style.display = 'none';
+        }, 2000);
+      } catch (error) {
+        showError("Failed to save reconciliation: " + error.message);
+      }
+    }
+
+    // Reset form
+    function resetForm() {
+      document.getElementById('mainForm').reset();
+      document.getElementById('expensesContainer').innerHTML = '';
+      attendeesList = [];
+      expenseRowCount = 0;
+      document.getElementById('attendeesList').innerHTML = '';
+      document.getElementById('subtotal').textContent = '0.00';
+      document.getElementById('totalTax').textContent = '0.00';
+      document.getElementById('calculatedTotal').textContent = '0.00';
+    }
+
+    // Show success message
+    function showSuccess(message) {
+      const alert = document.getElementById('successAlert');
+      alert.textContent = message;
+      alert.style.display = 'block';
+      setTimeout(() => {
+        alert.style.display = 'none';
+      }, 4000);
+    }
+
+    // Show error message
+    function showError(message) {
+      const alert = document.getElementById('errorAlert');
+      alert.textContent = message;
+      alert.style.display = 'block';
+      setTimeout(() => {
+        alert.style.display = 'none';
+      }, 4000);
+    }
+  </script>
+</body>
+</html>

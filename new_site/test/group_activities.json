@@ -1,0 +1,217 @@
+[
+  {
+    "activity_id": "act-001",
+    "activity_name": "Youth Activity Day - Winter Hike",
+    "description": "A fun winter hiking activity for the youth group at the local nature preserve. This is a half-day activity with snacks and team building games.",
+    "location": "Pine Ridge Nature Preserve",
+    "date_start": "2024-02-10T09:00:00",
+    "date_end": "2024-02-10T14:00:00",
+    "is_overnight": false,
+    "is_coed": true,
+    "groups": ["Young Men", "Young Women"],
+    "drivers": ["John Smith", "Sarah Johnson"],
+    "budget": {
+      "total_amount": 250.00,
+      "budget_id": "budget-001",
+      "items": [
+        {
+          "name": "Hiking Trail Permits",
+          "cost": 50.00,
+          "tax_rate": 0
+        },
+        {
+          "name": "Snacks and Water",
+          "cost": 100.00,
+          "tax_rate": 7.5
+        },
+        {
+          "name": "Activity Supplies",
+          "cost": 75.00,
+          "tax_rate": 7.5
+        }
+      ],
+      "actual_amount": null
+    },
+    "total_cost": null,
+    "actual_cost": null,
+    "participants_youth_ids": [],
+    "thoughts": null,
+    "bishop_approval": true,
+    "bishop_approval_date": "2024-02-01",
+    "stake_approval": false,
+    "stake_approval_date": null
+  },
+  {
+    "activity_id": "act-002",
+    "activity_name": "Community Service Project",
+    "description": "Youth volunteering to clean and refurbish the local community center. Great opportunity for service and team work.",
+    "location": "Community Center, 123 Main St",
+    "date_start": "2024-02-17T08:00:00",
+    "date_end": "2024-02-17T12:00:00",
+    "is_overnight": false,
+    "is_coed": true,
+    "groups": ["Young Men", "Young Women"],
+    "drivers": ["Michael Brown", "Emily Davis"],
+    "budget": {
+      "total_amount": 150.00,
+      "budget_id": "budget-002",
+      "items": [
+        {
+          "name": "Cleaning Supplies",
+          "cost": 75.00,
+          "tax_rate": 7.5
+        },
+        {
+          "name": "Lunch for Volunteers",
+          "cost": 60.00,
+          "tax_rate": 7.5
+        },
+        {
+          "name": "Miscellaneous Supplies",
+          "cost": 15.00,
+          "tax_rate": 0
+        }
+      ],
+      "actual_amount": null
+    },
+    "total_cost": null,
+    "actual_cost": null,
+    "participants_youth_ids": [],
+    "thoughts": null,
+    "bishop_approval": true,
+    "bishop_approval_date": "2024-02-05",
+    "stake_approval": false,
+    "stake_approval_date": null
+  },
+  {
+    "activity_id": "act-003",
+    "activity_name": "Campout Weekend",
+    "description": "Multi-day camping trip for youth. Includes meals, activities, and outdoor skills development.",
+    "location": "Mountain Lake Campground",
+    "date_start": "2024-03-01T17:00:00",
+    "date_end": "2024-03-03T14:00:00",
+    "is_overnight": true,
+    "is_coed": false,
+    "groups": ["Young Men"],
+    "drivers": ["James Wilson", "David Martinez"],
+    "budget": {
+      "total_amount": 800.00,
+      "budget_id": "budget-003",
+      "items": [
+        {
+          "name": "Campground Fees",
+          "cost": 200.00,
+          "tax_rate": 0
+        },
+        {
+          "name": "Food and Groceries",
+          "cost": 400.00,
+          "tax_rate": 5.0
+        },
+        {
+          "name": "Activity Equipment Rental",
+          "cost": 150.00,
+          "tax_rate": 7.5
+        },
+        {
+          "name": "First Aid and Safety Supplies",
+          "cost": 50.00,
+          "tax_rate": 0
+        }
+      ],
+      "actual_amount": null
+    },
+    "total_cost": null,
+    "actual_cost": null,
+    "participants_youth_ids": [],
+    "thoughts": null,
+    "bishop_approval": true,
+    "bishop_approval_date": "2024-02-10",
+    "stake_approval": true,
+    "stake_approval_date": "2024-02-15"
+  },
+  {
+    "activity_id": "act-004",
+    "activity_name": "Bowling and Pizza Night",
+    "description": "Casual social activity. Youth gather for bowling and pizza to build friendships and have fun.",
+    "location": "Strike Zone Bowling Alley",
+    "date_start": "2024-02-24T18:00:00",
+    "date_end": "2024-02-24T21:00:00",
+    "is_overnight": false,
+    "is_coed": true,
+    "groups": ["Young Men", "Young Women"],
+    "drivers": ["Rachel Lee", "Thomas Anderson"],
+    "budget": {
+      "total_amount": 300.00,
+      "budget_id": "budget-004",
+      "items": [
+        {
+          "name": "Bowling Alley Rental",
+          "cost": 120.00,
+          "tax_rate": 7.5
+        },
+        {
+          "name": "Pizza",
+          "cost": 140.00,
+          "tax_rate": 7.5
+        },
+        {
+          "name": "Drinks and Snacks",
+          "cost": 40.00,
+          "tax_rate": 7.5
+        }
+      ],
+      "actual_amount": null
+    },
+    "total_cost": null,
+    "actual_cost": null,
+    "participants_youth_ids": [],
+    "thoughts": null,
+    "bishop_approval": true,
+    "bishop_approval_date": "2024-02-15",
+    "stake_approval": false,
+    "stake_approval_date": null
+  },
+  {
+    "activity_id": "act-005",
+    "activity_name": "Skills Workshop - Leadership Training",
+    "description": "Interactive workshop focusing on leadership skills, public speaking, and team building for youth leaders.",
+    "location": "Church Fellowship Hall",
+    "date_start": "2024-03-09T10:00:00",
+    "date_end": "2024-03-09T16:00:00",
+    "is_overnight": false,
+    "is_coed": true,
+    "groups": ["Young Men", "Young Women"],
+    "drivers": ["Christopher White", "Lisa Green"],
+    "budget": {
+      "total_amount": 350.00,
+      "budget_id": "budget-005",
+      "items": [
+        {
+          "name": "Instructor Fees",
+          "cost": 200.00,
+          "tax_rate": 0
+        },
+        {
+          "name": "Materials and Workbooks",
+          "cost": 80.00,
+          "tax_rate": 7.5
+        },
+        {
+          "name": "Lunch Catering",
+          "cost": 70.00,
+          "tax_rate": 7.5
+        }
+      ],
+      "actual_amount": null
+    },
+    "total_cost": null,
+    "actual_cost": null,
+    "participants_youth_ids": [],
+    "thoughts": null,
+    "bishop_approval": true,
+    "bishop_approval_date": "2024-02-20",
+    "stake_approval": false,
+    "stake_approval_date": null
+  }
+]
