@@ -318,8 +318,79 @@
 
     .empty-state p {
       font-size: 1.1rem;
-      margin: 0;
     }
+
+    /* Navbar */
+    .navbar {
+      background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      padding: 0.75rem 0;
+      margin-bottom: 30px;
+    }
+
+    .navbar-brand {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: white !important;
+      margin-right: 2rem;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .navbar-end {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .user-info {
+      color: rgba(255, 255, 255, 0.9);
+      font-size: 0.9rem;
+    }
+
+    .logout-btn {
+      background-color: var(--secondary-color);
+      color: var(--primary-color);
+      border: none;
+      padding: 6px 12px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.3s ease;
+    }
+
+    .logout-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    /* Unauthorized Container */
+    .unauthorized-container {
+      text-align: center;
+      padding: 60px 20px;
+      color: #dc3545;
+      display: none;
+    }
+
+    .unauthorized-container i {
+      font-size: 4rem;
+      color: #dc3545;
+      margin-bottom: 20px;
+      display: block;
+    }
+
+    .unauthorized-container h2 {
+      color: #dc3545;
+      margin-bottom: 15px;
+    }
+
+    .unauthorized-container p {
+      font-size: 1.1rem;
+      margin-bottom: 20px;
+    }
+  
 
     /* Loading */
     .loading {
@@ -376,8 +447,37 @@
   </style>
 </head>
 <body>
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="container-fluid" style="display: flex; align-items: center;">
+      <span class="navbar-brand">
+        <i class="fas fa-check-circle"></i>
+        Activity Approval Portal
+      </span>
+      <div class="navbar-end" id="navbarEnd" style="display: none;">
+        <div class="user-info">
+          <i class="fas fa-user-circle"></i>
+          <span id="userDisplayName">Admin</span>
+        </div>
+        <button class="logout-btn" onclick="logout()">
+          <i class="fas fa-sign-out-alt"></i> Logout
+        </button>
+      </div>
+    </div>
+  </nav>
+
   <div class="container">
-    <h1><i class="fas fa-check-circle"></i> Activity Approval Portal</h1>
+    <!-- Unauthorized Message -->
+    <div id="unauthorizedContainer" class="unauthorized-container">
+      <i class="fas fa-lock"></i>
+      <h2>Access Denied</h2>
+      <p>You do not have permission to access this page.</p>
+      <p>Only users with admin or ecc_admin group can access the Activity Approval Portal.</p>
+    </div>
+
+    <!-- Main Content -->
+    <div id="mainContent" style="display: none;">
+      <h1><i class="fas fa-check-circle"></i> Activity Approval Portal</h1>
 
     <!-- Role Selection -->
     <div class="card">
@@ -440,12 +540,102 @@
     <div id="successAlert" class="alert alert-success" style="display: none; position: fixed; bottom: 20px; right: 20px; z-index: 1000; min-width: 300px;">
       <i class="fas fa-check-circle"></i> <span id="successMessage"></span>
     </div>
+    </div>
   </div>
 
   <script>
     // Configuration
     const API_BASE = window.API_BASE || "http://localhost:8000";
-    const ENV = window.ENV || "test";
+    const ENV = window.ENV || "test"; 
+
+    // Determine if we're in test environment
+    function isTestEnvironment() {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('env') === 'test' || (API_BASE.includes('localhost') && params.get('env') !== 'prod');      
+    }
+
+    // Check authentication on page load
+    window.addEventListener('DOMContentLoaded', () => {
+      const token = localStorage.getItem('authToken');
+      
+      // Check if authenticated (before setting test token)
+      if (!token && !isTestEnvironment()) {
+        // No token and not in test mode, redirect to login with return URL
+        window.location.href = `login.html?redirect=${encodeURIComponent('permission-admin.html')}`;
+        return;
+      }
+
+      // Setup test environment if needed
+      if (isTestEnvironment()) {
+        setupTestEnvironment();
+      }
+      
+      checkAuthenticationAndAuthorization();
+    });
+
+    function setupTestEnvironment() {
+      // Set test user credentials
+      localStorage.setItem('authToken', 'test-token-' + Date.now());
+      localStorage.setItem('username', 'bishop_test');
+      localStorage.setItem('userRole', 'bishop');
+      localStorage.setItem('userGroup', 'ecc_admin');
+    }
+
+    function checkAuthenticationAndAuthorization() {
+      const token = localStorage.getItem('authToken');
+      const group = localStorage.getItem('userGroup');
+
+      // Check if authenticated
+      if (!token && !isTestEnvironment()) {
+        // No token, redirect to login with return URL
+        window.location.href = `login.html?redirect=${encodeURIComponent('permission-admin.html')}`;
+        return;
+      }
+
+      // Check if authorized
+      if (group !== 'admin' && group !== 'ecc_admin') {
+        // User doesn't have required permissions
+        showUnauthorized();
+        return;
+      }
+
+      // User is authenticated and authorized
+      displayUserInfo();
+      document.getElementById('mainContent').style.display = 'block';
+      document.getElementById('navbarEnd').style.display = 'flex';
+      document.getElementById('unauthorizedContainer').style.display = 'none';
+      
+      // In test mode, auto-load test data
+      if (isTestEnvironment()) {
+        document.getElementById('roleSelect').value = 'bishop';
+        loadActivitiesForApproval();
+      }
+    }
+
+    function displayUserInfo() {
+      const username = localStorage.getItem('username') || 'Admin';
+      const userRole = localStorage.getItem('userRole') || '';
+      const isTest = isTestEnvironment();
+      const displayText = username + (userRole ? ` (${userRole})` : '') + (isTest ? ' [TEST]' : '');
+      document.getElementById('userDisplayName').textContent = displayText;
+    }
+
+    function showUnauthorized() {
+      document.getElementById('unauthorizedContainer').style.display = 'block';
+      document.getElementById('mainContent').style.display = 'none';
+      document.getElementById('navbarEnd').style.display = 'none';
+    }
+
+    function logout() {
+      // Clear stored data
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('username');
+      localStorage.removeItem('userRole');
+      localStorage.removeItem('userGroup');
+
+      // Redirect to login
+      window.location.href = 'login.html';
+    }
 
     let allActivities = [];
     let selectedActivityId = null;
@@ -462,7 +652,7 @@
       showLoading();
       try {
         let endpoint;
-        if (ENV === "test") {
+        if (isTestEnvironment()) {
           endpoint = "test/group_admin_activities.json";
         } else {
           endpoint = `${API_BASE}/activity-permission-ecclesiastical?role=${role}`;
