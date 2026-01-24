@@ -1,0 +1,30 @@
+# new-api-dockerfile
+FROM python:3.11-slim
+
+# Prevent Python from writing .pyc files and enable unbuffered logs
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+# Install OS deps (optional but helpful for many python wheels)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+  && rm -rf /var/lib/apt/lists/*
+
+# Install Python deps first (better layer caching)
+COPY api_base/requirements.txt /app/api_base/requirements.txt
+RUN pip install --no-cache-dir -r /app/api_base/requirements.txt
+
+# Copy application code
+COPY api_base /app/api_base
+
+# Expose API port
+EXPOSE 8000
+
+# Start FastAPI via uvicorn
+# Assumes your FastAPI instance is named `app` in api_base/main.py
+CMD ["python", "-m", "uvicorn", "api_base.main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+# docker build -f new-api-dockerfile -t youth-api .
+# docker run --rm -p 8000:8000 youth-api

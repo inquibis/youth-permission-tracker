@@ -1,0 +1,36 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: new-api-dockerfile
+    container_name: youth_api_test
+    environment:
+      ENV: "test"
+      BASE_URL: "localhost"
+      DB_PATH: "/data/data.sqlite3"
+    volumes:
+      # Persistent SQLite file lives on the host at ./data/sqlite/data.sqlite3
+      - ./data/sqlite:/data
+    ports:
+      - "8000:8000"
+    networks:
+      - youth_net
+
+  web:
+    build:
+      context: .
+      dockerfile: new-web-dockerfile
+    container_name: youth_web_test
+    environment:
+      ENV: "test"
+      BASE_URL: "localhost"
+    depends_on:
+      - api
+    ports:
+      - "80:80"
+    networks:
+      - youth_net
+
+networks:
+  youth_net:
+    driver: bridge
