@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi import Query, Response
 from io import BytesIO
 import qrcode
-from schema import ActivityBase, FullActivity, PermissionGiven, YouthPermissionSubmission, Activity, ParentGuardian, MedicalInfo, EmergencyContact, Signature
+from schema import ActivityBase, AdminUser, FullActivity, PermissionGiven, YouthPermissionSubmission, Activity, ParentGuardian, MedicalInfo, EmergencyContact, Signature
 import sqlite3
 import os
 import json
@@ -12,12 +12,14 @@ from icalendar import Calendar, Event, vCalAddress, vText
 from datetime import datetime, timedelta
 import uuid
 from contact_engine import ContactEngine
+from db_setup import DBSetup
+from jose import jwt
 
 app = FastAPI()
 contact_engine = ContactEngine()
 
 # Allow CORS from any origin (use caution in production)
-app.add_middleware(
+app.add_middleware( 
 	CORSMiddleware,
 	allow_origins=["*"],
 	allow_credentials=True,
@@ -26,6 +28,9 @@ app.add_middleware(
 )
 
 DB_PATH = os.getenv("DB_PATH", "data.sqlite3")
+SECRET_KEY = "super-secret-key"  # Use environment variable in prod
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 
 
@@ -48,97 +53,9 @@ def startup():
     conn.execute("PRAGMA journal_mode = WAL;")
     conn.execute("PRAGMA synchronous = NORMAL;")
 
-    # Core tables
-    conn.execute(
-        """
-        CREATE TABLE IF NOT EXISTS visits (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            created_at TEXT NOT NULL DEFAULT (datetime('now'))
-        );
-        """
-    )
-
-    # Stores the medical release submission payloads (JSON blobs)
-    conn.execute(
-        """
-        CREATE TABLE IF NOT EXISTS youth_medical (
-            youth_id TEXT PRIMARY KEY,
-            permission_code TEXT NOT NULL,
-            youth TEXT NOT NULL,
-            parent_guardian TEXT NOT NULL,
-            medical TEXT NOT NULL,
-            emergency_contact TEXT NOT NULL,
-            signature TEXT NOT NULL,
-            signed_at TEXT NOT NULL,
-            created_at TEXT NOT NULL DEFAULT (datetime('now')),
-            updated_at TEXT
-        );
-        """
-    )
-
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_youth_medical_permission_code ON youth_medical(permission_code);")
-
-    # Activities table (matches your create_activity insert pattern)
-    conn.execute(
-        """
-        CREATE TABLE IF NOT EXISTS activities (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            activity_id TEXT UNIQUE,
-            activity_name TEXT NOT NULL,
-            description TEXT NOT NULL,
-            location TEXT NOT NULL,
-            budget TEXT,
-            total_cost REAL,
-            actual_cost REAL,
-            participants_youth_ids TEXT,
-            groups TEXT,
-            drivers TEXT,
-            date_start datetime NOT NULL,
-            date_end datetime NOT NULL,
-            is_overnight INTEGER,
-            is_coed INTEGER,
-            thoughts TEXT,
-            bishop_approval INTEGER,
-            bishop_approval_date TEXT,
-            stake_approval INTEGER,
-            stake_approval_date TEXT,
-            created_at TEXT DEFAULT (datetime('now')),
-
-        );
-        """
-    )
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_activities_activity_id ON activities(activity_id);")
-
-    # Permission assignments table (matches your /activity-permissions endpoint)
-    conn.execute(
-        """
-        CREATE TABLE IF NOT EXISTS permission_given (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            youth_id TEXT,
-            activity_id TEXT,
-            permission_code TEXT,
-            data JSON,
-            created_at TEXT DEFAULT (datetime('now'))
-        );
-        """
-    )
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_permission_given_activity_id ON permission_given(activity_id);")
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_permission_given_youth_id ON permission_given(youth_id);")
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_permission_given_permission_code ON permission_given(permission_code);")
-
-    # Keep updated_at current on updates (SQLite trigger)
-    conn.execute(
-        """
-        CREATE TRIGGER IF NOT EXISTS trg_youth_medical_updated_at
-        AFTER UPDATE ON youth_medical
-        FOR EACH ROW
-        BEGIN
-            UPDATE youth_medical SET updated_at = datetime('now') WHERE youth_id = NEW.youth_id;
-        END;
-        """
-    )
-
-    conn.commit()
+    db_setup=DBSetup(conn)
+    db_setup.create_tables()
+    db_setup._load_admins()
     app.state._db = conn
 
 
@@ -279,7 +196,10 @@ def list_group_participants(group:str)->list:
         "SELECT youth_id, youth FROM youth_medical WHERE json_extract(youth, '$.group') = ?", (group,)
     )
     rows = cursor.fetchall()
-    #TODO return as a datamodel
+    youth = []
+    for row in rows:
+        youth.append()
+
     return [{"youth_id": row[0], "youth": json.loads(row[1])} for row in rows}]
 
 
@@ -466,6 +386,52 @@ def get_all_activities(include_past: bool = Query(False, description="Include pa
 ################
 ## Ecclesiastical Activity Endpoints
 ###############
+@app.post("/admin-users", tags=["admin-users"], description="Create a new admin user")
+async def create_admin_user(user =  AdminUser):
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute(
+        "UPDATE admin_users SET username = ?, password = ?, role = ? WHERE group = ?",
+        (user.username, user.password, user.role,user.role, user.group)
+    )
+    db.commit()
+    return {"message": "Admin user created successfully."}
+
+
+@app.get("/login", tags=["admin-users"], description="Admin user login")
+def login(username: str, password: str):
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute(
+        "SELECT role, group, username FROM admin_users WHERE username = ? AND password = ?",
+        (username, password)
+    )
+    user = cursor.fetchone()
+    
+    if user:
+        # Create JWT token with admin's username, role, and group
+        token_data = {
+            "username": user[2],  # username
+            "role": user[0],      # role
+            "group": user[1]      # group
+        }
+        expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        token_data["exp"] = expire
+        access_token = jwt.encode(token_data, SECRET_KEY, algorithm=ALGORITHM)
+        return {"message": "Login successful", "access_token": access_token, "token_type": "bearer"}
+    else:
+        return {"message": "Invalid credentials"}
+
+
+@app.post("/login-verify", tags=["admin-users"], description="Verify admin user token")
+def verify_login(token: str):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return {"message": "Token is valid", "payload": payload}
+    except jwt.JWTError:
+        return {"message": "Invalid token"}
+
+
 @app.get("/activity-permission-ecclesiastical", summary="Get activity permission details for Bishop/Stake President")
 def get_activity_permission_ecclesiastical(is_bishop: bool = Query(..., description="Is the requester a bishop?"), is_stake_president: bool = Query(..., description="Is the requester a stake president"))->List[FullActivity]:
 # get a list of all activities needing ecclesiastical approval
