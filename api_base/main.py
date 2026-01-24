@@ -281,11 +281,7 @@ def list_group_participants(group:str)->list:
         "SELECT youth_id, youth FROM youth_medical WHERE json_extract(youth, '$.group') = ?", (group,)
     )
     rows = cursor.fetchall()
-    youth = []
-    for row in rows:
-        youth.append()
-
-    return [{"youth_id": row[0], "youth": json.loads(row[1])} for row in rows}]
+    return rows
 
 
 @app.post("/activities", tags=["activities"], description="Create a new activity")
@@ -593,11 +589,12 @@ def get_activity_permission_ecclesiastical(is_bishop: bool = Query(..., descript
 # get a list of all activities needing ecclesiastical approval
     db = get_db()
     cursor = db.cursor()
+    where_clause = ""
     if is_bishop:
-        where = "bishop_approval IS NULL"
+        where_clause = "bishop_approval IS NULL"
     elif is_stake_president:
-        where = "stake_approval IS NULL"
-    cursor.execute("SELECT activity_id, activity_name, date_start, date_end, drivers, description, groups, requires_permission FROM activities WHERE requires_permission == 1 AND {where}".format(where=where))
+        where_clause = "stake_approval IS NULL"
+    cursor.execute("SELECT activity_id, activity_name, date_start, date_end, drivers, description, groups, requires_permission FROM activities WHERE requires_permission == 1 AND {where}".format(where=where_clause))
     rows = cursor.fetchall()
     activities = []
     for row in rows:
