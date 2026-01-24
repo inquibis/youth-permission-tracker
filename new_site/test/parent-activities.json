@@ -1,0 +1,57 @@
+[
+  {
+    "activity_id": "parent-act-001",
+    "activity_name": "Young Women's Service Project",
+    "description": "Community service project with local youth. Help with neighborhood cleanup and beautification.",
+    "location": "Neighborhood Park",
+    "date_start": "2026-02-15T09:00:00",
+    "date_end": "2026-02-15T12:00:00",
+    "groups": ["Younger Young Women", "Older Young Women"],
+    "drivers": ["Sarah Williams", "Mary Brown"],
+    "parental_permission": false
+  },
+  {
+    "activity_id": "parent-act-002",
+    "activity_name": "Youth Dance & Social",
+    "description": "Fun social activity with games, dancing, and refreshments for all youth groups.",
+    "location": "Community Center",
+    "date_start": "2026-02-22T18:00:00",
+    "date_end": "2026-02-22T21:00:00",
+    "groups": ["Deacons", "Teachers", "Priests", "Younger Young Women", "Older Young Women"],
+    "drivers": ["David Lee", "Jennifer Smith"],
+    "parental_permission": false
+  },
+  {
+    "activity_id": "parent-act-003",
+    "activity_name": "Winter Hike & Team Building",
+    "description": "Outdoor winter hiking activity with team building exercises and nature exploration.",
+    "location": "Pine Ridge Nature Preserve",
+    "date_start": "2026-03-01T10:00:00",
+    "date_end": "2026-03-01T15:00:00",
+    "groups": ["Deacons", "Teachers", "Priests"],
+    "drivers": ["John Smith", "Mike Johnson"],
+    "parental_permission": false
+  },
+  {
+    "activity_id": "parent-act-004",
+    "activity_name": "Skiing Trip",
+    "description": "Weekend skiing trip to a local ski resort. Includes lessons for beginners and intermediate runs.",
+    "location": "Snow Mountain Resort",
+    "date_start": "2026-03-08T07:00:00",
+    "date_end": "2026-03-08T18:00:00",
+    "groups": ["Young Men", "Young Women"],
+    "drivers": ["Paul Davis", "Lisa Anderson"],
+    "parental_permission": false
+  },
+  {
+    "activity_id": "parent-act-005",
+    "activity_name": "Community Theater Production",
+    "description": "Youth participating in a community theater production. Great opportunity to develop talents and perform.",
+    "location": "City Theater",
+    "date_start": "2026-03-15T18:30:00",
+    "date_end": "2026-03-15T21:00:00",
+    "groups": ["Younger Young Women", "Older Young Women", "Deacons"],
+    "drivers": ["Emma Johnson", "Robert Wilson"],
+    "parental_permission": false
+  }
+]

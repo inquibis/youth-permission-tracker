@@ -122,9 +122,23 @@
     </label>
     <div id="groups_list" class="muted"></div>
 
+    <div style="margin-top:16px; padding: 12px; background-color: #f8f9fa; border-radius: 6px; border: 1px solid #ddd;">
+      <div style="margin-bottom: 10px; font-size: 0.9rem; color: #555; line-height: 1.4;">
+        Permission is required on all overnighters, long distance activities, water activities (swimming, boating, etc), or activities involving elevated risk.
+      </div>
+      <label style="display: flex; align-items: center; margin: 0; cursor: pointer;">
+        <input 
+          type="checkbox" 
+          id="requires_permission" 
+          style="width: auto; margin-right: 8px; cursor: pointer;" 
+        />
+        <span style="font-weight: 600;">This activity requires parental permission</span>
+      </label>
+    </div>
+
     <div style="margin-top:16px">
       <button type="submit">Create</button>
-      <button type="button" id="updateBtn">Update (PUT)</button>
+      <button type="button" id="updateBtn">Update</button>
     </div>
 
     <div id="status"></div>
@@ -229,6 +243,7 @@
       date_start: document.getElementById('date_start').value || null,
       date_end: document.getElementById('date_end').value || null,
       purpose: document.getElementById('purpose').value || null,
+      requires_permission: document.getElementById('requires_permission').checked,
       budgets: budget,
       drivers: drivers,
       groups: groups
@@ -274,6 +289,8 @@
 
     groups.length = 0;
     if(Array.isArray(data.groups)) for(const g of data.groups) groups.push(g);
+
+    document.getElementById('requires_permission').checked = data.requires_permission || false;
 
     renderBudget(); renderLists();
   }

@@ -60,6 +60,7 @@ class Activity(BaseModel):
     end_time: str | None = None
     is_overnight: bool | None = None
     is_coed: bool | None = None
+    requires_permission: bool = False
 
 class FullActivity(BaseModel):
     activity_id: str

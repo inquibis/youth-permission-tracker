@@ -324,8 +324,8 @@ async def create_activity(activity_data: Activity):
     cursor.execute(
         """INSERT INTO activities 
            (activity_id, activity_name, description, date_start, date_end, location, budget, 
-            participants_youth_ids, groups, drivers, is_overnight, is_coed) 
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            participants_youth_ids, groups, drivers, is_overnight, is_coed, requires_permission) 
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         (
             activity_id,
             activity_data.name,
@@ -338,7 +338,8 @@ async def create_activity(activity_data: Activity):
             groups,
             drivers,
             1 if is_overnighter else 0,
-            1 if coed else 0
+            1 if coed else 0,
+            1 if activity_data.requires_permission else 0
         )
     )
     db.commit()
@@ -372,7 +373,63 @@ async def delete_activity(activity_id: str):
 
 @app.put("/activities/{activity_id}", tags=["activities"], description="Update activity by ID")
 async def update_activity(activity_id: str, activity_data: Activity):
-    # Implementation for updating an activity
+    db = get_db()
+    cursor = db.cursor()
+    
+    # Check if activity exists
+    cursor.execute("SELECT activity_id FROM activities WHERE activity_id = ?", (activity_id,))
+    if not cursor.fetchone():
+        return {"message": "Activity not found."}
+    
+    # Calculate additional information
+    coed = False
+    if ("deacon" or "teacher" or "priest") and ("young women") in activity_data.groups:
+        coed = True
+    is_overnighter = False
+    if hasattr(activity_data, 'start_time') and hasattr(activity_data, 'end_time'):
+        if activity_data.start_time and activity_data.end_time:
+            try:
+                start_date = datetime.fromisoformat(activity_data.start_time).date()
+                end_date = datetime.fromisoformat(activity_data.end_time).date()
+                is_overnighter = start_date != end_date
+            except (ValueError, AttributeError):
+                pass
+    
+    # Serialize complex fields as JSON
+    budget_json = json.dumps(activity_data.budget) if hasattr(activity_data, 'budget') and activity_data.budget else None
+    groups = activity_data.groups if hasattr(activity_data, 'groups') and activity_data.groups else None
+    drivers = activity_data.drivers if hasattr(activity_data, 'drivers') and activity_data.drivers else None
+    
+    # Get all users for updated groups
+    all_users = []
+    for group in activity_data.groups:
+        participants = list_group_participants(group)
+        all_users.extend(participants)
+    
+    # Update the activity
+    cursor.execute(
+        """UPDATE activities SET 
+           activity_name = ?, description = ?, date_start = ?, date_end = ?, location = ?, 
+           budget = ?, participants_youth_ids = ?, groups = ?, drivers = ?, 
+           is_overnight = ?, is_coed = ?, requires_permission = ?
+           WHERE activity_id = ?""",
+        (
+            activity_data.name,
+            activity_data.description,
+            activity_data.start_time,
+            activity_data.end_time,
+            getattr(activity_data, 'location', None),
+            budget_json,
+            all_users,
+            groups,
+            drivers,
+            1 if is_overnighter else 0,
+            1 if coed else 0,
+            1 if activity_data.requires_permission else 0,
+            activity_id
+        )
+    )
+    db.commit()
     return {"message": "Activity updated successfully."}    
 
 
@@ -451,7 +508,21 @@ async def assign_permission_to_activity(permission_data: PermissionGiven):
     db.commit()
     
     return {"message": "Permission to attend activity recorded.", "youth_id": youth_id} 
-    
+
+
+@app.get("/activities-all-parents", tags=["activities"], description="Get all activities with parent details")
+def get_all_activities_with_parents(parent_code:str = Query(..., description="Parent permission code")):
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute(
+        "SELECT activity_id, activity_name, date_start, date_end, drivers, description, groups, requires_permission FROM activities WHERE activity_id IN (SELECT activity_id FROM permission_given WHERE permission_code = ?)", (parent_code,)
+    )
+    rows = cursor.fetchall()
+    activities = []
+    for row in rows:
+        activities.append(ActivityBase(**row))
+    return {"activities": activities}
+
 
 @app.get("/activities-all", tags=["activities"], description="Get all activities")
 def get_all_activities(include_past: bool = Query(False, description="Include past activities")):
@@ -526,7 +597,7 @@ def get_activity_permission_ecclesiastical(is_bishop: bool = Query(..., descript
         where = "bishop_approval IS NULL"
     elif is_stake_president:
         where = "stake_approval IS NULL"
-    cursor.execute("SELECT activity_id, activity_name, date_start, date_end, drivers, description, groups FROM activities {where}".format(where=where))
+    cursor.execute("SELECT activity_id, activity_name, date_start, date_end, drivers, description, groups, requires_permission FROM activities WHERE requires_permission == 1 AND {where}".format(where=where))
     rows = cursor.fetchall()
     activities = []
     for row in rows:
