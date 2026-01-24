@@ -96,3 +96,9 @@ class ActivityBase(BaseModel):
     drivers: List[str]
     description: str
     groups: List[str]
+
+class AdminUser(BaseModel):
+    username: str
+    password: str    
+    role: str
+    group:str
