@@ -26,10 +26,7 @@ The system will allow youth leaders to create an activity and track requisite fo
 
 
 ## Local Setup
-1. Update migrate.sh (as needed)
-2. Update docker-compose env info
-3. Update api/.env file
-4. Run docker-compose `docker-compose up`
+View [local setup file](./manual-startup.md)
 
 ###  Testing
 Unit tests are located in /tests.  
@@ -206,24 +203,3 @@ Persuant the handbook all activity requests will be sent to the Bishop for appro
 4. Timestamp
 - Add a timestamp token from a Time Stamp Authority (TSA) for non-repudiation.
 
-# Run Program
-1. Make sure that alembic/alembic.ini file uses `sqlalchemy.url = mysql+mysqlconnector://${DB_USER}:${DB_PASSWORD}@${DB_HOST}/${DB_NAME}` instead of `sqlalchemy.url = driver://user:pass@host/dbname`
-    This file is created with: `alembic init alembic`
-2. Create api image
--  `docker image build -t youth-permission-api -f api-dockerfile .`
-3. Update the root level .env file which will be used by the docker-compose file for variables
-4. Run docker compose `docker-compose up`
-5. Verify api is running: `http://localhost:8000/docs`
-6. Verify website is running: `http://localhost`
-
-
-
-# Run Program
-1. Create API image
-* 
-2. Create Website image: `docker build -t youth-permission-website -f web-dockerfile .`
-3. Start docker master network: `docker network create proxy-tier`
-4. Start proxy `cd docker\reverse-proxy && docker-compose up -d`
-5. Start db `cd docker\db && docker-compose up -d`
-6. Start API `cd docker\api && docker-compose up -d`
-7. Start Website `cd docker\website && docker-compose up -d`
