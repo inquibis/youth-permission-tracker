@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi import Query, Response
 from io import BytesIO
 import qrcode
-from schema import ActivityBase, AdminUser, FullActivity, PermissionGiven, YouthPermissionSubmission, Activity, ParentGuardian, MedicalInfo, EmergencyContact, Signature
+from schema import ActivityBase, AdminUser, ConcernSurvey, FullActivity, InterestSurvey, PermissionGiven, YouthPermissionSubmission, Activity, ParentGuardian, MedicalInfo, EmergencyContact, Signature
 import sqlite3
 import os
 import json
@@ -184,10 +184,95 @@ async def update_user(youth_id: str, user_data: YouthPermissionSubmission)->Dict
         return {"message": "User updated successfully."}
     else:
         return {"message": "User not found."}
-    
 
-    
+#######################################
+######  Interests and Concerns
+######################################
+@app.post("/interest-survey", tags=["interest-survey"], description="Submit interest survey")
+async def submit_interest_survey(data:InterestSurvey):
+    db = get_db()
+    cursor = db.cursor()
+    # verify if user already has interests entered for this year and if so return error
+    sql = "SELECT COUNT(*) FROM interest_survey WHERE youth_id = ? AND strftime('%Y', submitted_at) = strftime('%Y', 'now')"
+    cursor.execute(sql, (data.youth_id,))
+    row = cursor.fetchone()
+    if row and row[0] > 0:
+        return {"message": "Interest survey already submitted for this year."}
+
+    sql = """
+    INSERT INTO interest_survey 
+            (youth_id, interests,submitted_at) 
+            VALUES (?, ?, ?, ?)
+    """
+    cursor.execute(
+        sql,
+        (
+            data.youth_id,
+            data.interests,
+            datetime.now().isoformat()
+        ),
+    )   
+    db.commit()
+    return {"message": "Interest survey submitted successfully."}
+
+
+@app.post("/interest-survey-reset", tags=["interest-survey"], description="Reset interest survey for youth")
+async def reset_interest_survey(youth_id: str):
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute(
+        "DELETE FROM interest_survey WHERE youth_id = ?", (youth_id,)
+    )
+    db.commit()
+    return {"message": "Interest survey reset successfully."}
+
+
+@app.get("/interest-survey/{group}", tags=["interest-survey"], description="Get interest survey for a group")
+async def get_interest_survey(group: str)->List[InterestSurvey]:
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute(
+        f"SELECT interests FROM interest_survey WHERE group == {group}"
+    )
+    rows = cursor.fetchall()
+    return rows
+
+
+@app.get("/group-concerns/{group}", tags=["interest-survey"], description="Get concern survey for a group")
+async def get_concern_survey(group: str)->List[str]:
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute(
+        f"SELECT concerns FROM concern_survey WHERE group == {group}"
+    )
+    rows = cursor.fetchall()
+    return rows
+
+
+@app.post("/group-concerns", tags=["interest-survey"], description="Submit concern survey for a group")
+async def submit_concern_survey(data:ConcernSurvey):
+    db = get_db()
+    cursor = db.cursor()
+    sql = """
+    INSERT INTO concern_survey 
+            (concerns, submitted_at) 
+            VALUES (?, ?)
+    """
+    cursor.execute(
+        sql,
+        (
+            data.concerns,
+            datetime.now().isoformat()
+        ),
+    )   
+    db.commit()
+    return {"message": "Concern survey submitted successfully."}
+
+
+#######################################
 ##### create activity management endpoints
+#######################################
+@app.get("/group-participants/{group}", tags=["activities"], description="Get list of participants for a group")
 def list_group_participants(group:str)->list:
     # get list of user ids in the group
     db = get_db()

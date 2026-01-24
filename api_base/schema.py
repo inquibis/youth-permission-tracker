@@ -99,6 +99,15 @@ class ActivityBase(BaseModel):
 
 class AdminUser(BaseModel):
     username: str
-    password: str    
+    password: str
     role: str
+    group:str
+
+class InterestSurvey(BaseModel):
+    youth_id: str
+    interests: List[str]
+    group:str
+
+class ConcernSurvey(BaseModel):
+    concerns: List[str]
     group:str

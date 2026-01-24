@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Activity Interests - Youth Permission Tracker</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
+  <style>
+    :root {
+      --primary-color: #1f3a93;
+      --secondary-color: #d4a574;
+      --accent-color: #2d5f8d;
+      --light-bg: #f8f9fa;
+      --text-dark: #333;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: var(--light-bg);
+      color: var(--text-dark);
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    /* Page Header */
+    .page-header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    .page-header h1 {
+      color: var(--primary-color);
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+
+    .page-header p {
+      color: #666;
+      font-size: 1rem;
+    }
+
+    /* Form Card */
+    .form-card {
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      padding: 30px;
+      margin-bottom: 30px;
+    }
+
+    .form-card h2 {
+      color: var(--primary-color);
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin-bottom: 25px;
+      padding-bottom: 15px;
+      border-bottom: 2px solid var(--secondary-color);
+    }
+
+    /* Form Group */
+    .form-group {
+      margin-bottom: 25px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--text-dark);
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+
+    .form-control {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e0e0e0;
+      border-radius: 5px;
+      font-size: 1rem;
+      transition: all 0.3s ease;
+    }
+
+    .form-control:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px rgba(31, 58, 147, 0.1);
+    }
+
+    /* Activities Section */
+    .activities-section {
+      margin-top: 30px;
+    }
+
+    .activities-section h3 {
+      color: var(--primary-color);
+      font-size: 1.2rem;
+      font-weight: 600;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .activities-list {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
+    .activity-item {
+      background: #f8f9fa;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 12px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+    }
+
+    .activity-item:hover {
+      background: #f0f0f0;
+      border-color: var(--primary-color);
+    }
+
+    .activity-item input[type="checkbox"] {
+      cursor: pointer;
+      width: 18px;
+      height: 18px;
+      margin-right: 12px;
+      accent-color: var(--primary-color);
+      flex-shrink: 0;
+    }
+
+    .activity-item label {
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      margin-bottom: 0;
+      width: 100%;
+    }
+
+    .activity-name {
+      font-weight: 500;
+      color: var(--text-dark);
+      flex: 1;
+    }
+
+    /* Buttons */
+    .button-group {
+      display: flex;
+      gap: 12px;
+      margin-top: 30px;
+    }
+
+    .btn-primary,
+    .btn-secondary {
+      padding: 12px 24px;
+      font-size: 1rem;
+      font-weight: 600;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      flex: 1;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 20px rgba(31, 58, 147, 0.3);
+    }
+
+    .btn-secondary {
+      background-color: #6c757d;
+      color: white;
+    }
+
+    .btn-secondary:hover {
+      background-color: #5a6268;
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-primary {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Messages */
+    .alert {
+      padding: 15px;
+      border-radius: 5px;
+      margin-bottom: 20px;
+      display: none;
+    }
+
+    .alert-success {
+      background-color: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+
+    .alert-error {
+      background-color: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+
+    .alert-info {
+      background-color: #d1ecf1;
+      color: #0c5460;
+      border: 1px solid #bee5eb;
+    }
+
+    .loading-spinner {
+      display: none;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: white;
+      animation: spin 1s linear infinite;
+      margin-left: 10px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .selected-count {
+      font-size: 0.9rem;
+      color: #666;
+      margin-top: 10px;
+    }
+
+    .no-activities {
+      text-align: center;
+      padding: 40px 20px;
+      color: #999;
+    }
+
+    .no-activities i {
+      font-size: 2rem;
+      color: #ccc;
+      display: block;
+      margin-bottom: 10px;
+    }
+
+    @media (max-width: 768px) {
+      .page-header h1 {
+        font-size: 1.8rem;
+      }
+
+      .form-card {
+        padding: 20px;
+      }
+
+      .button-group {
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Page Header -->
+    <div class="page-header">
+      <h1><i class="fas fa-calendar-check"></i> Activity Interests</h1>
+      <p>Select the activities you're interested in</p>
+    </div>
+
+    <!-- Alert Messages -->
+    <div id="successAlert" class="alert alert-success">
+      <i class="fas fa-check-circle"></i>
+      <span id="successMessage"></span>
+    </div>
+    <div id="errorAlert" class="alert alert-error">
+      <i class="fas fa-exclamation-circle"></i>
+      <span id="errorMessage"></span>
+    </div>
+    <div id="infoAlert" class="alert alert-info">
+      <i class="fas fa-info-circle"></i>
+      <span id="infoMessage"></span>
+    </div>
+
+    <!-- Activity Interests Form -->
+    <div class="form-card">
+      <h2>Your Activity Interests</h2>
+      <form id="activityInterestsForm">
+        <div class="form-group">
+          <label for="username">Username</label>
+          <input 
+            type="text" 
+            id="username" 
+            name="username" 
+            class="form-control" 
+            placeholder="Enter your username" 
+            required
+          />
+        </div>
+
+        <div class="activities-section">
+          <h3>
+            <i class="fas fa-list"></i> Available Activities
+          </h3>
+          <div id="activitiesList" class="activities-list">
+            <div class="no-activities">
+              <i class="fas fa-spinner"></i>
+              <p>Loading activities...</p>
+            </div>
+          </div>
+          <div id="selectedCount" class="selected-count"></div>
+        </div>
+
+        <div class="button-group">
+          <button type="submit" class="btn-primary" id="submitBtn">
+            <span id="btnText">Submit Activities</span>
+            <div id="loadingSpinner" class="loading-spinner"></div>
+          </button>
+          <button type="reset" class="btn-secondary">Clear Selection</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const BASE_URL = window.BASE_URL || localStorage.getItem('BASE_URL') || 'http://localhost:8000';
+    let allActivities = [];
+
+    // Load activities on page load
+    window.addEventListener('DOMContentLoaded', () => {
+      loadActivities();
+      setupFormHandler();
+    });
+
+    async function loadActivities() {
+      try {
+        const response = await fetch('test/local-activities.json');
+        if (!response.ok) {
+          throw new Error('Failed to load activities');
+        }
+
+        allActivities = await response.json();
+        displayActivities();
+      } catch (error) {
+        showError('Failed to load activities: ' + error.message);
+        const listDiv = document.getElementById('activitiesList');
+        listDiv.innerHTML = `
+          <div class="no-activities">
+            <i class="fas fa-exclamation-triangle"></i>
+            <p>Unable to load activities. Please try again later.</p>
+          </div>
+        `;
+      }
+    }
+
+    function displayActivities() {
+      const listDiv = document.getElementById('activitiesList');
+      
+      if (!allActivities || allActivities.length === 0) {
+        listDiv.innerHTML = `
+          <div class="no-activities">
+            <i class="fas fa-inbox"></i>
+            <p>No activities available at this time</p>
+          </div>
+        `;
+        return;
+      }
+
+      let html = '';
+      allActivities.forEach((activity, index) => {
+        html += `
+          <div class="activity-item">
+            <label>
+              <input 
+                type="checkbox" 
+                name="activities" 
+                value="${activity}"
+                data-activity-name="${activity}"
+                onchange="updateSelectedCount()"
+              />
+              <div class="activity-name">${activity}</div>
+            </label>
+          </div>
+        `;
+      });
+
+      listDiv.innerHTML = html;
+    }
+
+    function updateSelectedCount() {
+      const checkboxes = document.querySelectorAll('input[name="activities"]:checked');
+      const countDiv = document.getElementById('selectedCount');
+      
+      if (checkboxes.length === 0) {
+        countDiv.textContent = '';
+      } else {
+        countDiv.textContent = `${checkboxes.length} activity/activities selected`;
+      }
+    }
+
+    function setupFormHandler() {
+      const form = document.getElementById('activityInterestsForm');
+      form.addEventListener('submit', handleFormSubmit);
+    }
+
+    async function handleFormSubmit(e) {
+      e.preventDefault();
+
+      const username = document.getElementById('username').value.trim();
+      const selectedActivities = document.querySelectorAll('input[name="activities"]:checked');
+      
+      if (!username) {
+        showError('Please enter your username');
+        return;
+      }
+
+      if (selectedActivities.length === 0) {
+        showError('Please select at least one activity');
+        return;
+      }
+
+      const activityIds = Array.from(selectedActivities).map(checkbox => checkbox.value);
+      
+      const submitBtn = document.getElementById('submitBtn');
+      const btnText = document.getElementById('btnText');
+      const spinner = document.getElementById('loadingSpinner');
+
+      // Disable button and show spinner
+      submitBtn.disabled = true;
+      spinner.style.display = 'block';
+      btnText.textContent = 'Submitting...';
+
+      try {
+        const response = await fetch(`${BASE_URL}/user-activities`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            username: username,
+            activity_ids: activityIds
+          })
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.detail || `Server error: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+
+        // Show success message
+        showSuccess('Your activity interests have been submitted successfully!');
+
+        // Reset form
+        document.getElementById('activityInterestsForm').reset();
+        updateSelectedCount();
+
+        // Re-enable button
+        submitBtn.disabled = false;
+        spinner.style.display = 'none';
+        btnText.textContent = 'Submit Activities';
+      } catch (error) {
+        showError(error.message || 'An error occurred while submitting your interests. Please try again.');
+
+        // Re-enable button
+        submitBtn.disabled = false;
+        spinner.style.display = 'none';
+        btnText.textContent = 'Submit Activities';
+      }
+    }
+
+    function showSuccess(message) {
+      const alert = document.getElementById('successAlert');
+      document.getElementById('successMessage').textContent = message;
+      alert.style.display = 'block';
+
+      // Auto-hide after 5 seconds
+      setTimeout(() => {
+        alert.style.display = 'none';
+      }, 5000);
+    }
+
+    function showError(message) {
+      const alert = document.getElementById('errorAlert');
+      document.getElementById('errorMessage').textContent = message;
+      alert.style.display = 'block';
+    }
+
+    function hideAlert(alertId) {
+      document.getElementById(alertId).style.display = 'none';
+    }
+  </script>
+</body>
+</html>

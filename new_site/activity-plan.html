@@ -17,10 +17,61 @@
     .muted{color:#666;font-size:90%}
     .success{color:green;margin-top:12px}
     .error{color:red;margin-top:12px}
+
+    /* Quick Links Section */
+    .quick-links {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .quick-link-btn {
+      padding: 10px 18px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .quick-link-btn-primary {
+      background: #1f3a93;
+      color: white;
+    }
+
+    .quick-link-btn-primary:hover {
+      background: #2d5f8d;
+      transform: translateY(-2px);
+    }
+
+    .quick-link-btn-secondary {
+      background: #d4a574;
+      color: #1f3a93;
+    }
+
+    .quick-link-btn-secondary:hover {
+      background: #c89761;
+      transform: translateY(-2px);
+    }
   </style>
 </head>
 <body>
   <h1>Create / Edit Activity</h1>
+
+  <!-- Quick Links -->
+  <div class="quick-links">
+    <button type="button" class="quick-link-btn quick-link-btn-primary" onclick="window.open('https://www.centervillenorthstake.com/mentors', '_blank')">
+      <span>👥</span> Mentors
+    </button>
+    <button type="button" class="quick-link-btn quick-link-btn-secondary" onclick="window.open('group-admin.html', '_blank')">
+      <span>🎯</span> Interests & Objectives
+    </button>
+  </div>
 
   <div style="margin-bottom:12px">
     <label>Load activity by ID</label>
