@@ -130,6 +130,12 @@ def get_db():
 
 
 def require_role(allowed_roles: set[str]):
+    """Verifies if the JWT token has the required role necessary to access the given endpoint
+    Returns:
+        Returns the user info from the token if role check passes
+    Args:
+        allowed_roles (set[str]): List of roles which are allowed
+    """
     def role_checker(token: str = Depends(oauth2_scheme)):
         try:
             payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
@@ -168,6 +174,19 @@ def audit_log_event(
     details: Optional[dict[str, Any]] = None,
     db = Depends(get_db)
 ) -> None:
+    """
+    Logs an audit event to the audit_log table.
+    Args:
+        request (Request): FastAPI request object to extract client info
+        actor_username (Optional[str]): Username of the actor performing the action
+        actor_role (Optional[str]): Role of the actor
+        action (str): Action being performed
+        resource_type (Optional[str]): Type of resource being acted upon
+        resource_id (Optional[str]): Identifier of the resource
+        success (bool): Whether the action was successful
+        details (Optional[dict[str, Any]]): Additional details about the event
+        db: Database connection
+    """
     cursor = db.cursor()
 
     client_ip = request.client.host if request.client else None
@@ -196,6 +215,12 @@ def audit_log_event(
 
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None):
+    """
+    Creates a JWT access token.
+    Args:
+        data (dict): Data to encode in the token
+        expires_delta (timedelta | None): Optional expiration time delta
+    """
     to_encode = data.copy()
     expire = datetime.now(timezone.utc) + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
     to_encode.update({"exp": expire})
@@ -207,13 +232,6 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
 ### API Endpoints
 #############################################################################################################
 
-@app.get("/health", tags=["health"])
-async def health(db=Depends(get_db)):
-    # Basic DB liveness check
-    db.execute("SELECT 1")
-    return {"status": "ok"}
-
-
 @app.get("/")
 async def read_root(db=Depends(get_db))->dict:
 	db.execute("INSERT INTO visits (created_at) VALUES (datetime('now'))")
@@ -221,6 +239,12 @@ async def read_root(db=Depends(get_db))->dict:
 	cur = db.execute("SELECT COUNT(*) FROM visits")
 	count = cur.fetchone()[0]
 	return {"message": "Hello, world!", "visits": count}
+
+
+@app.get("/health", tags=["health"])
+async def health(db=Depends(get_db))->dict:    
+    db.execute("SELECT 1")
+    return {"status": "ok"}
 
 
 #####################################
@@ -871,7 +895,7 @@ def get_activities_pending_approval(db=Depends(get_db))->List[ActivityApprovals]
     rows = cursor.fetchall()
     activities = []
     for row in rows:
-        #TODO fetch youth with permission for each activity to set total youth and total perisions
+        #TODO fetch youth with permission for each activity to set total youth and total permissions
         cursor.execute("SELECT * FROM permission_given WHERE activity_id = ?", (row["activity_id"],)) # TODO change so it combines all youth and those with permission
         act = ActivityApprovals(
             activity_id=row["activity_id"],
