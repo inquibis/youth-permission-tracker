@@ -1,0 +1,32 @@
+[
+    {
+      "activity_id": "A-1001",
+      "activity_name": "Winter Service Project",
+      "description": "Neighborhood help day",
+      "location": "Centerville Park",
+      "groups": ["deacons", "teachers"],
+      "date_start": "2026-02-07T09:00:00",
+      "date_end": "2026-02-07T12:00:00",
+      "requires_permission": 1
+    },
+    {
+      "activity_id": "A-1002",
+      "activity_name": "Game Night",
+      "description": "Board games + snacks",
+      "location": "Stake Center",
+      "groups": ["older young women"],
+      "date_start": "2026-02-14T19:00:00",
+      "date_end": "2026-02-14T21:00:00",
+      "requires_permission": 0
+    },
+    {
+      "activity_id": "A-1003",
+      "activity_name": "Overnight Campout",
+      "description": "One-night campout",
+      "location": "Antelope Island",
+      "groups": ["priest", "younger young women"],
+      "date_start": "2026-03-06T17:00:00",
+      "date_end": "2026-03-07T11:00:00",
+      "requires_permission": 1
+    }
+  ]

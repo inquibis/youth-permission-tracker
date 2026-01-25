@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Activity Invitees Health</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 20px; }
+    h1 { margin: 0 0 10px; }
+    .muted { color: #666; font-size: 0.95rem; }
+    .row { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin: 10px 0 16px; }
+    .pill { display: inline-block; padding: 2px 10px; border-radius: 999px; background: #eee; font-size: 0.9rem; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { text-align: left; padding: 10px; border-bottom: 1px solid #ddd; vertical-align: top; }
+    th { background: #f6f6f6; position: sticky; top: 0; z-index: 1; }
+    tr.selectable:hover { background: #f3f8ff; cursor: pointer; }
+    tr.selected { background: #e8f1ff; }
+    .grid { display: grid; grid-template-columns: 1fr; gap: 14px; margin-top: 18px; }
+    .card { border: 1px solid #ddd; border-radius: 10px; padding: 12px 14px; }
+    .card h3 { margin: 0 0 8px; }
+    ul { margin: 0; padding-left: 18px; }
+    .error { color: #b00020; }
+    .loading { opacity: 0.7; }
+    .small { font-size: 0.9rem; }
+    .actions { margin-left: auto; display: flex; gap: 10px; }
+    button { padding: 8px 12px; border-radius: 8px; border: 1px solid #ccc; background: #fff; cursor: pointer; }
+    button:hover { background: #f7f7f7; }
+    code { background: #f2f2f2; padding: 2px 6px; border-radius: 6px; }
+  </style>
+</head>
+<body>
+  <h1>Invitees Health Summary</h1>
+  <div class="row">
+    <div id="modePill" class="pill">mode: …</div>
+    <div class="muted">Select an activity to view an abbreviated health report.</div>
+    <div class="actions">
+      <button id="refreshBtn" type="button">Refresh</button>
+      <button id="logoutBtn" type="button">Logout</button>
+    </div>
+  </div>
+
+  <div id="status" class="muted small"></div>
+  <div id="error" class="error"></div>
+
+  <table aria-label="Activities">
+    <thead>
+      <tr>
+        <th style="width: 18%;">Activity ID</th>
+        <th style="width: 24%;">Name</th>
+        <th style="width: 18%;">Dates</th>
+        <th style="width: 20%;">Location</th>
+        <th style="width: 20%;">Groups</th>
+      </tr>
+    </thead>
+    <tbody id="activitiesTbody"></tbody>
+  </table>
+
+  <div id="detailContainer" class="grid" style="display:none;">
+    <div class="card">
+      <h2 style="margin:0 0 6px;">Selected Activity</h2>
+      <div id="selectedActivityMeta" class="muted"></div>
+    </div>
+
+    <div class="card" id="secAllergies">
+      <h3>Allergies</h3>
+      <div class="muted small" id="allergiesEmpty" style="display:none;">No entries.</div>
+      <ul id="allergiesList"></ul>
+    </div>
+
+    <div class="card" id="secDiet">
+      <h3>Dietary Restrictions</h3>
+      <div class="muted small" id="dietEmpty" style="display:none;">No entries.</div>
+      <ul id="dietList"></ul>
+    </div>
+
+    <div class="card" id="secConditions">
+      <h3>Medical Conditions</h3>
+      <div class="muted small" id="conditionsEmpty" style="display:none;">No entries.</div>
+      <ul id="conditionsList"></ul>
+    </div>
+
+    <div class="card" id="secMeds">
+      <h3>Medications</h3>
+      <div class="muted small" id="medsEmpty" style="display:none;">No entries.</div>
+      <ul id="medsList"></ul>
+    </div>
+
+    <div class="card" id="secNotes">
+      <h3>Special Notes</h3>
+      <div class="muted small" id="notesEmpty" style="display:none;">No entries.</div>
+      <ul id="notesList"></ul>
+    </div>
+  </div>
+
+  <script>
+    const BASE_URL = window.BASE_URL || localStorage.getItem('BASE_URL') || 'http://localhost:8000';
+
+    // ---------- Config / ENV detection ----------
+    function getEnvMode() {
+      // Supports: ?env=test OR localStorage ENV OR window.__ENV
+      const urlEnv = new URLSearchParams(location.search).get("env");
+      if (urlEnv) return urlEnv;
+      if (window.__ENV) return window.__ENV;
+      const ls = localStorage.getItem("ENV");
+      return ls || "prod";
+    }
+
+    const ENV = getEnvMode();
+    const isTest = String(ENV).toLowerCase() === "test";
+    document.getElementById("modePill").textContent = `mode: ${isTest ? "test (local JSON)" : "api"}`;
+
+    // ---------- JWT handling ----------
+    function getToken() {
+      // Adjust key if you store it differently
+      return localStorage.getItem("access_token");
+    }
+
+    function requireTokenOrRedirect() {
+      if (isTest) return "TEST_TOKEN_NOT_REQUIRED";
+      
+      const token = getToken();
+      if (!token) {
+        // Adjust login page name/path if needed
+        window.location.href = "login.html";
+        return null;
+      }
+      return token;
+    }
+
+    // ---------- Helpers ----------
+    function setStatus(msg) {
+      document.getElementById("status").textContent = msg || "";
+    }
+    function setError(msg) {
+      document.getElementById("error").textContent = msg || "";
+    }
+    function clearError() { setError(""); }
+
+    function safeText(v) {
+      if (v === null || v === undefined) return "";
+      return String(v);
+    }
+
+    // Accept list items that are strings OR objects.
+    // If object, try to format common keys; otherwise JSON stringify.
+    function formatListItem(item) {
+      if (item === null || item === undefined) return "";
+      if (typeof item === "string" || typeof item === "number" || typeof item === "boolean") {
+        return String(item);
+      }
+      if (typeof item === "object") {
+        const name = item.name || item.full_name || item.youth_name || item.person || item.who;
+        const detail = item.detail || item.value || item.note || item.item || item.allergy || item.condition || item.medication;
+        if (name && detail) return `${name}: ${detail}`;
+        if (name) return String(name);
+        if (detail) return String(detail);
+        try { return JSON.stringify(item); } catch { return String(item); }
+      }
+      return String(item);
+    }
+
+    function renderList(ulEl, emptyEl, items) {
+      ulEl.innerHTML = "";
+      const arr = Array.isArray(items) ? items : [];
+      if (arr.length === 0) {
+        emptyEl.style.display = "";
+        return;
+      }
+      emptyEl.style.display = "none";
+      for (const it of arr) {
+        const li = document.createElement("li");
+        li.textContent = formatListItem(it);
+        ulEl.appendChild(li);
+      }
+    }
+
+    function normalizeActivities(payload) {
+      // Support either: { activities: [...] } or [...]
+      if (Array.isArray(payload)) return payload;
+      if (payload && Array.isArray(payload.activities)) return payload.activities;
+      if (payload && Array.isArray(payload.data)) return payload.data;
+      return [];
+    }
+
+    // ---------- API calls (or test JSON) ----------
+    async function fetchActivityGroups(token) {
+      if (isTest) {
+        const r = await fetch("test/short-activity-list.json", { cache: "no-store" });
+        if (!r.ok) throw new Error(`Failed to load short-activity-list.json (${r.status})`);
+        return r.json();
+      }
+      const r = await fetch(`${BASE_URL}/activity-groups`, {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (!r.ok) throw new Error(`Failed /activity-groups (${r.status})`);
+      return r.json();
+    }
+
+    async function fetchActivityHealthReport(token, activityId) {
+      if (isTest) {
+        const r = await fetch("test/short-activity-health-resp.json", { cache: "no-store" });
+        if (!r.ok) throw new Error(`Failed to load short-activity-health-resp.json (${r.status})`);
+        const json = await r.json();
+        // If test file is keyed by activity_id, return that. Otherwise return whole payload.
+        if (json && json.by_activity_id && json.by_activity_id[activityId]) {
+          return json.by_activity_id[activityId];
+        }
+        return json;
+      }
+
+      const url = new URL(`${BASE_URL}/activity-health-reports`, window.location.origin);
+      url.searchParams.set("activity_id", activityId);
+
+      const r = await fetch(url.toString(), {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (!r.ok) throw new Error(`Failed /activity-health-reports (${r.status})`);
+      return r.json();
+    }
+
+    // ---------- UI rendering ----------
+    let activities = [];
+    let selectedActivityId = null;
+
+    function renderActivitiesTable(list) {
+      const tbody = document.getElementById("activitiesTbody");
+      tbody.innerHTML = "";
+
+      for (const a of list) {
+        const tr = document.createElement("tr");
+        tr.className = "selectable";
+        tr.dataset.activityId = safeText(a.activity_id || a.id);
+
+        const groups = Array.isArray(a.groups) ? a.groups.join(", ") : safeText(a.groups);
+        const dates = `${safeText(a.date_start)} – ${safeText(a.date_end)}`;
+
+        tr.innerHTML = `
+          <td>${safeText(a.activity_id || a.id)}</td>
+          <td>${safeText(a.activity_name || a.name)}</td>
+          <td>${dates}</td>
+          <td>${safeText(a.location)}</td>
+          <td>${groups}</td>
+        `;
+
+        tr.addEventListener("click", () => onSelectActivity(tr.dataset.activityId));
+        tbody.appendChild(tr);
+      }
+    }
+
+    function markSelectedRow(activityId) {
+      const rows = document.querySelectorAll("#activitiesTbody tr");
+      rows.forEach(r => {
+        r.classList.toggle("selected", r.dataset.activityId === activityId);
+      });
+    }
+
+    function getActivityById(activityId) {
+      return activities.find(a => String(a.activity_id || a.id) === String(activityId)) || null;
+    }
+
+    function showDetailContainer(show) {
+      document.getElementById("detailContainer").style.display = show ? "" : "none";
+    }
+
+    async function onSelectActivity(activityId) {
+      clearError();
+      const token = requireTokenOrRedirect();
+      if (!token) return;
+
+      selectedActivityId = activityId;
+      markSelectedRow(activityId);
+
+      const a = getActivityById(activityId);
+      if (a) {
+        const groups = Array.isArray(a.groups) ? a.groups.join(", ") : safeText(a.groups);
+        document.getElementById("selectedActivityMeta").innerHTML = `
+          <div><b>${safeText(a.activity_name || a.name)}</b> (<code>${safeText(a.activity_id || a.id)}</code>)</div>
+          <div class="muted small">${safeText(a.date_start)} – ${safeText(a.date_end)} • ${safeText(a.location)} • ${groups}</div>
+        `;
+      } else {
+        document.getElementById("selectedActivityMeta").textContent = safeText(activityId);
+      }
+
+      showDetailContainer(true);
+      setStatus("Loading health report…");
+      document.getElementById("detailContainer").classList.add("loading");
+
+      try {
+        const report = await fetchActivityHealthReport(token, activityId);
+
+        // Expect shape:
+        // { allergies:[], dietary_restrictions:[], medical_conditions:[], medications:[], special_notes:[] }
+        renderList(
+          document.getElementById("allergiesList"),
+          document.getElementById("allergiesEmpty"),
+          report?.allergies
+        );
+        renderList(
+          document.getElementById("dietList"),
+          document.getElementById("dietEmpty"),
+          report?.dietary_restrictions
+        );
+        renderList(
+          document.getElementById("conditionsList"),
+          document.getElementById("conditionsEmpty"),
+          report?.medical_conditions
+        );
+        renderList(
+          document.getElementById("medsList"),
+          document.getElementById("medsEmpty"),
+          report?.medications
+        );
+        renderList(
+          document.getElementById("notesList"),
+          document.getElementById("notesEmpty"),
+          report?.special_notes
+        );
+
+        setStatus("");
+      } catch (e) {
+        setError(e?.message || String(e));
+        setStatus("");
+      } finally {
+        document.getElementById("detailContainer").classList.remove("loading");
+      }
+    }
+
+    async function loadActivities() {
+      clearError();
+      const token = requireTokenOrRedirect();
+      if (!token) return;
+
+      setStatus(isTest ? "Loading test activity list…" : "Loading activities…");
+      try {
+        const payload = await fetchActivityGroups(token);
+        activities = normalizeActivities(payload);
+
+        // Optional sort by date_start (string ISO expected)
+        activities.sort((a, b) => safeText(a.date_start).localeCompare(safeText(b.date_start)));
+
+        renderActivitiesTable(activities);
+        setStatus(activities.length ? "" : "No activities found.");
+        showDetailContainer(false);
+        selectedActivityId = null;
+      } catch (e) {
+        setError(e?.message || String(e));
+        setStatus("");
+      }
+    }
+
+    // Buttons
+    document.getElementById("refreshBtn").addEventListener("click", loadActivities);
+    document.getElementById("logoutBtn").addEventListener("click", () => {
+      localStorage.removeItem("access_token");
+      window.location.href = "login.html";
+    });
+
+    // Init
+    loadActivities();
+  </script>
+</body>
+</html>

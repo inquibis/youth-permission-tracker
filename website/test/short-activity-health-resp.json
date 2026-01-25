@@ -1,0 +1,55 @@
+{
+  "by_activity_id": {
+    "A-1001": {
+      "allergies": [
+        "Ethan R. — Peanut allergy (EpiPen)",
+        "Mia S. — Bee sting allergy"
+      ],
+      "dietary_restrictions": [
+        "No pork (family preference)",
+        "Gluten-free (Sofia L.)"
+      ],
+      "medical_conditions": [
+        "Asthma (Noah K.) — bring inhaler",
+        "Diabetes Type 1 (Ava M.) — monitor snacks"
+      ],
+      "medications": [
+        "Ethan R. — EpiPen in backpack",
+        "Noah K. — Rescue inhaler"
+      ],
+      "special_notes": [
+        "Keep emergency contacts accessible for leaders",
+        "One youth prone to motion sickness"
+      ]
+    },
+    "A-1002": {
+      "allergies": [],
+      "dietary_restrictions": [
+        "Vegetarian (2 invitees)"
+      ],
+      "medical_conditions": [],
+      "medications": [],
+      "special_notes": [
+        "No known issues reported for this activity"
+      ]
+    },
+    "A-1003": {
+      "allergies": [
+        "Latex sensitivity (Olivia P.)"
+      ],
+      "dietary_restrictions": [
+        "Dairy-free (Jackson T.)"
+      ],
+      "medical_conditions": [
+        "Seizure history (confidential) — leader notified"
+      ],
+      "medications": [
+        "Daily medication in labeled bag (leader to hold)"
+      ],
+      "special_notes": [
+        "Overnight activity: confirm meds handoff at departure",
+        "Ensure leader has access to emergency contact list"
+      ]
+    }
+  }
+}
