@@ -2,6 +2,7 @@
 The system uses a relational database in the backend.  Currently this is SQLITE.
 
 ## Diagram
+```mermaid
 erDiagram
   INTEREST_SURVEY {
     INTEGER id PK
