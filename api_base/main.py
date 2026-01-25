@@ -4,6 +4,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi import Query, Response
 from io import BytesIO
 from fastapi.params import Depends
+from fastapi import HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
 import qrcode
 from pathlib import Path as PathlibPath
 from schema import ActivityBase, AdminUser, ConcernSurvey, FullActivity, InterestSurvey, PermissionGiven, YouthPermissionSubmission, Activity, ParentGuardian, MedicalInfo, EmergencyContact, Signature
@@ -19,6 +21,7 @@ from jose import jwt, JWTError
 
 app = FastAPI()
 contact_engine = ContactEngine()
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
 
 # Allow CORS from any origin (use caution in production)
 app.add_middleware( 
@@ -124,9 +127,39 @@ def get_db():
     finally:
         conn.close()
 
-##################
+
+def require_role(allowed_roles: set[str]):
+    def role_checker(token: str = Depends(oauth2_scheme)):
+        try:
+            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        except JWTError:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid or expired token",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        role = payload.get("role")
+        if role is None:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Token missing role",
+            )
+
+        if role not in allowed_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient permissions",
+            )
+
+        return payload  # return user info if needed
+
+    return role_checker
+
+
+#############################################################################################################
 ### API Endpoints
-##################
+#############################################################################################################
 
 @app.get("/health", tags=["health"])
 async def health(db=Depends(get_db)):
@@ -144,7 +177,44 @@ async def read_root(db=Depends(get_db))->dict:
 	return {"message": "Hello, world!", "visits": count}
 
 
+#####################################
 ##### User Management Endpoints #####
+#####################################
+@app.get("/login", tags=["admin-users"], description="Admin user login")
+def login(username: str, password: str, db=Depends(get_db)):
+    cursor = db.cursor()
+    if os.getenv("ENV", "test").lower() == "test":
+        token_data = {
+            "username": username,
+            "role": "admin",
+            "org_group": "admin"
+        }
+        expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        token_data["exp"] = expire
+        access_token = jwt.encode(token_data, SECRET_KEY, algorithm=ALGORITHM)
+        return {"message": "Login successful (debug mode)", "access_token": access_token, "token_type": "bearer"}
+    
+    cursor.execute(
+        "SELECT role, org_group, username FROM admin_users WHERE username = ? AND password = ?",
+        (username, password)
+    )
+    user = cursor.fetchone()
+    
+    if user:
+        # Create JWT token with admin's username, role, and group
+        token_data = {
+            "username": user[2],
+            "role": user[0],
+            "org_group": user[1]
+        }
+        expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        token_data["exp"] = expire
+        access_token = jwt.encode(token_data, SECRET_KEY, algorithm=ALGORITHM)
+        return {"message": "Login successful", "access_token": access_token, "token_type": "bearer"}
+    else:
+        return {"message": "Invalid credentials"}
+    
+
 @app.post("/users", tags=["users"], description="Create a new user")
 async def create_user(user_data: YouthPermissionSubmission, db=Depends(get_db)):
     cursor = db.cursor()
@@ -235,6 +305,51 @@ async def update_user(youth_id: str, user_data: YouthPermissionSubmission, db=De
         return {"message": "User updated successfully."}
     else:
         return {"message": "User not found."}
+    
+
+@app.get("/users-health", tags=["users"], description="Get health information of all users of an activity")
+async def get_users_health(activity_id: str, user=Depends(require_role({"advisor", "admin", "ecc_admin"})), db=Depends(get_db))->List[MedicalInfo]:
+    cursor = db.cursor()
+    cursor.execute(
+        "SELECT participants_youth_ids FROM activities WHERE activity_id = ?", (activity_id,)
+    )
+    row = cursor.fetchone()
+    if not row:
+        return []
+    youth_ids = json.loads(row[0])
+    medical_infos = []
+    for youth_id in youth_ids:
+        cursor.execute(
+            "SELECT medical FROM youth_medical WHERE youth_id = ?", (youth_id,)
+        )
+        med_row = cursor.fetchone()
+        if med_row:
+            medical_info = MedicalInfo(**json.loads(med_row[0]))
+            medical_infos.append(medical_info)
+    return medical_infos
+
+
+@app.get("/users-emergency-contacts", tags=["users"], description="Get emergency contacts of all users of an activity")
+async def get_users_emergency_contacts(activity_id: str,  user=Depends(require_role({"advisor", "admin", "ecc_admin"})), db=Depends(get_db))->List[EmergencyContact]:
+    cursor = db.cursor()
+    cursor.execute(
+        "SELECT participants_youth_ids FROM activities WHERE activity_id = ?", (activity_id,)
+    )
+    row = cursor.fetchone()
+    if not row:
+        return []
+    youth_ids = json.loads(row[0])
+    emergency_contacts = []
+    for youth_id in youth_ids:
+        cursor.execute(
+            "SELECT emergency_contact FROM youth_medical WHERE youth_id = ?", (youth_id,)
+        )
+        em_row = cursor.fetchone()
+        if em_row:
+            emergency_info = EmergencyContact(**json.loads(em_row[0]))
+            emergency_contacts.append(emergency_info)
+    return emergency_contacts
+
 
 #######################################
 ######  Interests and Concerns
@@ -567,9 +682,9 @@ def get_all_activities(include_past: bool = Query(False, description="Include pa
     return {"activities": activities}
 
 
-################
+####################################
 ## Ecclesiastical Activity Endpoints
-###############
+####################################
 @app.post("/admin-users", tags=["admin-users"], description="Create a new admin user")
 async def create_admin_user(user =  AdminUser, db=Depends(get_db)):
     cursor = db.cursor()
