@@ -7,7 +7,7 @@ class Youth(BaseModel):
     last_name: str
     birth_date: str | None = None
     gender: str | None = None
-    group: str | None = None
+    org_group: str | None = None
 
 class ParentGuardian(BaseModel):
     name: str
@@ -102,13 +102,13 @@ class AdminUser(BaseModel):
     username: str
     password: str
     role: str
-    group:str
+    org_group:str
 
 class InterestSurvey(BaseModel):
     youth_id: str
     interests: List[str]
-    group:str
+    org_group:str
 
 class ConcernSurvey(BaseModel):
     concerns: List[str]
-    group:str
+    org_group:str

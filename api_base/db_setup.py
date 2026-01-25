@@ -6,6 +6,48 @@ class DBSetup:
         # Core tables
         self.conn.execute(
             """
+            CREATE TABLE IF NOT EXISTS interest_survey (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                youth_id TEXT NOT NULL,
+                interests TEXT NOT NULL,      -- JSON string
+                org_group TEXT NOT NULL,
+                submitted_at TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT (datetime('now'))
+            );
+            """
+        )
+        self.conn.execute("CREATE INDEX IF NOT EXISTS idx_interest_survey_group ON interest_survey(org_group);")
+        self.conn.execute("CREATE INDEX IF NOT EXISTS idx_interest_survey_youth_id ON interest_survey(youth_id);")
+
+        self.conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS concern_survey (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                concerns TEXT NOT NULL,       -- JSON string
+                org_group TEXT NOT NULL,
+                submitted_at TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT (datetime('now'))
+            );
+            """
+        )
+        self.conn.execute("CREATE INDEX IF NOT EXISTS idx_concern_survey_group ON concern_survey(org_group);")
+
+        self.conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS admin_users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT UNIQUE NOT NULL,
+                password TEXT NOT NULL,
+                role TEXT NOT NULL,
+                org_group TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT (datetime('now'))
+            );
+            """
+        )
+        self.conn.execute("CREATE INDEX IF NOT EXISTS idx_admin_users_username ON admin_users(username);")
+
+        self.conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS visits (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 created_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -58,7 +100,7 @@ class DBSetup:
                 bishop_approval_date TEXT,
                 stake_approval INTEGER,
                 stake_approval_date TEXT,
-                created_at TEXT DEFAULT (datetime('now')),
+                created_at TEXT DEFAULT (datetime('now'))
 
             );
             """
@@ -110,7 +152,7 @@ class DBSetup:
             ('admin', 'password_admin', 'admin', 'admin')
         ]
         cursor.executemany('''
-            INSERT OR IGNORE INTO admin_users (username, password, role, group)
+            INSERT OR IGNORE INTO admin_users (username, password, role, org_group)
             VALUES (?, ?, ?, ?)
         ''', admins)
         self.conn.commit()

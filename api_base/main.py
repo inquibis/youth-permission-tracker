@@ -29,7 +29,7 @@ app.add_middleware(
 	allow_headers=["*"],
 )
 
-DB_PATH = PathlibPath(os.getenv("DB_PATH", "/data/data.sqlite3"))
+DB_PATH = os.getenv("DB_PATH", "/data/data.sqlite3")
 SECRET_KEY = os.getenv("SECRET_KEY", "super-secret-key")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
@@ -42,32 +42,32 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 @app.on_event("startup")
 def startup():
+    db_path = PathlibPath(DB_PATH)
     # 1. DB_PATH must include a filename
-    if not DB_PATH.suffix:
+    if not db_path.suffix:
         raise RuntimeError(
-            f"Invalid DB_PATH '{DB_PATH}'. "
+            f"Invalid DB_PATH '{db_path}'. "
             "DB_PATH must point to a SQLite file, e.g. '/data/data.sqlite3'."
         )
 
     # 2. Parent directory must be creatable
     try:
-        DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+        db_path.parent.mkdir(parents=True, exist_ok=True)
     except Exception as e:
         raise RuntimeError(
-            f"Cannot create database directory '{DB_PATH.parent}': {e}"
+            f"Cannot create database directory '{db_path.parent}': {e}"
         ) from e
 
     # 3. Parent path must be a directory
-    if not DB_PATH.parent.is_dir():
+    if not db_path.parent.is_dir():
         raise RuntimeError(
-            f"DB_PATH parent '{DB_PATH.parent}' exists but is not a directory."
+            f"DB_PATH parent '{db_path.parent}' exists but is not a directory."
         )
 
     # 4. Try opening SQLite to catch permission/locking issues early
     try:
         conn = sqlite3.connect(DB_PATH, check_same_thread=False)
         conn.execute("PRAGMA journal_mode=WAL;")
-        conn.close()
     except Exception as e:
         raise RuntimeError(
             f"SQLite failed to open database at '{DB_PATH}': {e}"
@@ -84,6 +84,7 @@ def startup():
     db_setup.create_tables()
     db_setup.load_admins()
     app.state._db = conn
+    conn.close()
 
 
 
@@ -93,9 +94,31 @@ def shutdown():
 	if db:
 		db.close()
 
+
 def get_db():
-    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+    """
+    Per-request SQLite connection.
+    Ensures each request gets a fresh connection that is closed after the request.
+    """
+    db_path = PathlibPath(DB_PATH)
+
+    # Fail loudly if DB_PATH is invalid
+    if not db_path.suffix:
+        raise RuntimeError(
+            f"Invalid DB_PATH '{DB_PATH}'. DB_PATH must point to a SQLite file, e.g. '/data/data.sqlite3'."
+        )
+
+    # Ensure directory exists
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+
+    conn = sqlite3.connect(str(db_path), check_same_thread=False)
     conn.row_factory = sqlite3.Row
+
+    # Pragmas (safe to do per connection)
+    conn.execute("PRAGMA foreign_keys = ON;")
+    conn.execute("PRAGMA journal_mode = WAL;")
+    conn.execute("PRAGMA synchronous = NORMAL;")
+
     try:
         yield conn
     finally:
@@ -227,18 +250,18 @@ async def submit_interest_survey(data:InterestSurvey,db=Depends(get_db)):
         return {"message": "Interest survey already submitted for this year."}
 
     sql = """
-    INSERT INTO interest_survey 
-            (youth_id, interests,submitted_at) 
-            VALUES (?, ?, ?, ?)
+    INSERT INTO interest_survey (youth_id, interests, "org_group", submitted_at)
+    VALUES (?, ?, ?, ?)
     """
     cursor.execute(
         sql,
         (
             data.youth_id,
-            data.interests,
-            datetime.now().isoformat()
+            json.dumps(data.interests),
+            data.org_group,
+            datetime.now().isoformat(),
         ),
-    )   
+    )
     db.commit()
     return {"message": "Interest survey submitted successfully."}
 
@@ -253,41 +276,39 @@ async def reset_interest_survey(youth_id: str,db=Depends(get_db)):
     return {"message": "Interest survey reset successfully."}
 
 
-@app.get("/interest-survey/{group}", tags=["interest-survey"], description="Get interest survey for a group")
-async def get_interest_survey(group: str, db=Depends(get_db))->List[InterestSurvey]:
+@app.get("/interest-survey/{group}", tags=["interest-survey"])
+async def get_interest_survey(group: str, db=Depends(get_db)):
     cursor = db.cursor()
-    cursor.execute(
-        f"SELECT interests FROM interest_survey WHERE group == {group}"
-    )
+    cursor.execute('SELECT interests FROM interest_survey WHERE "group" = ?', (group,))
     rows = cursor.fetchall()
-    return rows
+    return [json.loads(r[0]) for r in rows]
 
 
-@app.get("/group-concerns/{group}", tags=["interest-survey"], description="Get concern survey for a group")
-async def get_concern_survey(group: str, db=Depends(get_db))->List[str]:
+@app.get("/group-concerns/{group}", tags=["interest-survey"])
+async def get_concern_survey(group: str, db=Depends(get_db)):
     cursor = db.cursor()
-    cursor.execute(
-        f"SELECT concerns FROM concern_survey WHERE group == {group}"
-    )
+    cursor.execute('SELECT concerns FROM concern_survey WHERE "org_group" = ?', (group,))
     rows = cursor.fetchall()
-    return rows
+    return [json.loads(r[0]) for r in rows]
+
 
 
 @app.post("/group-concerns", tags=["interest-survey"], description="Submit concern survey for a group")
 async def submit_concern_survey(data:ConcernSurvey, db=Depends(get_db)):
     cursor = db.cursor()
     sql = """
-    INSERT INTO concern_survey 
-            (concerns, submitted_at) 
-            VALUES (?, ?)
+    INSERT INTO concern_survey (concerns, org_group, submitted_at)
+    VALUES (?, ?, ?)
     """
     cursor.execute(
-        sql,
-        (
-            data.concerns,
-            datetime.now().isoformat()
-        ),
-    )   
+    sql,
+    (
+        json.dumps(data.concerns),
+        data.org_group,
+        datetime.now().isoformat(),
+    ),
+)
+  
     db.commit()
     return {"message": "Concern survey submitted successfully."}
 
@@ -300,7 +321,7 @@ def list_group_participants(group:str, db=Depends(get_db))->list:
     # get list of user ids in the group
     cursor = db.cursor()
     cursor.execute(
-        "SELECT youth_id, youth FROM youth_medical WHERE json_extract(youth, '$.group') = ?", (group,)
+        "SELECT youth_id, youth FROM youth_medical WHERE json_extract(youth, '$.org_group') = ?", (group,)
     )
     rows = cursor.fetchall()
     return rows
@@ -553,8 +574,8 @@ def get_all_activities(include_past: bool = Query(False, description="Include pa
 async def create_admin_user(user =  AdminUser, db=Depends(get_db)):
     cursor = db.cursor()
     cursor.execute(
-        "UPDATE admin_users SET username = ?, password = ?, role = ? WHERE group = ?",
-        (user.username, user.password, user.role,user.role, user.group)
+        "UPDATE admin_users SET username = ?, password = ?, role = ? WHERE org_group = ?",
+        (user.username, user.password, user.role,user.role, user.org_group)
     )
     db.commit()
     return {"message": "Admin user created successfully."}
@@ -564,7 +585,7 @@ async def create_admin_user(user =  AdminUser, db=Depends(get_db)):
 def login(username: str, password: str, db=Depends(get_db)):
     cursor = db.cursor()
     cursor.execute(
-        "SELECT role, group, username FROM admin_users WHERE username = ? AND password = ?",
+        "SELECT role, org_group, username FROM admin_users WHERE username = ? AND password = ?",
         (username, password)
     )
     user = cursor.fetchone()
@@ -572,9 +593,9 @@ def login(username: str, password: str, db=Depends(get_db)):
     if user:
         # Create JWT token with admin's username, role, and group
         token_data = {
-            "username": user[2],  # username
-            "role": user[0],      # role
-            "group": user[1]      # group
+            "username": user[2],
+            "role": user[0],
+            "org_group": user[1]
         }
         expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         token_data["exp"] = expire
