@@ -1,0 +1,486 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Activity Permissions</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 20px; }
+    h1 { margin: 0 0 10px; }
+    .row { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin: 10px 0 14px; }
+    .muted { color:#666; }
+    .error { color:#b00020; margin-top: 8px; white-space: pre-wrap; }
+    .pill { display:inline-block; padding:2px 10px; border-radius:999px; background:#eee; font-size:0.9rem; }
+    button { padding:8px 12px; border-radius:8px; border:1px solid #ccc; background:#fff; cursor:pointer; }
+    button:hover { background:#f7f7f7; }
+    table { width:100%; border-collapse:collapse; margin-top:10px; }
+    th, td { text-align:left; padding:10px; border-bottom:1px solid #ddd; vertical-align:top; }
+    th { background:#f6f6f6; position:sticky; top:0; z-index:1; user-select:none; }
+    th.sortable:hover { background:#ededed; cursor:pointer; }
+    .small { font-size:0.9rem; }
+    .missing { color:#b00020; font-weight:600; }
+    .ok { color:#0b6b0b; font-weight:600; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
+    .right { text-align:right; }
+    .nowrap { white-space:nowrap; }
+
+    .panel {
+      margin-top: 18px;
+      border: 1px solid #ddd;
+      border-radius: 12px;
+      padding: 12px 14px;
+      display:none;
+    }
+    .panel-header { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+    .panel h2 { margin:0; }
+    .panel .close { margin-left:auto; }
+    pre {
+      background:#f7f7f7;
+      border:1px solid #e6e6e6;
+      padding:10px;
+      border-radius:10px;
+      overflow:auto;
+      max-height: 380px;
+    }
+    .toolbar { margin-left:auto; display:flex; gap:10px; }
+    .hint { font-size:0.9rem; color:#666; }
+  </style>
+</head>
+<body>
+  <h1>Activities Pending Approval</h1>
+
+  <div class="row">
+    <div id="modePill" class="pill">mode: …</div>
+    <div id="countPill" class="pill">0 activities</div>
+    <div class="muted small">Click column headers to sort.</div>
+    <div class="toolbar">
+      <button id="refreshBtn" type="button">Refresh</button>
+      <button id="logoutBtn" type="button">Logout</button>
+    </div>
+  </div>
+
+  <div id="status" class="muted small"></div>
+  <div id="error" class="error"></div>
+
+  <table aria-label="Activities Pending Approval">
+    <thead>
+      <tr>
+        <th class="sortable" data-key="activity_id">Activity ID</th>
+        <th class="sortable" data-key="activity_name">Activity Name</th>
+        <th class="sortable" data-key="groups">Groups</th>
+        <th class="sortable" data-key="activity_start">Date</th>
+        <th class="sortable" data-key="bishop_approval">Bishop Approval</th>
+        <th class="sortable" data-key="stake_approval">Stake Approval</th>
+        <th class="sortable right" data-key="total_youth">Total Youth</th>
+        <th class="sortable right" data-key="total_youth_permission">Total Youth Permissions</th>
+        <th>Youth Approvals</th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+
+  <div id="approvalsPanel" class="panel">
+    <div class="panel-header">
+      <h2 class="small">Youth Approvals</h2>
+      <div id="panelMeta" class="muted small"></div>
+      <button id="closePanelBtn" class="close" type="button">Close</button>
+    </div>
+    <div class="hint" style="margin:10px 0 8px;">
+      This shows the <span class="mono">youth_approvals</span> field returned for the selected activity.
+    </div>
+    <div id="approvalsEmpty" class="muted small" style="display:none;">No youth approvals returned.</div>
+
+    <div style="overflow:auto;">
+      <table id="approvalsTable" aria-label="Youth approvals table" style="width:100%; border-collapse:collapse; display:none;">
+        <thead id="approvalsThead"></thead>
+        <tbody id="approvalsTbody"></tbody>
+      </table>
+    </div>
+
+    <pre id="approvalsJsonFallback" style="display:none;"></pre>
+
+  </div>
+
+  <script>
+        const BASE_URL = window.BASE_URL || localStorage.getItem('BASE_URL') || 'http://localhost:8000';
+
+    // ---------- ENV detection ----------
+    function getEnvMode() {
+      // Supports: ?env=test OR localStorage ENV OR window.__ENV
+      const urlEnv = new URLSearchParams(location.search).get("env");
+      if (urlEnv) return urlEnv;
+      if (window.__ENV) return window.__ENV;
+      const ls = localStorage.getItem("ENV");
+      return ls || "prod";
+    }
+    const ENV = getEnvMode();
+    const isTest = String(ENV).toLowerCase() === "test";
+    document.getElementById("modePill").textContent = `mode: ${isTest ? "test (local JSON)" : "api"}`;
+
+    // ---------- JWT ----------
+    function getToken() {
+      return localStorage.getItem("access_token");
+    }
+
+    function requireTokenOrRedirect() {
+      if (isTest) return "TEST_TOKEN_NOT_REQUIRED";
+      const token = getToken();
+      if (!token) {
+        window.location.href = "login.html";
+        return null;
+      }
+      return token;
+    }
+
+    // ---------- Utilities ----------
+    function prettyValue(v) {
+  if (v === null || v === undefined) return "";
+  if (typeof v === "boolean") return v ? "Yes" : "No";
+  if (v === 1) return "Yes";
+  if (v === 0) return "No";
+  if (typeof v === "object") {
+    try { return JSON.stringify(v); } catch { return String(v); }
+  }
+  return String(v);
+}
+
+function collectColumns(rows) {
+  // Prefer common fields first if they exist
+  const preferred = ["youth_id", "name", "parent", "approved", "approved_date", "timestamp"];
+  const keySet = new Set();
+
+  for (const r of rows) {
+    if (r && typeof r === "object" && !Array.isArray(r)) {
+      Object.keys(r).forEach(k => keySet.add(k));
+    }
+  }
+
+  const allKeys = Array.from(keySet);
+
+  // Order: preferred keys first (if present), then remaining sorted
+  const preferredPresent = preferred.filter(k => keySet.has(k));
+  const remaining = allKeys.filter(k => !preferredPresent.includes(k)).sort((a, b) => a.localeCompare(b));
+  return [...preferredPresent, ...remaining];
+}
+
+function renderApprovalsTable(rows) {
+  const emptyEl = document.getElementById("approvalsEmpty");
+  const tableEl = document.getElementById("approvalsTable");
+  const theadEl = document.getElementById("approvalsThead");
+  const tbodyEl = document.getElementById("approvalsTbody");
+  const fallbackEl = document.getElementById("approvalsJsonFallback");
+
+  // reset
+  emptyEl.style.display = "none";
+  tableEl.style.display = "none";
+  theadEl.innerHTML = "";
+  tbodyEl.innerHTML = "";
+  fallbackEl.style.display = "none";
+  fallbackEl.textContent = "";
+
+  if (!Array.isArray(rows) || rows.length === 0) {
+    emptyEl.style.display = "";
+    return;
+  }
+
+  // If any row isn't a plain object, fallback to JSON
+  const allObjects = rows.every(r => r && typeof r === "object" && !Array.isArray(r));
+  if (!allObjects) {
+    fallbackEl.style.display = "";
+    fallbackEl.textContent = JSON.stringify(rows, null, 2);
+    return;
+  }
+
+  const cols = collectColumns(rows);
+  if (cols.length === 0) {
+    fallbackEl.style.display = "";
+    fallbackEl.textContent = JSON.stringify(rows, null, 2);
+    return;
+  }
+
+  // Header
+  const trh = document.createElement("tr");
+  for (const c of cols) {
+    const th = document.createElement("th");
+    th.textContent = c;
+    th.style.background = "#f6f6f6";
+    th.style.borderBottom = "1px solid #ddd";
+    th.style.padding = "10px";
+    th.style.position = "sticky";
+    th.style.top = "0";
+    th.style.zIndex = "1";
+    th.style.whiteSpace = "nowrap";
+    trh.appendChild(th);
+  }
+  theadEl.appendChild(trh);
+
+  // Body
+  for (const r of rows) {
+    const tr = document.createElement("tr");
+    for (const c of cols) {
+      const td = document.createElement("td");
+      td.style.borderBottom = "1px solid #ddd";
+      td.style.padding = "10px";
+      td.style.verticalAlign = "top";
+
+      const val = prettyValue(r[c]);
+
+      // Make "approved" visually stand out if present
+      if (c === "approved") {
+        const isYes = (r[c] === true || r[c] === 1 || r[c] === "1" || String(r[c]).toLowerCase() === "true");
+        td.innerHTML = isYes
+          ? `<span class="ok">${val || "Yes"}</span>`
+          : `<span class="missing">${val || "No"}</span>`;
+      } else {
+        td.textContent = val;
+      }
+
+      tr.appendChild(td);
+    }
+    tbodyEl.appendChild(tr);
+  }
+
+  tableEl.style.display = "";
+}
+
+    function setStatus(msg) { document.getElementById("status").textContent = msg || ""; }
+    function setError(msg) { document.getElementById("error").textContent = msg || ""; }
+    function clearError() { setError(""); }
+
+    function truthy(v) {
+      return v === true || v === 1 || v === "1" || String(v).toLowerCase() === "true";
+    }
+    function safeStr(v) {
+      if (v === null || v === undefined) return "";
+      return String(v);
+    }
+    function numericOrZero(v) {
+      const n = Number(v);
+      return Number.isFinite(n) ? n : 0;
+    }
+    function normalizeList(payload) {
+      if (Array.isArray(payload)) return payload;
+      if (payload && Array.isArray(payload.activities)) return payload.activities;
+      if (payload && Array.isArray(payload.data)) return payload.data;
+      return [];
+    }
+    function displayGroups(g) {
+      if (Array.isArray(g)) return g.join(", ");
+      return safeStr(g);
+    }
+
+    // activity_start is a datetime (string in JSON)
+    function getActivityStart(a) {
+      return a.activity_start || "";
+    }
+
+    // ---------- Sorting ----------
+    let activities = [];
+    let sortKey = "activity_start";
+    let sortDir = "asc"; // asc|desc
+
+    function compareValues(a, b, key) {
+      if (key === "activity_start") {
+        return safeStr(getActivityStart(a)).localeCompare(safeStr(getActivityStart(b)));
+      }
+
+      // Approval columns: sort approved first, then by approval date
+      if (key === "bishop_approval") {
+        const aa = truthy(a.bishop_approval);
+        const bb = truthy(b.bishop_approval);
+        if (aa !== bb) return (aa ? 1 : 0) - (bb ? 1 : 0);
+        return safeStr(a.bishop_approval_date).localeCompare(safeStr(b.bishop_approval_date));
+      }
+      if (key === "stake_approval") {
+        const aa = truthy(a.stake_approval);
+        const bb = truthy(b.stake_approval);
+        if (aa !== bb) return (aa ? 1 : 0) - (bb ? 1 : 0);
+        return safeStr(a.stake_approval_date).localeCompare(safeStr(b.stake_approval_date));
+      }
+
+      if (key === "groups") {
+        return displayGroups(a.groups).localeCompare(displayGroups(b.groups));
+      }
+
+      if (key === "total_youth") {
+        return numericOrZero(a.total_youth) - numericOrZero(b.total_youth);
+      }
+      if (key === "total_youth_permission") {
+        return numericOrZero(a.total_youth_permission) - numericOrZero(b.total_youth_permission);
+      }
+
+      return safeStr(a[key]).localeCompare(safeStr(b[key]));
+    }
+
+    function sortActivities() {
+      activities.sort((a, b) => {
+        const c = compareValues(a, b, sortKey);
+        return sortDir === "asc" ? c : -c;
+      });
+    }
+
+    function updateSortIndicators() {
+      const ths = document.querySelectorAll("th.sortable");
+      ths.forEach(th => {
+        const key = th.dataset.key;
+        let label = th.textContent.replace(/\s[▲▼]$/, "");
+        if (key === sortKey) label += sortDir === "asc" ? " ▲" : " ▼";
+        th.textContent = label;
+      });
+    }
+
+    // ---------- Rendering ----------
+    function renderTable() {
+      sortActivities();
+      updateSortIndicators();
+
+      const tbody = document.getElementById("tbody");
+      tbody.innerHTML = "";
+
+      for (const a of activities) {
+        const tr = document.createElement("tr");
+
+        const activityId = safeStr(a.activity_id);
+        const activityName = safeStr(a.activity_name);
+        const groups = displayGroups(a.groups);
+        const date = safeStr(getActivityStart(a));
+
+        const bishopApproved = truthy(a.bishop_approval);
+        const bishopCell = bishopApproved
+          ? `<span class="ok">${safeStr(a.bishop_approval_date)}</span>`
+          : `<span class="missing">missing</span>`;
+
+        const stakeApproved = truthy(a.stake_approval);
+        const stakeCell = stakeApproved
+          ? `<span class="ok">${safeStr(a.stake_approval_date)}</span>`
+          : `<span class="missing">missing</span>`;
+
+        const totalYouth = numericOrZero(a.total_youth);
+        const totalYouthPerms = numericOrZero(a.total_youth_permission);
+
+        const approvalsBtn = `<button type="button" class="view-approvals" data-activity-id="${activityId}">View</button>`;
+
+        tr.innerHTML = `
+          <td class="mono nowrap">${activityId}</td>
+          <td>${activityName}</td>
+          <td>${groups}</td>
+          <td class="nowrap">${date}</td>
+          <td class="nowrap">${bishopCell}</td>
+          <td class="nowrap">${stakeCell}</td>
+          <td class="right">${totalYouth}</td>
+          <td class="right">${totalYouthPerms}</td>
+          <td>${approvalsBtn}</td>
+        `;
+
+        tbody.appendChild(tr);
+      }
+
+      document.getElementById("countPill").textContent = `${activities.length} activities`;
+    }
+
+    // ---------- Youth approvals panel ----------
+    function showApprovalsPanel(activityId) {
+      const a = activities.find(x => safeStr(x.activity_id) === safeStr(activityId));
+      if (!a) return;
+
+      document.getElementById("panelMeta").textContent =
+        `${safeStr(a.activity_name)} (${safeStr(a.activity_id)})`;
+
+      const approvals = a.youth_approvals ?? [];
+      renderApprovalsTable(approvals);
+
+      document.getElementById("approvalsPanel").style.display = "";
+      document.getElementById("approvalsPanel").scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    function hideApprovalsPanel() {
+      document.getElementById("approvalsPanel").style.display = "none";
+      document.getElementById("panelMeta").textContent = "";
+
+      // clear content
+      document.getElementById("approvalsEmpty").style.display = "none";
+      document.getElementById("approvalsTable").style.display = "none";
+      document.getElementById("approvalsThead").innerHTML = "";
+      document.getElementById("approvalsTbody").innerHTML = "";
+      document.getElementById("approvalsJsonFallback").style.display = "none";
+      document.getElementById("approvalsJsonFallback").textContent = "";
+    }
+
+
+    document.getElementById("closePanelBtn").addEventListener("click", hideApprovalsPanel);
+    document.addEventListener("click", (e) => {
+      const btn = e.target.closest(".view-approvals");
+      if (!btn) return;
+      showApprovalsPanel(btn.dataset.activityId);
+    });
+
+    // ---------- Data loading ----------
+    async function fetchActivitiesPendingApproval(token) {
+      if (isTest) {
+        const r = await fetch("test/short-activities-pending-approval.json", { cache: "no-store" });
+        if (!r.ok) throw new Error(`Failed to load short-activities-pending-approval.json (${r.status})`);
+        return r.json();
+      }
+
+      const r = await fetch(`${BASE_URL}/activities-pending-approval`, {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+
+      if (r.status === 401) {
+        localStorage.removeItem("access_token");
+        window.location.href = "login.html";
+        return null;
+      }
+      if (!r.ok) throw new Error(`Failed /activities-pending-approval (${r.status})`);
+      return r.json();
+    }
+
+    async function loadActivities() {
+      clearError();
+      hideApprovalsPanel();
+
+      const token = requireTokenOrRedirect();
+      if (!token) return;
+
+      setStatus(isTest ? "Loading test data…" : "Loading activities pending approval…");
+
+      try {
+        const payload = await fetchActivitiesPendingApproval(token);
+        if (!payload) return;
+
+        activities = normalizeList(payload);
+
+        renderTable();
+        setStatus(activities.length ? "" : "No activities returned.");
+      } catch (err) {
+        setStatus("");
+        setError(err?.message || String(err));
+      }
+    }
+
+    // ---------- Sorting header wiring ----------
+    document.querySelectorAll("th.sortable").forEach(th => {
+      th.addEventListener("click", () => {
+        const key = th.dataset.key;
+        if (sortKey === key) {
+          sortDir = sortDir === "asc" ? "desc" : "asc";
+        } else {
+          sortKey = key;
+          sortDir = "asc";
+        }
+        renderTable();
+      });
+    });
+
+    // ---------- Buttons ----------
+    document.getElementById("refreshBtn").addEventListener("click", loadActivities);
+    document.getElementById("logoutBtn").addEventListener("click", () => {
+      localStorage.removeItem("access_token");
+      window.location.href = "login.html";
+    });
+
+    // ---------- Init ----------
+    loadActivities();
+  </script>
+</body>
+</html>

@@ -871,6 +871,7 @@ def get_activities_pending_approval(db=Depends(get_db))->List[ActivityApprovals]
     rows = cursor.fetchall()
     activities = []
     for row in rows:
+        #TODO fetch youth with permission for each activity to set total youth and total perisions
         cursor.execute("SELECT * FROM permission_given WHERE activity_id = ?", (row["activity_id"],)) # TODO change so it combines all youth and those with permission
         act = ActivityApprovals(
             activity_id=row["activity_id"],
@@ -881,7 +882,8 @@ def get_activities_pending_approval(db=Depends(get_db))->List[ActivityApprovals]
             stake_approval=bool(row["stake_approval"]) if row["stake_approval"] is not None else None,
             stake_approval_date=row["stake_approval_date"],
             groups=row["groups"],
-            total_youth
+            total_youth=1,
+            total_youth_permission=1,
             youth_approvals=[PermissionGiven(**pg_row) for pg_row in cursor.fetchall()]  # TODO show dict of all youth and if have permission
         )
         activities.append(act)

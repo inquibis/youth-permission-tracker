@@ -1,0 +1,31 @@
+[
+  {
+    "activity_id": "A-2001",
+    "activity_name": "Service Project",
+    "activity_start": "2026-02-10T18:00:00",
+    "bishop_approval": true,
+    "bishop_approval_date": "2026-02-01",
+    "stake_approval": false,
+    "stake_approval_date": null,
+    "groups": ["deacons", "teachers"],
+    "total_youth": 18,
+    "total_youth_permission": 12,
+    "youth_approvals": [
+      {"youth_id": "Y-101", "approved": true, "approved_date": "2026-02-02"},
+      {"youth_id": "Y-102", "approved": false}
+    ]
+  },
+  {
+    "activity_id": "A-2002",
+    "activity_name": "Overnight Campout",
+    "activity_start": "2026-03-06T17:00:00",
+    "bishop_approval": false,
+    "bishop_approval_date": null,
+    "stake_approval": false,
+    "stake_approval_date": null,
+    "groups": ["priest", "older young women"],
+    "total_youth": 24,
+    "total_youth_permission": 4,
+    "youth_approvals": []
+  }
+]
