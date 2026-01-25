@@ -97,7 +97,7 @@ class DBSetup:
         self.conn.commit()
 
 
-    def _load_admins(self)->None:
+    def load_admins(self)->None:
         cursor = self.conn.cursor()
         admins = [
             ('deacon_admin', 'password_d', 'president', 'deacons'),

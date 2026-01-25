@@ -2,6 +2,9 @@ fastapi
 uvicorn
 pydantic
 aiosqlite
+python-jose[cryptography]
+twilio
+dotenv
 
 # QR code generation
 qrcode[pil]

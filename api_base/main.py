@@ -1,9 +1,11 @@
 from typing import Dict, List, Union
-from fastapi import FastAPI
+from fastapi import FastAPI, Path
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import Query, Response
 from io import BytesIO
+from fastapi.params import Depends
 import qrcode
+from pathlib import Path as PathlibPath
 from schema import ActivityBase, AdminUser, ConcernSurvey, FullActivity, InterestSurvey, PermissionGiven, YouthPermissionSubmission, Activity, ParentGuardian, MedicalInfo, EmergencyContact, Signature
 import sqlite3
 import os
@@ -13,7 +15,7 @@ from datetime import datetime, timedelta
 import uuid
 from contact_engine import ContactEngine
 from db_setup import DBSetup
-from jose import jwt
+from jose import jwt, JWTError
 
 app = FastAPI()
 contact_engine = ContactEngine()
@@ -27,25 +29,50 @@ app.add_middleware(
 	allow_headers=["*"],
 )
 
-DB_PATH = os.getenv("DB_PATH", "data.sqlite3")
-SECRET_KEY = "super-secret-key"  # Use environment variable in prod
+DB_PATH = PathlibPath(os.getenv("DB_PATH", "/data/data.sqlite3"))
+SECRET_KEY = os.getenv("SECRET_KEY", "super-secret-key")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 
 
-def get_db():
-	return app.state._db
+# def get_db():
+# 	return app.state._db
 
 
 @app.on_event("startup")
 def startup():
-    # Ensure folder exists if DB_PATH includes a directory (e.g. /data/youth.db)
-    db_dir = os.path.dirname(DB_PATH)
-    if db_dir:
-        os.makedirs(db_dir, exist_ok=True)
+    # 1. DB_PATH must include a filename
+    if not DB_PATH.suffix:
+        raise RuntimeError(
+            f"Invalid DB_PATH '{DB_PATH}'. "
+            "DB_PATH must point to a SQLite file, e.g. '/data/data.sqlite3'."
+        )
 
-    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+    # 2. Parent directory must be creatable
+    try:
+        DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    except Exception as e:
+        raise RuntimeError(
+            f"Cannot create database directory '{DB_PATH.parent}': {e}"
+        ) from e
+
+    # 3. Parent path must be a directory
+    if not DB_PATH.parent.is_dir():
+        raise RuntimeError(
+            f"DB_PATH parent '{DB_PATH.parent}' exists but is not a directory."
+        )
+
+    # 4. Try opening SQLite to catch permission/locking issues early
+    try:
+        conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+        conn.execute("PRAGMA journal_mode=WAL;")
+        conn.close()
+    except Exception as e:
+        raise RuntimeError(
+            f"SQLite failed to open database at '{DB_PATH}': {e}"
+        ) from e
+
     conn.row_factory = sqlite3.Row
 
     # Helpful pragmas for reliability/performance on SQLite
@@ -55,7 +82,7 @@ def startup():
 
     db_setup=DBSetup(conn)
     db_setup.create_tables()
-    db_setup._load_admins()
+    db_setup.load_admins()
     app.state._db = conn
 
 
@@ -66,22 +93,27 @@ def shutdown():
 	if db:
 		db.close()
 
+def get_db():
+    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+    conn.row_factory = sqlite3.Row
+    try:
+        yield conn
+    finally:
+        conn.close()
 
 ##################
 ### API Endpoints
 ##################
 
 @app.get("/health", tags=["health"])
-async def health():
+async def health(db=Depends(get_db)):
     # Basic DB liveness check
-    db = get_db()
     db.execute("SELECT 1")
     return {"status": "ok"}
 
 
 @app.get("/")
-async def read_root()->dict:
-	db = get_db()
+async def read_root(db=Depends(get_db))->dict:
 	db.execute("INSERT INTO visits (created_at) VALUES (datetime('now'))")
 	db.commit()
 	cur = db.execute("SELECT COUNT(*) FROM visits")
@@ -91,8 +123,7 @@ async def read_root()->dict:
 
 ##### User Management Endpoints #####
 @app.post("/users", tags=["users"], description="Create a new user")
-async def create_user(user_data: YouthPermissionSubmission):
-    db = get_db()
+async def create_user(user_data: YouthPermissionSubmission, db=Depends(get_db)):
     cursor = db.cursor()
     sql = """
     INSERT INTO youth_medical 
@@ -117,8 +148,7 @@ async def create_user(user_data: YouthPermissionSubmission):
 
 
 @app.get("/users/{youth_id}",tags=["users"],description="Get user by youth ID")
-async def get_user(youth_id: str)->Union[YouthPermissionSubmission,dict]:
-    db = get_db()
+async def get_user(youth_id: str, db=Depends(get_db))->Union[YouthPermissionSubmission,dict]:
     cursor = db.cursor()
     cursor.execute(     
         "SELECT * FROM youth_medical WHERE youth_id = ?", (youth_id.lower(),)
@@ -144,8 +174,7 @@ async def get_user(youth_id: str)->Union[YouthPermissionSubmission,dict]:
 	
 	
 @app.delete("/users/{youth_id}",tags=["users"],description="Delete user by youth ID")
-async def delete_user(youth_id: str):
-    db = get_db()
+async def delete_user(youth_id: str,db=Depends(get_db)):
     cursor = db.cursor()
     cursor.execute(
         "DELETE FROM youth_medical WHERE youth_id = ?", (youth_id.lower(),)
@@ -158,8 +187,7 @@ async def delete_user(youth_id: str):
 
 
 @app.put("/users/{youth_id}", tags=["users"], description="Update user by youth ID")
-async def update_user(youth_id: str, user_data: YouthPermissionSubmission)->Dict[str, str]:     
-    db = get_db()
+async def update_user(youth_id: str, user_data: YouthPermissionSubmission, db=Depends(get_db))->Dict[str, str]:
     cursor = db.cursor()
     sql = """
     UPDATE youth_medical 
@@ -189,8 +217,7 @@ async def update_user(youth_id: str, user_data: YouthPermissionSubmission)->Dict
 ######  Interests and Concerns
 ######################################
 @app.post("/interest-survey", tags=["interest-survey"], description="Submit interest survey")
-async def submit_interest_survey(data:InterestSurvey):
-    db = get_db()
+async def submit_interest_survey(data:InterestSurvey,db=Depends(get_db)):
     cursor = db.cursor()
     # verify if user already has interests entered for this year and if so return error
     sql = "SELECT COUNT(*) FROM interest_survey WHERE youth_id = ? AND strftime('%Y', submitted_at) = strftime('%Y', 'now')"
@@ -217,8 +244,7 @@ async def submit_interest_survey(data:InterestSurvey):
 
 
 @app.post("/interest-survey-reset", tags=["interest-survey"], description="Reset interest survey for youth")
-async def reset_interest_survey(youth_id: str):
-    db = get_db()
+async def reset_interest_survey(youth_id: str,db=Depends(get_db)):
     cursor = db.cursor()
     cursor.execute(
         "DELETE FROM interest_survey WHERE youth_id = ?", (youth_id,)
@@ -228,8 +254,7 @@ async def reset_interest_survey(youth_id: str):
 
 
 @app.get("/interest-survey/{group}", tags=["interest-survey"], description="Get interest survey for a group")
-async def get_interest_survey(group: str)->List[InterestSurvey]:
-    db = get_db()
+async def get_interest_survey(group: str, db=Depends(get_db))->List[InterestSurvey]:
     cursor = db.cursor()
     cursor.execute(
         f"SELECT interests FROM interest_survey WHERE group == {group}"
@@ -239,8 +264,7 @@ async def get_interest_survey(group: str)->List[InterestSurvey]:
 
 
 @app.get("/group-concerns/{group}", tags=["interest-survey"], description="Get concern survey for a group")
-async def get_concern_survey(group: str)->List[str]:
-    db = get_db()
+async def get_concern_survey(group: str, db=Depends(get_db))->List[str]:
     cursor = db.cursor()
     cursor.execute(
         f"SELECT concerns FROM concern_survey WHERE group == {group}"
@@ -250,8 +274,7 @@ async def get_concern_survey(group: str)->List[str]:
 
 
 @app.post("/group-concerns", tags=["interest-survey"], description="Submit concern survey for a group")
-async def submit_concern_survey(data:ConcernSurvey):
-    db = get_db()
+async def submit_concern_survey(data:ConcernSurvey, db=Depends(get_db)):
     cursor = db.cursor()
     sql = """
     INSERT INTO concern_survey 
@@ -273,9 +296,8 @@ async def submit_concern_survey(data:ConcernSurvey):
 ##### create activity management endpoints
 #######################################
 @app.get("/group-participants/{group}", tags=["activities"], description="Get list of participants for a group")
-def list_group_participants(group:str)->list:
+def list_group_participants(group:str, db=Depends(get_db))->list:
     # get list of user ids in the group
-    db = get_db()
     cursor = db.cursor()
     cursor.execute(
         "SELECT youth_id, youth FROM youth_medical WHERE json_extract(youth, '$.group') = ?", (group,)
@@ -285,7 +307,7 @@ def list_group_participants(group:str)->list:
 
 
 @app.post("/activities", tags=["activities"], description="Create a new activity")
-async def create_activity(activity_data: Activity):
+async def create_activity(activity_data: Activity, db=Depends(get_db)):
     # fill in additional information
     coed = False
     if ("deacon"or "teacher"or"priest") and ("young women") in activity_data.groups:
@@ -306,7 +328,6 @@ async def create_activity(activity_data: Activity):
     for group in activity_data.groups:
         participants = list_group_participants(group)
         all_users.extend(participants)
-    db = get_db()
     cursor = db.cursor()
 
     # generate an activity identifier and store the payload as JSON
@@ -343,8 +364,7 @@ async def create_activity(activity_data: Activity):
 
 
 @app.get("/activities/{activity_id}", tags=["activities"], description="Get activity by ID")
-async def get_activity(activity_id: str)->Activity:
-    db = get_db()
+async def get_activity(activity_id: str, db=Depends(get_db))->Activity:
     cursor = db.cursor()
     cursor.execute(
         "SELECT data FROM activities WHERE activity_id = ?", (activity_id,)
@@ -357,8 +377,7 @@ async def get_activity(activity_id: str)->Activity:
 
 
 @app.delete("/activities/{activity_id}", tags=["activities"], description="Delete activity by ID")
-async def delete_activity(activity_id: str):
-    db = get_db()
+async def delete_activity(activity_id: str, db=Depends(get_db)):
     cursor = db.cursor()
     cursor.execute(
         "DELETE FROM activities WHERE activity_id = ?", (activity_id,)
@@ -368,8 +387,7 @@ async def delete_activity(activity_id: str):
 
 
 @app.put("/activities/{activity_id}", tags=["activities"], description="Update activity by ID")
-async def update_activity(activity_id: str, activity_data: Activity):
-    db = get_db()
+async def update_activity(activity_id: str, activity_data: Activity, db=Depends(get_db)):
     cursor = db.cursor()
     
     # Check if activity exists
@@ -431,8 +449,7 @@ async def update_activity(activity_id: str, activity_data: Activity):
 
 
 @app.get("/participants/{activity_id}", tags=["activities"], description="Get participants for activity by ID")
-async def get_activity_participants(activity_id: str):
-    db = get_db()
+async def get_activity_participants(activity_id: str, db=Depends(get_db)):
     cursor = db.cursor()
     cursor.execute(
         "SELECT participants_youth_ids FROM activities WHERE activity_id = ?", (activity_id,)
@@ -445,8 +462,7 @@ async def get_activity_participants(activity_id: str):
 
 
 @app.get("/group-membership/{group}", tags=["activities"], description="Get participants for a group")
-async def get_group_membership(group: str):
-    db = get_db()
+async def get_group_membership(group: str, db=Depends(get_db)):
     cursor = db.cursor()
     cursor.execute(
         "SELECT participants_youth_ids FROM activities WHERE groups LIKE ?", (f"%{group}%",)
@@ -459,8 +475,7 @@ async def get_group_membership(group: str):
 
 
 @app.get("/activities/permission-info/{activity_id}",tags=["activities"],description="Get permission info for activity by ID")
-async def get_activity_permission_info(activity_id: str)->ActivityBase:
-    db = get_db()
+async def get_activity_permission_info(activity_id: str, db=Depends(get_db))->ActivityBase:
     cursor = db.cursor()
     cursor.execute(
         "SELECT  activity_name, date_start, date_end, drivers, description, groups FROM activities WHERE activity_id = ?", (activity_id,)    
@@ -474,9 +489,7 @@ async def get_activity_permission_info(activity_id: str)->ActivityBase:
 
 
 @app.post("/activity-permissions", tags=["activity-permissions"], description="Assign permission to activity")
-async def assign_permission_to_activity(permission_data: PermissionGiven):
-
-    db = get_db()
+async def assign_permission_to_activity(permission_data: PermissionGiven, db=Depends(get_db)):
     cursor = db.cursor()
 
     # Get the youth_id from youth_medical table using permission_code
@@ -507,8 +520,7 @@ async def assign_permission_to_activity(permission_data: PermissionGiven):
 
 
 @app.get("/activities-all-parents", tags=["activities"], description="Get all activities with parent details")
-def get_all_activities_with_parents(parent_code:str = Query(..., description="Parent permission code")):
-    db = get_db()
+def get_all_activities_with_parents(parent_code:str = Query(..., description="Parent permission code"), db=Depends(get_db)):
     cursor = db.cursor()
     cursor.execute(
         "SELECT activity_id, activity_name, date_start, date_end, drivers, description, groups, requires_permission FROM activities WHERE activity_id IN (SELECT activity_id FROM permission_given WHERE permission_code = ?)", (parent_code,)
@@ -521,8 +533,7 @@ def get_all_activities_with_parents(parent_code:str = Query(..., description="Pa
 
 
 @app.get("/activities-all", tags=["activities"], description="Get all activities")
-def get_all_activities(include_past: bool = Query(False, description="Include past activities")):
-    db = get_db()
+def get_all_activities(include_past: bool = Query(False, description="Include past activities"), db=Depends(get_db) )->Dict[str, List[ActivityBase]]:
     cursor = db.cursor()
     if include_past:
         cursor.execute("SELECT activity_id, activity_name, date_start, date_end, drivers, description, groups FROM activities")
@@ -539,8 +550,7 @@ def get_all_activities(include_past: bool = Query(False, description="Include pa
 ## Ecclesiastical Activity Endpoints
 ###############
 @app.post("/admin-users", tags=["admin-users"], description="Create a new admin user")
-async def create_admin_user(user =  AdminUser):
-    db = get_db()
+async def create_admin_user(user =  AdminUser, db=Depends(get_db)):
     cursor = db.cursor()
     cursor.execute(
         "UPDATE admin_users SET username = ?, password = ?, role = ? WHERE group = ?",
@@ -551,8 +561,7 @@ async def create_admin_user(user =  AdminUser):
 
 
 @app.get("/login", tags=["admin-users"], description="Admin user login")
-def login(username: str, password: str):
-    db = get_db()
+def login(username: str, password: str, db=Depends(get_db)):
     cursor = db.cursor()
     cursor.execute(
         "SELECT role, group, username FROM admin_users WHERE username = ? AND password = ?",
@@ -580,14 +589,13 @@ def verify_login(token: str):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         return {"message": "Token is valid", "payload": payload}
-    except jwt.JWTError:
+    except JWTError:
         return {"message": "Invalid token"}
 
 
 @app.get("/activity-permission-ecclesiastical", summary="Get activity permission details for Bishop/Stake President")
-def get_activity_permission_ecclesiastical(is_bishop: bool = Query(..., description="Is the requester a bishop?"), is_stake_president: bool = Query(..., description="Is the requester a stake president"))->List[FullActivity]:
+def get_activity_permission_ecclesiastical(is_bishop: bool = Query(..., description="Is the requester a bishop?"), is_stake_president: bool = Query(..., description="Is the requester a stake president"), db=Depends(get_db))->List[FullActivity]:
 # get a list of all activities needing ecclesiastical approval
-    db = get_db()
     cursor = db.cursor()
     where_clause = ""
     if is_bishop:
@@ -601,9 +609,16 @@ def get_activity_permission_ecclesiastical(is_bishop: bool = Query(..., descript
         activities.append(FullActivity(**row))
     return activities
 
-@app.post("/activity-permission-ecclesiastical/{activity_id}/approve", summary="Approve activity permission for Bishop/Stake President")
-def approve_activity_permission_ecclesiastical(activity_id: str = Query(..., description="The ID of the activity"), is_bishop: bool = Query(..., description="Is the requester a bishop?"), is_stake_president: bool = Query(..., description="Is the requester a stake president")):
-    db = get_db()
+@app.post(
+    "/activity-permission-ecclesiastical/{activity_id}/approve",
+    summary="Approve activity permission for Bishop/Stake President",
+)
+def approve_activity_permission_ecclesiastical(
+    activity_id: str = Path(..., description="The ID of the activity"),
+    is_bishop: bool = Query(..., description="Is the requester a bishop?"),
+    is_stake_president: bool = Query(..., description="Is the requester a stake president?"),
+    db=Depends(get_db),
+):
     cursor = db.cursor()
     if is_bishop:
         cursor.execute("UPDATE activities SET bishop_approval = 1, bishop_approval_date = datetime('now') WHERE activity_id = ?", (activity_id,))
@@ -619,9 +634,14 @@ def approve_activity_permission_ecclesiastical(activity_id: str = Query(..., des
 ## Activity Helper Functions
 ##################
 
-@app.get("/sms-activity-permission/{activity_id}", summary="Generate SMS content for activity permission")
-def sms_activity_permission(activity_id: str = Query(..., description="The ID of the activity")):
-    db = get_db()
+@app.get(
+    "/sms-activity-permission/{activity_id}",
+    summary="Generate SMS content for activity permission",
+)
+def sms_activity_permission(
+    activity_id: str = Path(..., description="The ID of the activity"),
+    db=Depends(get_db),
+):
     cursor = db.cursor()
     cursor.execute(
         "SELECT  activity_name, date_start, date_end, drivers, description, groups FROM activities WHERE activity_id = ?", (activity_id,)    
@@ -638,9 +658,14 @@ def sms_activity_permission(activity_id: str = Query(..., description="The ID of
     return {"Mesages Sent": "successful"}
 
 
-@app.get("/email-activity-permission/{activity_id}", summary="Generate email content for activity permission")
-def email_activity_permission(activity_id: str = Query(..., description="The ID of the activity")):
-    db = get_db()
+@app.get(
+    "/email-activity-permission/{activity_id}",
+    summary="Generate email content for activity permission",
+)
+def email_activity_permission(
+    activity_id: str = Path(..., description="The ID of the activity"),
+    db=Depends(get_db),
+):
     cursor = db.cursor()
     cursor.execute(
         "SELECT  activity_name, date_start, date_end, drivers, description, groups FROM activities WHERE activity_id = ?", (activity_id,)    
@@ -691,8 +716,7 @@ def generate_qr(acivity_id: str = Query(..., description="The ID of the activity
 
 
 @app.get("/activity-calendar", summary="Generate calendar invite for the activity")
-def invite(activity_id: str = Query(..., description="The ID of the activity")):
-    db = get_db()
+def invite(activity_id: str = Query(..., description="The ID of the activity"), db=Depends(get_db)):
     cursor = db.cursor()
     cursor.execute(
         "SELECT  activity_name, date_start, date_end, drivers, description, groups FROM activities WHERE activity_id = ?", (activity_id,)    
@@ -732,8 +756,7 @@ def invite(activity_id: str = Query(..., description="The ID of the activity")):
     ### Reconcile activity
     ##################
 @app.post("/activities/reconcile", tags=["activities"], description="Reconcile activities")
-async def reconcile_activities(data:FullActivity):
-    db = get_db()
+async def reconcile_activities(data:FullActivity, db=Depends(get_db)):
     cursor = db.cursor()
 
     # Serialize complex fields as JSON
@@ -779,8 +802,7 @@ async def reconcile_activities(data:FullActivity):
 
 
 @app.get("/activities/reconcile/{activity_id}", tags=["activities"], description="Get activity for reconciliation by ID")
-def get_activity_for_reconciliation(activity_id: str)->FullActivity:
-    db = get_db()
+def get_activity_for_reconciliation(activity_id: str, db=Depends(get_db))->FullActivity:
     cursor = db.cursor()
     cursor.execute(
         "SELECT * FROM activities WHERE activity_id = ?", (activity_id,)
@@ -793,8 +815,7 @@ def get_activity_for_reconciliation(activity_id: str)->FullActivity:
 
 
 @app.put("/activities/reconcile/{activity_id}", tags=["activities"], description="Update activity for reconciliation by ID")
-def update_activity_for_reconciliation(activity_id: str, data: FullActivity):
-    db = get_db()
+def update_activity_for_reconciliation(activity_id: str, data: FullActivity, db=Depends(get_db)):
     cursor = db.cursor()
 
     # Serialize complex fields as JSON
@@ -839,6 +860,6 @@ def update_activity_for_reconciliation(activity_id: str, data: FullActivity):
         return {"message": "Activity not found."}
 
 
-if __name__ == "__main__":
-	import uvicorn
-	uvicorn.run("api_base.main:app", host="0.0.0.0", port=8000, reload=True)
+# if __name__ == "__main__":
+# 	import uvicorn
+# 	uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
