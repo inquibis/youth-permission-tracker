@@ -1,120 +1,520 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Youth Activity Planner</title>
-  <link rel="stylesheet" href="scripts/styles.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Youth Activity Manager - LDS Youth Group</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
   <style>
+    :root {
+      --primary-color: #1f3a93;
+      --secondary-color: #d4a574;
+      --accent-color: #2d5f8d;
+      --light-bg: #f8f9fa;
+      --text-dark: #333;
+    }
+
     body {
-      margin: 0;
-      font-family: "Segoe UI", Tahoma, sans-serif;
-      background: #f7f9fc;
-      color: #333;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: var(--light-bg);
+      color: var(--text-dark);
     }
-    header {
-      background: #2c3e50;
-      color: #fff;
-      padding: 15px 30px;
+
+    /* Navbar Styling */
+    .navbar {
+      background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      padding: 0.75rem 0;
+    }
+
+    .navbar-brand {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: white !important;
+      margin-right: 2rem;
       display: flex;
-      justify-content: space-between;
       align-items: center;
+      gap: 10px;
     }
-    header h1 {
-      margin: 0;
-      font-size: 20px;
+
+    .navbar-brand i {
+      font-size: 1.8rem;
     }
-    nav ul {
-      list-style: none;
-      margin: 0;
-      padding: 0;
-      display: flex;
+
+    .nav-link {
+      color: rgba(255, 255, 255, 0.9) !important;
+      font-weight: 500;
+      transition: color 0.3s ease;
+      padding: 0.5rem 1rem !important;
     }
-    nav li {
-      position: relative;
-      margin-left: 20px;
+
+    .nav-link:hover {
+      color: var(--secondary-color) !important;
     }
-    nav a {
-      color: #fff;
-      text-decoration: none;
+
+    .dropdown-menu {
+      background-color: var(--accent-color);
+      border: none;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .dropdown-item {
+      color: white;
+      transition: all 0.3s ease;
+      padding: 0.75rem 1.5rem;
       font-weight: 500;
     }
-    nav li:hover > ul {
-      display: block;
+
+    .dropdown-item:hover,
+    .dropdown-item.active {
+      background-color: var(--secondary-color);
+      color: var(--primary-color);
     }
-    nav ul ul {
-      display: none;
-      position: absolute;
-      top: 100%;
-      left: 0;
-      background: #34495e;
-      padding: 10px;
-      border-radius: 4px;
-      min-width: 200px;
-      z-index: 1000;
+
+    .dropdown-divider {
+      border-color: rgba(255, 255, 255, 0.2);
     }
-    nav ul ul li {
-      margin: 0;
-    }
-    nav ul ul a {
-      display: block;
-      padding: 5px 10px;
-      color: #fff;
-    }
-    nav ul ul a:hover {
-      background: #2ecc71;
-    }
-    .hero {
-      padding: 60px 20px;
+
+    /* Hero Section */
+    .hero-section {
+      background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
+      color: white;
+      padding: 80px 20px;
       text-align: center;
-      background: linear-gradient(120deg, #3498db, #2ecc71);
-      color: #fff;
+      position: relative;
+      overflow: hidden;
     }
-    .hero h2 {
-      font-size: 36px;
+
+    .hero-section::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      right: -10%;
+      width: 500px;
+      height: 500px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 50%;
+    }
+
+    .hero-section::after {
+      content: '';
+      position: absolute;
+      bottom: -30%;
+      left: -10%;
+      width: 400px;
+      height: 400px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 50%;
+    }
+
+    .hero-content {
+      position: relative;
+      z-index: 1;
+    }
+
+    .hero-title {
+      font-size: 3.5rem;
+      font-weight: 700;
+      margin-bottom: 20px;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    .hero-subtitle {
+      font-size: 1.3rem;
+      margin-bottom: 40px;
+      opacity: 0.95;
+    }
+
+    .hero-buttons {
+      display: flex;
+      gap: 15px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .btn-hero {
+      padding: 12px 30px;
+      font-size: 1.05rem;
+      font-weight: 600;
+      border-radius: 50px;
+      transition: all 0.3s ease;
+      text-decoration: none;
+      display: inline-block;
+    }
+
+    .btn-hero-primary {
+      background-color: var(--secondary-color);
+      color: var(--primary-color);
+    }
+
+    .btn-hero-primary:hover {
+      background-color: white;
+      color: var(--primary-color);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+    }
+
+    .btn-hero-secondary {
+      background-color: transparent;
+      color: white;
+      border: 2px solid white;
+    }
+
+    .btn-hero-secondary:hover {
+      background-color: white;
+      color: var(--primary-color);
+      transform: translateY(-2px);
+    }
+
+    /* Features Section */
+    .features-section {
+      padding: 80px 20px;
+      background-color: white;
+    }
+
+    .section-title {
+      text-align: center;
+      margin-bottom: 60px;
+    }
+
+    .section-title h2 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: var(--primary-color);
       margin-bottom: 15px;
     }
-    .hero p {
-      font-size: 18px;
-      max-width: 700px;
-      margin: 0 auto 20px;
+
+    .section-title p {
+      font-size: 1.1rem;
+      color: #666;
     }
-    .hero img {
-      max-width: 250px;
-      margin-top: 20px;
-      border-radius: 50%;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-    }
-    footer {
+
+    .feature-card {
+      background: white;
+      border-radius: 12px;
+      padding: 40px 30px;
       text-align: center;
-      padding: 15px;
-      background: #2c3e50;
-      color: #fff;
-      font-size: 14px;
-      margin-top: 40px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      transition: all 0.3s ease;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .feature-card:hover {
+      transform: translateY(-10px);
+      box-shadow: 0 12px 24px rgba(0, 0, 0, 0.12);
+    }
+
+    .feature-icon {
+      font-size: 3.5rem;
+      color: var(--secondary-color);
+      margin-bottom: 20px;
+    }
+
+    .feature-card h3 {
+      font-size: 1.3rem;
+      font-weight: 600;
+      color: var(--primary-color);
+      margin-bottom: 15px;
+    }
+
+    .feature-card p {
+      color: #666;
+      line-height: 1.6;
+      flex-grow: 1;
+    }
+
+    /* Quick Access Section */
+    .quick-access-section {
+      background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
+      color: white;
+      padding: 80px 20px;
+    }
+
+    .quick-access-section h2 {
+      text-align: center;
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: 50px;
+    }
+
+    .quick-link-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .quick-link-card {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 12px;
+      padding: 25px;
+      text-align: center;
+      text-decoration: none;
+      color: white;
+      transition: all 0.3s ease;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .quick-link-card i {
+      font-size: 2.5rem;
+      color: var(--secondary-color);
+    }
+
+    .quick-link-card:hover {
+      background: rgba(255, 255, 255, 0.2);
+      transform: translateY(-5px);
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+      text-decoration: none;
+      color: white;
+    }
+
+    .quick-link-card h4 {
+      font-size: 1.05rem;
+      font-weight: 600;
+      margin: 0;
+    }
+
+    /* Footer */
+    footer {
+      background-color: var(--primary-color);
+      color: white;
+      padding: 40px 20px;
+      text-align: center;
+    }
+
+    footer p {
+      margin: 10px 0;
+      opacity: 0.9;
+    }
+
+    footer a {
+      color: var(--secondary-color);
+      text-decoration: none;
+    }
+
+    footer a:hover {
+      text-decoration: underline;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .hero-title {
+        font-size: 2.5rem;
+      }
+
+      .hero-subtitle {
+        font-size: 1.1rem;
+      }
+
+      .hero-buttons {
+        flex-direction: column;
+      }
+
+      .section-title h2 {
+        font-size: 2rem;
+      }
+
+      .feature-card {
+        padding: 30px 20px;
+      }
     }
   </style>
 </head>
 <body>
-  <!-- Navbar will be injected here -->
-  <div id="navbar-placeholder"></div>
+  <!-- Navigation Bar -->
+  <nav class="navbar navbar-expand-lg navbar-dark sticky-top">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="index.html">
+        <i class="fas fa-users"></i>
+        Youth Activity Manager
+      </a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav ms-auto">
+          <!-- Youth Dropdown -->
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" id="youthDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+              <i class="fas fa-user-tie"></i> Youth
+            </a>
+            <ul class="dropdown-menu" aria-labelledby="youthDropdown">
+              <li><a class="dropdown-item" href="youth-signup.html"><i class="fas fa-user-plus"></i> Sign Up</a></li>              
+              <li><a class="dropdown-item" href="activity-interests.html"><i class="fas fa-user-plus"></i> Interests</a></li>
+              <li><a class="dropdown-item" href="activity-parent-view.html"><i class="fas fa-user-check"></i> Parent Activity View</a></li>
+              <li><a class="dropdown-item" href="permission-parental.html"><i class="fas fa-file-contract"></i> Permission Form</a></li>
+            </ul>
+          </li>
 
-  <div class="hero">
-    <h2>Plan, Prepare, and Empower Youth Activities</h2>
-    <p>
-      Welcome to the Youth Activity Planner. Here you can organize, manage, and track youth
-      activities from preparation through permissions. This tool empowers leaders, guardians, 
-      and youth to collaborate effectively and ensure safe, meaningful experiences.
-    </p>
-    <img src="https://source.unsplash.com/featured/?youth,teamwork" alt="Youth activities">
-  </div>
+          <!-- Activities Dropdown -->
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" id="activitiesDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+              <i class="fas fa-calendar-alt"></i> Activities
+            </a>
+            <ul class="dropdown-menu" aria-labelledby="activitiesDropdown">
+              <li><a class="dropdown-item" href="activity-plan.html"><i class="fas fa-plus-circle"></i> Plan Activity</a></li>
+              <li><a class="dropdown-item" href="activity-list.html"><i class="fas fa-list"></i> List Activities</a></li>
+              <li><a class="dropdown-item" href="activity-request.html"><i class="fas fa-hand-paper"></i> Request Attendance</a></li>
+              <li><a class="dropdown-item" href="activity-reconcile.html"><i class="fas fa-calculator"></i> Reconcile</a></li>
+              <li><a class="dropdown-item" href="activity-view.html"><i class="fas fa-eye"></i> View Activity</a></li>
+            </ul>
+          </li>
 
+          <!-- Admin Dropdown -->
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+              <i class="fas fa-cog"></i> Admin
+            </a>
+            <ul class="dropdown-menu" aria-labelledby="adminDropdown">
+              <li><a class="dropdown-item" href="user-management.html"><i class="fas fa-users-cog"></i> Manage Admins</a></li>
+              <li><a class="dropdown-item" href="permission-admin.html"><i class="fas fa-clipboard-check"></i>Leader Permission</a></li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero Section -->
+  <section class="hero-section">
+    <div class="hero-content">
+      <h1 class="hero-title">Youth Activity Management</h1>
+      <p class="hero-subtitle">Streamline activity planning, permissions, and reconciliation for your LDS youth group</p>
+      <div class="hero-buttons">
+        <a href="activity-plan.html" class="btn-hero btn-hero-primary">
+          <i class="fas fa-plus"></i> Plan an Activity
+        </a>
+        <a href="activity-parent-view.html" class="btn-hero btn-hero-secondary">
+          <i class="fas fa-list"></i> View Activities
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features Section -->
+  <section class="features-section">
+    <div class="container">
+      <div class="section-title">
+        <h2>Key Features</h2>
+        <p>Everything you need to manage youth activities effectively</p>
+      </div>
+
+      <div class="row g-4">
+        <div class="col-lg-4 col-md-6">
+          <div class="feature-card">
+            <div class="feature-icon">
+              <i class="fas fa-calendar-check"></i>
+            </div>
+            <h3>Activity Planning</h3>
+            <p>Create and organize activities with detailed budgets, schedules, and participant lists. Make planning easy and collaborative.</p>
+          </div>
+        </div>
+
+        <div class="col-lg-4 col-md-6">
+          <div class="feature-card">
+            <div class="feature-icon">
+              <i class="fas fa-file-signature"></i>
+            </div>
+            <h3>Digital Permissions</h3>
+            <p>Collect parental permissions and medical information securely online. Streamline the approval process for youth participation.</p>
+          </div>
+        </div>
+
+        <div class="col-lg-4 col-md-6">
+          <div class="feature-card">
+            <div class="feature-icon">
+              <i class="fas fa-calculator"></i>
+            </div>
+            <h3>Budget Tracking</h3>
+            <p>Track expenses and reconcile budgets after each activity. Generate detailed expense reports and PDF summaries.</p>
+          </div>
+        </div>
+
+        <div class="col-lg-4 col-md-6">
+          <div class="feature-card">
+            <div class="feature-icon">
+              <i class="fas fa-chart-bar"></i>
+            </div>
+            <h3>Activity Analytics</h3>
+            <p>View comprehensive activity details, attendance records, and financial summaries in one place.</p>
+          </div>
+        </div>
+
+        <div class="col-lg-4 col-md-6">
+          <div class="feature-card">
+            <div class="feature-icon">
+              <i class="fas fa-mobile-alt"></i>
+            </div>
+            <h3>Mobile Friendly</h3>
+            <p>Access and manage activities from any device. Works seamlessly on phones, tablets, and desktop computers.</p>
+          </div>
+        </div>
+
+        <div class="col-lg-4 col-md-6">
+          <div class="feature-card">
+            <div class="feature-icon">
+              <i class="fas fa-lock"></i>
+            </div>
+            <h3>Secure & Private</h3>
+            <p>Protect youth information with secure data handling and access controls. Meet privacy requirements for youth programs.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Quick Access Section -->
+  <section class="quick-access-section">
+    <div class="container">
+      <h2>Quick Access</h2>
+      <div class="quick-link-grid">
+        <a href="activity-plan.html" class="quick-link-card">
+          <i class="fas fa-pencil-alt"></i>
+          <h4>Plan Activity</h4>
+        </a>
+        <a href="activity-list.html" class="quick-link-card">
+          <i class="fas fa-list-ul"></i>
+          <h4>View Activities</h4>
+        </a>
+        <a href="permission-parental.html" class="quick-link-card">
+          <i class="fas fa-scroll"></i>
+          <h4>Permissions</h4>
+        </a>
+        <a href="activity-reconcile.html" class="quick-link-card">
+          <i class="fas fa-balance-scale"></i>
+          <h4>Reconcile</h4>
+        </a>
+        <a href="activity-view.html" class="quick-link-card">
+          <i class="fas fa-binoculars"></i>
+          <h4>View Details</h4>
+        </a>
+        <a href="user-management.html" class="quick-link-card">
+          <i class="fas fa-sliders-h"></i>
+          <h4>Settings</h4>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
   <footer>
-    &copy; 2025 Youth Activity Planner. All rights reserved.
+    <div class="container">
+      <p><strong>Youth Activity Manager</strong></p>
+      <p>Helping LDS youth leaders organize, plan, and manage activities effectively</p>
+      <p style="margin-top: 20px; opacity: 0.7; font-size: 0.9rem;">© 2024 Youth Activity Manager. All rights reserved.</p>
+    </div>
   </footer>
 
-  <script type="module">
-    import { loadNavbar } from "./scripts/navbar.js";
-    loadNavbar();
-  </script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

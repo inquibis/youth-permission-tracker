@@ -15,7 +15,7 @@
           <option value="deacon">Deacon</option>
           <option value="teacher">Teacher</option>
           <option value="priest">Priest</option>
-          <option value="young men">Young Men</option>
+          <option value="young man">Young Man</option>
           <option value="young women (younger)">Young Women (Younger)</option>
           <option value="young women (older)">Young Women (Older)</option>
           <option value="young women">Young Women</option>
@@ -82,9 +82,8 @@
             </div>
           </div>
           <div class="modal-footer">
-            <button class="btn btn-primary" type="submit">Edit</button>
+            <button class="btn btn-primary" type="submit">Save Changes</button>
             <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-            <button class="btn btn-tirt" data-bs-dismiss="modal">Invite</button>
           </div>
         </form>
       </div>
@@ -94,8 +93,7 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script>
-    const WEB_BASE_URL = window.WEB_BASE_URL || localStorage.getItem('WEB_BASE_URL') || 'http://youth.lthome.com';
-    const API_BASE_URL = window.API_BASE_URL || window.BASE_URL || localStorage.getItem('API_BASE_URL') || localStorage.getItem('BASE_URL') || 'http://localhost:8000';
+    const base_url = window.env?.BASE_URL || 'http://localhost:8000';
     const token = localStorage.getItem("token");
     let allActivities = [];
 
@@ -107,72 +105,44 @@
         return;
       }
 
-      // try {
-      //   const res = await fetch(`${API_BASE_URL}/permission-check`, {
-      //     headers: { Authorization: `Bearer ${token}` }
-      //   });
-      //   if (!res.ok) throw new Error("Not authorized");
+      try {
+        const res = await fetch(`${base_url}/permission-check`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error("Not authorized");
 
-      //   const user = await res.json();
-      //   if (user.is_admin) {
-      //     document.getElementById("adminArea").style.display = "block";
-      //     loadActivities();
-      //   } else {
-      //     document.getElementById("notAdminArea").style.display = "block";
-      //   }
-      // } catch (err) {
-      //   console.warn("Admin check failed, falling back to public mode.");
-      //   document.getElementById("adminArea").style.display = "block";
-      //   loadActivities(); // fallback to JSON
-      // }
+        const user = await res.json();
+        if (user.is_admin) {
+          document.getElementById("adminArea").style.display = "block";
+          loadActivities();
+        } else {
+          document.getElementById("notAdminArea").style.display = "block";
+        }
+      } catch (err) {
+        console.warn("Admin check failed, falling back to public mode.");
+        document.getElementById("adminArea").style.display = "block";
+        loadActivities(); // fallback to JSON
+      }
     }
 
     async function loadActivities() {
       try {
-        // if (!token) throw new Error("No token available");
+        if (!token) throw new Error("No token available");
 
-        // const res = await fetch(`${API_BASE_URL}/activities-all?include_past=false`, {
-        //   headers: { Authorization: `Bearer ${token}` }
-        // });
+        const res = await fetch(`${base_url}/activity-all`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
 
-        // if (!res.ok) throw new Error("API fetch failed");
-       const res = await fetch(API_BASE_URL + '/activities-all?include_past=false');
-        if (!res.ok) {
-          throw new Error('Failed to load activities: ' + res.status);
-        }
+        if (!res.ok) throw new Error("API fetch failed");
 
-          const data = await res.json();
-          // normalize response: API may return { activities: [...] } or an array
-          let activities = [];
-          if (Array.isArray(data)) activities = data;
-          else if (data && Array.isArray(data.activities)) activities = data.activities;
-          else if (data && Array.isArray(data.data)) activities = data.data;
-          else activities = [];
+        const data = await res.json();
+        if (!Array.isArray(data)) throw new Error("Invalid data");
 
-          // map to expected shape
-          allActivities = activities.map(a => ({
-            id: a.id || a.activity_id || a.activityId || '',
-            activity_name: a.activity_name || a.name || a.activityName || '',
-            date_start: a.date_start || a.dateStart || a.start || '',
-            date_end: a.date_end || a.dateEnd || a.end || '',
-            groups: Array.isArray(a.groups) ? a.groups : (typeof a.groups === 'string' ? a.groups.split(',').map(s=>s.trim()) : (a.group ? [a.group] : [])),
-            drivers: Array.isArray(a.drivers) ? a.drivers : (typeof a.drivers === 'string' ? a.drivers.split(',').map(s=>s.trim()) : []) ,
-            description: a.description || ''
-          }));
+        allActivities = data;
       } catch (err) {
-        console.warn("Loading fallback from test/test-activities.json due to:", err.message);
-        const fallback = await fetch("test/test-activities.json");
-        const fb = await fallback.json();
-        const activities = fb.activities || fb;
-        allActivities = (Array.isArray(activities) ? activities : []).map(a => ({
-          id: a.id || a.activity_id || a.activityId || '',
-          activity_name: a.activity_name || a.name || a.activityName || '',
-          date_start: a.date_start || a.dateStart || a.start || '',
-          date_end: a.date_end || a.dateEnd || a.end || '',
-          groups: Array.isArray(a.groups) ? a.groups : (typeof a.groups === 'string' ? a.groups.split(',').map(s=>s.trim()) : (a.group ? [a.group] : [])),
-          drivers: Array.isArray(a.drivers) ? a.drivers : (typeof a.drivers === 'string' ? a.drivers.split(',').map(s=>s.trim()) : []),
-          description: a.description || ''
-        }));
+        console.warn("Loading fallback from example-activity-list.json due to:", err.message);
+        const fallback = await fetch("test_data/example-activity-list.json");
+        allActivities = await fallback.json();
       }
 
       renderActivities(allActivities);
@@ -190,9 +160,8 @@
           <td>${new Date(activity.date_end).toLocaleString()}</td>
           <td>${activity.groups.join(", ")}</td>
           <td>
-            <button class="btn btn-sm btn-warning me-2" onclick="window.location.href='activity-plan.html?activity_id=${encodeURIComponent(activity.id)}'">Edit</button>
-            <button class="btn btn-sm btn-danger me-2" onclick='deleteActivity(${activity.id})'>Delete</button>
-            <button class="btn btn-sm btn-success" onclick='inviteActivity(${activity.id})'>Invite</button>
+            <button class="btn btn-sm btn-warning me-2" onclick='openEdit(${JSON.stringify(activity)})'>Edit</button>
+            <button class="btn btn-sm btn-danger" onclick='deleteActivity(${activity.id})'>Delete</button>
           </td>
         `;
         body.appendChild(row);
@@ -248,7 +217,7 @@
         groups: editForm.groups.value.split(",").map(x => x.trim())
       };
 
-      const res = await fetch(`${API_BASE_URL}/activity/${id}`, {
+      const res = await fetch(`${base_url}/activity/${id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -267,7 +236,7 @@
 
     async function deleteActivity(id) {
       if (!confirm("Are you sure?")) return;
-      const res = await fetch(`${API_BASE_URL}/activity/${id}`, {
+      const res = await fetch(`${base_url}/activity/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -275,25 +244,6 @@
         loadActivities();
       } else {
         alert("Delete failed");
-      }
-    }
-
-    async function inviteActivity(id) {
-      try {
-        const res = await fetch(API_BASE_URL + '/sms-activity-permission', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ activity_id: id })
-        });
-
-        if (res.ok) {
-          alert('SMS sent successfully to guardians.');
-        } else {
-          const text = await res.text();
-          alert('Error: ' + res.status + ' ' + text);
-        }
-      } catch (err) {
-        alert('Network error: ' + err.message);
       }
     }
 

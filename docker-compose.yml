@@ -2,7 +2,7 @@ services:
   api:
     build:
       context: .
-      dockerfile: new-api-dockerfile
+      dockerfile: api-dockerfile
     container_name: youth_api_test
     environment:
       ENV: "test"
@@ -19,7 +19,7 @@ services:
   web:
     build:
       context: .
-      dockerfile: new-web-dockerfile
+      dockerfile: web-dockerfile
     container_name: youth_web_test
     environment:
       ENV: "test"
