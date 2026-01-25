@@ -120,3 +120,20 @@ class ReturnGroupActivityList(BaseModel):
     activity_name: str
     date_start: datetime
     requires_permission: bool
+
+class YouthNameModel(BaseModel):
+    youth_id: str
+    first_name: str
+    last_name: str
+
+class ActivityInvitees(BaseModel):
+    activity_id: str
+    youth_ids: List[YouthNameModel]
+
+class ActivityHealthReport(BaseModel):
+    activity_id: str
+    allergies:list
+    dietary_restrictions:list
+    medical_conditions:list
+    medications:list
+    special_notes:list

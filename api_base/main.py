@@ -9,7 +9,7 @@ from fastapi import HTTPException, status, Depends as fastapiDepends
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 import qrcode
 from pathlib import Path as PathlibPath
-from schema import ActivityBase, AdminUser, ConcernSurvey, FullActivity, InterestSurvey, PermissionGiven, ReturnGroupActivityList, YouthPermissionSubmission, Activity, ParentGuardian, MedicalInfo, EmergencyContact, Signature
+from schema import ActivityBase, ActivityHealthReport, ActivityInvitees, AdminUser, ConcernSurvey, FullActivity, InterestSurvey, PermissionGiven, ReturnGroupActivityList, YouthPermissionSubmission, Activity, ParentGuardian, MedicalInfo, EmergencyContact, Signature
 import sqlite3
 import os
 import json
@@ -703,14 +703,28 @@ async def update_activity(activity_id: str, activity_data: Activity, db=Depends(
 
 
 @app.get("/participants/{activity_id}", tags=["activities"], description="Get participants for activity by ID")
-async def get_activity_participants(activity_id: str, db=Depends(get_db)):
+async def get_activity_participants(activity_id: str, db=Depends(get_db))->List[ActivityInvitees]:
     cursor = db.cursor()
     cursor.execute(
-        "SELECT participants_youth_ids FROM activities WHERE activity_id = ?", (activity_id,)
+        "SELECT activities.participants_youth_ids, youth.first_name, youth.last_name FROM activities INNER JOIN youth ON activities.participants_youth_ids = youth.youth_id WHERE activity_id = ?", (activity_id,)
     )
     row = cursor.fetchone()
     if row:
-        return {"participants": json.loads(row[0])}
+        participants = []
+        youth_ids = json.loads(row["participants_youth_ids"])
+        for youth_id in youth_ids:
+            cursor.execute(
+                "SELECT first_name, last_name FROM youth WHERE youth_id = ?", (youth_id,)
+            )
+            youth_row = cursor.fetchone()
+            if youth_row:
+                participant = ActivityInvitees(
+                    youth_id=youth_id,
+                    first_name=youth_row["first_name"],
+                    last_name=youth_row["last_name"]
+                )
+                participants.append(participant)
+        return participants
     else:
         return {"message": "Activity not found."}
 
@@ -782,6 +796,45 @@ def get_activity_groups(db=Depends(get_db),user=Depends(require_role({"advisor",
     )
     rows = cursor.fetchall()
     return [ReturnGroupActivityList(**row) for row in rows]
+
+
+@app.get("/activity-health-reports/{activity_id}", tags=["activities"], description="Get health reports for activity by ID")
+def get_activity_health_reports(activity_id: str, db=Depends(get_db), users=Depends(require_role({"advisor", "admin", "ecc_admin", "president"})))->ActivityHealthReport:
+    cursor = db.cursor()
+    cursor.execute(
+        "SELECT participants_youth_ids FROM activities WHERE activity_id = ?", (activity_id,)
+    )
+    row = cursor.fetchone()
+    if not row:
+        return {"message": "Activity not found."}
+    
+    youth_ids = json.loads(row["participants_youth_ids"])
+    
+    medications = []
+    allergies = []
+    dietary_restrictions = []
+    medical_conditions = []
+    special_notes = []
+    for youth_id in youth_ids:
+        cursor.execute(
+            "SELECT medical, allergies, dietary_restrictions, medical_conditions, medications, special_notes FROM youth_medical WHERE youth_id = ?", (youth_id,)
+        )
+        med_row = cursor.fetchone()
+        if med_row:
+            medical_info = MedicalInfo(**json.loads(med_row[0]))
+            medications.insert(0, medical_info.medications)
+            allergies.insert(0, medical_info.allergies)
+            dietary_restrictions.insert(0, medical_info.dietary_restrictions)
+            medical_conditions.insert(0, medical_info.medical_conditions)
+            special_notes.insert(0, medical_info.special_notes)
+    
+    return ActivityHealthReport(
+        medications=medications,
+        allergies=allergies,
+        dietary_restrictions=dietary_restrictions,
+        medical_conditions=medical_conditions,
+        special_notes=special_notes
+    )
 
 
 @app.get("/activities-all-parents", tags=["activities"], description="Get all activities with parent details")
