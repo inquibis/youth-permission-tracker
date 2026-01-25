@@ -102,6 +102,7 @@ erDiagram
   ACTIVITIES   ||--o{ PERMISSION_GIVEN : "activity_id (logical)"
   YOUTH_MEDICAL ||--o{ PERMISSION_GIVEN : "permission_code (logical)"
   ADMIN_USERS  ||--o{ AUDIT_LOG : "actor_username (logical)"
+```
 
 ## Relationships
 ```mermaid
@@ -157,3 +158,4 @@ erDiagram
   YOUTH_MEDICAL ||--o{ PERMISSION_GIVEN : "youth_id"
   ACTIVITIES   ||--o{ PERMISSION_GIVEN : "activity_id"
   YOUTH_MEDICAL ||--o{ PERMISSION_GIVEN : "permission_code"
+```
