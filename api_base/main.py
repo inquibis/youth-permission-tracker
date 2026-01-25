@@ -14,7 +14,7 @@ import sqlite3
 import os
 import json
 from icalendar import Calendar, Event, vCalAddress, vText
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import uuid
 from contact_engine import ContactEngine
 from db_setup import DBSetup
@@ -22,7 +22,7 @@ from jose import jwt, JWTError
 
 app = FastAPI()
 contact_engine = ContactEngine()
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/token")
 
 # Allow CORS from any origin (use caution in production)
 app.add_middleware( 
@@ -195,6 +195,14 @@ def audit_log_event(
     db.commit()
 
 
+def create_access_token(data: dict, expires_delta: timedelta | None = None):
+    to_encode = data.copy()
+    expire = datetime.now(timezone.utc) + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+
 #############################################################################################################
 ### API Endpoints
 #############################################################################################################
@@ -233,7 +241,6 @@ def login_for_access_token(
 
     if not user or user["password"] != form_data.password:
         audit_log_event(
-            db,
             request=request,
             actor_username=form_data.username,
             actor_role=None,
@@ -247,11 +254,10 @@ def login_for_access_token(
                             headers={"WWW-Authenticate": "Bearer"})
 
     access_token = create_access_token(
-        {"sub": user["username"], "role": user["role"], "group": user["group"]}
+        {"sub": user["username"], "role": user["role"], "org_group": user["org_group"]}
     )
 
     audit_log_event(
-        db,
         request=request,
         actor_username=user["username"],
         actor_role=user["role"],
@@ -266,7 +272,7 @@ def login_for_access_token(
 
 
 @app.get("/login", tags=["admin-users"], description="Admin user login")
-def login(username: str, password: str, db=Depends(get_db)):
+def login(request:Request, username: str, password: str, db=Depends(get_db)):
     cursor = db.cursor()
     if os.getenv("ENV", "test").lower() == "test":
         token_data = {
@@ -274,9 +280,9 @@ def login(username: str, password: str, db=Depends(get_db)):
             "role": "admin",
             "org_group": "admin"
         }
-        expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-        token_data["exp"] = expire
-        access_token = jwt.encode(token_data, SECRET_KEY, algorithm=ALGORITHM)
+        access_token = create_access_token(
+            {"sub": token_data["username"], "role": token_data["role"], "org_group": token_data["org_group"]}
+        )
         return {"message": "Login successful (debug mode)", "access_token": access_token, "token_type": "bearer"}
     
     cursor.execute(
@@ -292,10 +298,22 @@ def login(username: str, password: str, db=Depends(get_db)):
             "role": user[0],
             "org_group": user[1]
         }
-        expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-        token_data["exp"] = expire
-        access_token = jwt.encode(token_data, SECRET_KEY, algorithm=ALGORITHM)
-        return {"message": "Login successful", "access_token": access_token, "token_type": "bearer"}
+        access_token = create_access_token(
+            {"sub": user["username"], "role": user["role"], "org_group": user["org_group"]}
+        )
+
+        audit_log_event(
+            request=request,
+            actor_username=user["username"],
+            actor_role=user["role"],
+            action="LOGIN",
+            resource_type="auth",
+            resource_id=user["username"],
+            success=True,
+            details={},
+        )
+
+        return {"access_token": access_token, "token_type": "bearer"}
     else:
         return {"message": "Invalid credentials"}
     
