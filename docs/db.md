@@ -104,6 +104,7 @@ erDiagram
   ADMIN_USERS  ||--o{ AUDIT_LOG : "actor_username (logical)"
 
 ## Relationships
+```mermaid
 erDiagram
   YOUTH_MEDICAL {
     TEXT youth_id PK
