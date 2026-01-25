@@ -97,6 +97,8 @@ class ActivityBase(BaseModel):
     drivers: List[str]
     description: str
     groups: List[str]
+    requires_permission: bool = False
+    location: str
 
 class AdminUser(BaseModel):
     username: str
@@ -112,3 +114,9 @@ class InterestSurvey(BaseModel):
 class ConcernSurvey(BaseModel):
     concerns: List[str]
     org_group:str
+
+class ReturnGroupActivityList(BaseModel):
+    activity_id: str
+    activity_name: str
+    date_start: datetime
+    requires_permission: bool

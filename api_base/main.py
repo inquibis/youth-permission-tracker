@@ -9,7 +9,7 @@ from fastapi import HTTPException, status, Depends as fastapiDepends
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 import qrcode
 from pathlib import Path as PathlibPath
-from schema import ActivityBase, AdminUser, ConcernSurvey, FullActivity, InterestSurvey, PermissionGiven, YouthPermissionSubmission, Activity, ParentGuardian, MedicalInfo, EmergencyContact, Signature
+from schema import ActivityBase, AdminUser, ConcernSurvey, FullActivity, InterestSurvey, PermissionGiven, ReturnGroupActivityList, YouthPermissionSubmission, Activity, ParentGuardian, MedicalInfo, EmergencyContact, Signature
 import sqlite3
 import os
 import json
@@ -444,7 +444,6 @@ async def get_users_health(request: Request, activity_id: str, user=Depends(requ
             "contacts_returned": len(medical_infos),
         },
     )
-
     return medical_infos
 
 
@@ -535,13 +534,13 @@ async def submit_concern_survey(data:ConcernSurvey, db=Depends(get_db)):
     VALUES (?, ?, ?)
     """
     cursor.execute(
-    sql,
-    (
-        json.dumps(data.concerns),
-        data.org_group,
-        datetime.now().isoformat(),
-    ),
-)
+        sql,
+        (
+            json.dumps(data.concerns),
+            data.org_group,
+            datetime.now().isoformat(),
+        ),
+    )
   
     db.commit()
     return {"message": "Concern survey submitted successfully."}
@@ -699,7 +698,7 @@ async def update_activity(activity_id: str, activity_data: Activity, db=Depends(
         )
     )
     db.commit()
-    return {"message": "Activity updated successfully."}    
+    return {"message": "Activity updated successfully."}
 
 
 
@@ -733,7 +732,7 @@ async def get_group_membership(group: str, db=Depends(get_db)):
 async def get_activity_permission_info(activity_id: str, db=Depends(get_db))->ActivityBase:
     cursor = db.cursor()
     cursor.execute(
-        "SELECT  activity_name, date_start, date_end, drivers, description, groups FROM activities WHERE activity_id = ?", (activity_id,)    
+        "SELECT  activity_name, date_start, date_end, drivers, description, groups, requires_permission, location FROM activities WHERE activity_id = ?", (activity_id,)    
     )    
     row = cursor.fetchone()
     return_data = ActivityBase(**row)
@@ -771,7 +770,18 @@ async def assign_permission_to_activity(permission_data: PermissionGiven, db=Dep
     )
     db.commit()
     
-    return {"message": "Permission to attend activity recorded.", "youth_id": youth_id} 
+    return {"message": "Permission to attend activity recorded.", "youth_id": youth_id}
+
+
+@app.get("/activity-groups", tags=["activities"], description="Get all group activities")
+def get_activity_groups(db=Depends(get_db),user=Depends(require_role({"advisor", "admin", "ecc_admin", "president"})))->List[ReturnGroupActivityList]:
+    group = user.get("org_group")
+    cursor = db.cursor()
+    cursor.execute(
+        "SELECT activity_id, activity_name, date_start, requires_permission FROM activities WHERE groups LIKE ?", (f"%{group}%",)
+    )
+    rows = cursor.fetchall()
+    return [ReturnGroupActivityList(**row) for row in rows]
 
 
 @app.get("/activities-all-parents", tags=["activities"], description="Get all activities with parent details")
@@ -816,7 +826,7 @@ async def create_admin_user(user =  AdminUser, db=Depends(get_db)):
 
 
 @app.get("/login", tags=["admin-users"], description="Admin user login")
-def login(username: str, password: str, db=Depends(get_db)):
+def login_func(username: str, password: str, db=Depends(get_db)):
     cursor = db.cursor()
     cursor.execute(
         "SELECT role, org_group, username FROM admin_users WHERE username = ? AND password = ?",
