@@ -5,8 +5,8 @@ from fastapi import Query, Response
 from fastapi import Request
 from io import BytesIO
 from fastapi.params import Depends
-from fastapi import HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi import HTTPException, status, Depends as fastapiDepends
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 import qrcode
 from pathlib import Path as PathlibPath
 from schema import ActivityBase, AdminUser, ConcernSurvey, FullActivity, InterestSurvey, PermissionGiven, YouthPermissionSubmission, Activity, ParentGuardian, MedicalInfo, EmergencyContact, Signature
@@ -229,7 +229,7 @@ async def read_root(db=Depends(get_db))->dict:
 @app.post("/token", tags=["auth"])
 def login_for_access_token(
     request: Request,
-    form_data: OAuth2PasswordRequestForm = Depends(),
+    form_data: OAuth2PasswordRequestForm = fastapiDepends(),
     db=Depends(get_db),
 ):
     cursor = db.cursor()

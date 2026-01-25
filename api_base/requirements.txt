@@ -5,6 +5,7 @@ aiosqlite
 python-jose[cryptography]
 twilio
 dotenv
+python-multipart
 
 # QR code generation
 qrcode[pil]
