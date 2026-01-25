@@ -149,7 +149,12 @@ class DBSetup:
             ('older_yw_admin', 'password_oyw', 'president', 'older young women'),
             ('bishop_admin', 'password_b', 'bishop', 'ecc_admin'),
             ('stake_president_admin', 'password_sp', 'president', 'ecc_admin'),
-            ('admin', 'password_admin', 'admin', 'admin')
+            ('admin', 'password_admin', 'admin', 'admin'),
+            ('deacon_advisor', 'password_da', 'advisor', 'deacons'),
+            ('teacher_advisor', 'password_ta', 'advisor', 'teachers'),
+            ('priest_advisor', 'password_pa', 'advisor', 'priest'),
+            ('younger_yw_advisor', 'password_yya', 'advisor', 'younger young women'),
+            ('older_yw_advisor', 'password_oya', 'advisor', 'older young women')
         ]
         cursor.executemany('''
             INSERT OR IGNORE INTO admin_users (username, password, role, org_group)
