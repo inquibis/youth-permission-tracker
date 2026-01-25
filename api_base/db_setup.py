@@ -136,6 +136,28 @@ class DBSetup:
             """
         )
 
+        # ADD AUDIT LOG TABLE
+        self.conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS audit_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ts TEXT NOT NULL DEFAULT (datetime('now')),
+                actor_username TEXT,
+                actor_role TEXT,
+                action TEXT NOT NULL,
+                resource_type TEXT,
+                resource_id TEXT,
+                success INTEGER NOT NULL,
+                details TEXT,
+                client_ip TEXT,
+                user_agent TEXT
+            );
+            """
+        )
+        self.conn.execute("CREATE INDEX IF NOT EXISTS idx_audit_ts ON audit_log(ts);")
+        self.conn.execute("CREATE INDEX IF NOT EXISTS idx_audit_actor ON audit_log(actor_username);")
+        self.conn.execute("CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_log(action);")
+
         self.conn.commit()
 
 

@@ -1,7 +1,8 @@
-from typing import Dict, List, Union
+from typing import Dict, List, Union, Optional, Any
 from fastapi import FastAPI, Path
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import Query, Response
+from fastapi import Request
 from io import BytesIO
 from fastapi.params import Depends
 from fastapi import HTTPException, status
@@ -140,11 +141,10 @@ def require_role(allowed_roles: set[str]):
             )
 
         role = payload.get("role")
-        if role is None:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Token missing role",
-            )
+        username = payload.get("sub")
+
+        if not role or not username:
+            raise HTTPException(status_code=403, detail="Token missing user/role")
 
         if role not in allowed_roles:
             raise HTTPException(
@@ -153,8 +153,46 @@ def require_role(allowed_roles: set[str]):
             )
 
         return payload  # return user info if needed
-
     return role_checker
+
+
+def audit_log_event(
+    *,
+    request: Request,
+    actor_username: Optional[str],
+    actor_role: Optional[str],
+    action: str,
+    resource_type: Optional[str] = None,
+    resource_id: Optional[str] = None,
+    success: bool = True,
+    details: Optional[dict[str, Any]] = None,
+    db = Depends(get_db)
+) -> None:
+    cursor = db.cursor()
+
+    client_ip = request.client.host if request.client else None
+    user_agent = request.headers.get("user-agent")
+
+    cursor.execute(
+        """
+        INSERT INTO audit_log (
+            actor_username, actor_role, action, resource_type, resource_id,
+            success, details, client_ip, user_agent
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            actor_username,
+            actor_role,
+            action,
+            resource_type,
+            resource_id,
+            1 if success else 0,
+            json.dumps(details or {}),
+            client_ip,
+            user_agent,
+        ),
+    )
+    db.commit()
 
 
 #############################################################################################################
@@ -180,6 +218,53 @@ async def read_root(db=Depends(get_db))->dict:
 #####################################
 ##### User Management Endpoints #####
 #####################################
+@app.post("/token", tags=["auth"])
+def login_for_access_token(
+    request: Request,
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db=Depends(get_db),
+):
+    cursor = db.cursor()
+    cursor.execute(
+        'SELECT username, password, role, "group" FROM admin_users WHERE username = ?',
+        (form_data.username,),
+    )
+    user = cursor.fetchone()
+
+    if not user or user["password"] != form_data.password:
+        audit_log_event(
+            db,
+            request=request,
+            actor_username=form_data.username,
+            actor_role=None,
+            action="LOGIN",
+            resource_type="auth",
+            resource_id=form_data.username,
+            success=False,
+            details={"reason": "bad_credentials"},
+        )
+        raise HTTPException(status_code=401, detail="Incorrect username or password",
+                            headers={"WWW-Authenticate": "Bearer"})
+
+    access_token = create_access_token(
+        {"sub": user["username"], "role": user["role"], "group": user["group"]}
+    )
+
+    audit_log_event(
+        db,
+        request=request,
+        actor_username=user["username"],
+        actor_role=user["role"],
+        action="LOGIN",
+        resource_type="auth",
+        resource_id=user["username"],
+        success=True,
+        details={},
+    )
+
+    return {"access_token": access_token, "token_type": "bearer"}
+
+
 @app.get("/login", tags=["admin-users"], description="Admin user login")
 def login(username: str, password: str, db=Depends(get_db)):
     cursor = db.cursor()
@@ -308,7 +393,7 @@ async def update_user(youth_id: str, user_data: YouthPermissionSubmission, db=De
     
 
 @app.get("/users-health", tags=["users"], description="Get health information of all users of an activity")
-async def get_users_health(activity_id: str, user=Depends(require_role({"advisor", "admin", "ecc_admin"})), db=Depends(get_db))->List[MedicalInfo]:
+async def get_users_health(request: Request, activity_id: str, user=Depends(require_role({"advisor", "admin", "ecc_admin"})), db=Depends(get_db))->List[MedicalInfo]:
     cursor = db.cursor()
     cursor.execute(
         "SELECT participants_youth_ids FROM activities WHERE activity_id = ?", (activity_id,)
@@ -326,6 +411,22 @@ async def get_users_health(activity_id: str, user=Depends(require_role({"advisor
         if med_row:
             medical_info = MedicalInfo(**json.loads(med_row[0]))
             medical_infos.append(medical_info)
+
+    # Audit: log count, not the sensitive data itself
+    audit_log_event(
+        request=request,
+        actor_username=user.get("sub"),
+        actor_role=user.get("role"),
+        action="get_users_health",
+        resource_type="activity",
+        resource_id=activity_id,
+        success=True,
+        details={
+            "participants_count": len(youth_ids),
+            "contacts_returned": len(medical_infos),
+        },
+    )
+
     return medical_infos
 
 
