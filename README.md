@@ -7,146 +7,37 @@ The system will allow youth leaders to create an activity and track requisite fo
 
 Front end is a website.  Backend is REST API and relational database.
 
+## Architecture
+- REST API:  Python with FASTAPI framework
+- DB: MYSQL db
+- Web Pages: HTML 5, CSS, JS
+- Environment:  Containerized (Docker)
+
 # Website
-## Pages
-### Youth Pages
-- Creates adult leaders, youth, groups and their guardian's contact information
-- Create adult leaders who can access health information and create activities
-- Guardian setup (2FA and unique pin for digital signing)
-### Parent Pages
-### Leader Pages
-### Admin Pages
+[Detail information on the website](docs/web.md)
 
 # Database
-Current version uses SQLITE as the backend db.  
-erDiagram
-  INTEREST_SURVEY {
-    INTEGER id PK
-    TEXT youth_id
-    TEXT interests "JSON string"
-    TEXT org_group
-    TEXT submitted_at
-    TEXT created_at
-  }
+[Detail information on the database](docs/db.md)
 
-  CONCERN_SURVEY {
-    INTEGER id PK
-    TEXT concerns "JSON string"
-    TEXT org_group
-    TEXT submitted_at
-    TEXT created_at
-  }
+# API
+[Detail information on the API](docs/api.md)
 
-  ADMIN_USERS {
-    INTEGER id PK
-    TEXT username "UNIQUE"
-    TEXT password
-    TEXT role
-    TEXT org_group
-    TEXT created_at
-  }
-
-  VISITS {
-    INTEGER id PK
-    TEXT created_at
-  }
-
-  YOUTH_MEDICAL {
-    TEXT youth_id PK
-    TEXT permission_code
-    TEXT youth
-    TEXT parent_guardian
-    TEXT medical
-    TEXT emergency_contact
-    TEXT signature
-    TEXT signed_at
-    TEXT created_at
-    TEXT updated_at
-  }
-
-  ACTIVITIES {
-    INTEGER id PK
-    TEXT activity_id "UNIQUE"
-    TEXT activity_name
-    TEXT description
-    TEXT location
-    TEXT budget
-    REAL total_cost
-    REAL actual_cost
-    TEXT participants_youth_ids
-    TEXT groups
-    TEXT drivers
-    datetime date_start
-    datetime date_end
-    INTEGER is_overnight
-    INTEGER is_coed
-    INTEGER requires_permission
-    TEXT thoughts
-    INTEGER bishop_approval
-    TEXT bishop_approval_date
-    INTEGER stake_approval
-    TEXT stake_approval_date
-    TEXT created_at
-  }
-
-  PERMISSION_GIVEN {
-    INTEGER id PK
-    TEXT youth_id
-    TEXT activity_id
-    TEXT permission_code
-    JSON data
-    TEXT created_at
-  }
-
-  AUDIT_LOG {
-    INTEGER id PK
-    TEXT ts
-    TEXT actor_username
-    TEXT actor_role
-    TEXT action
-    TEXT resource_type
-    TEXT resource_id
-    INTEGER success
-    TEXT details
-    TEXT client_ip
-    TEXT user_agent
-  }
-
-  %% Logical relationships (not enforced by foreign keys in the DDL)
-  YOUTH_MEDICAL ||--o{ INTEREST_SURVEY : "youth_id (logical)"
-  YOUTH_MEDICAL ||--o{ PERMISSION_GIVEN : "youth_id (logical)"
-  ACTIVITIES   ||--o{ PERMISSION_GIVEN : "activity_id (logical)"
-  YOUTH_MEDICAL ||--o{ PERMISSION_GIVEN : "permission_code (logical)"
-  ADMIN_USERS  ||--o{ AUDIT_LOG : "actor_username (logical)"
-
-
-### Activity Creation
-- Can create an activity.  Risk events are identified (e.g. aquatics, climbing, etc), dates of the activity, information about the activity, drivers are identified
-- Can submit activity for approval (supervisory and guardians)
-### Guardian Signing
-- Guardian receives a unique link for the activity and their child (each child)
-- Form information is prefilled based on activity information
-- Child information is prefilled based on previous form information to reduce time typing
-### Activity Tracking
-- Per activity one can view who was invited and whose guardians have submitted approval.
-- Can view aggregated list of "risks" (e.g. allergies, physical limitations, guardian's notes)
-- Can view is supervisory signatures have been obtained
-- Can view is requisite trainings are achieved
-- Can re-request approvals from those from whom an approval is missing
-
-
-## Local Setup
+# Local Setup
 View [local setup file](./manual-startup.md)
 
-###  Testing
+##  Testing
 Unit tests are located in /tests.  
 - Make sure required test libraries are installed (test-requirements.txt)
 - Run with `pytest --cov=api tests/`
 - To run from docker `docker compose exec app pytest --cov=api --cov-report=term-missing`
 To reset the database use api/reset_db.py.  From inside api folder run `python reset_db.py`
 
+## Versions
+- 1.0:  Activity creation and approval tracking
+- 1.1:  Activity Resource Page (individuals: trainings, certs, equipment, skills), can be sent to members to fill out; Activity Planning (purpose, description, how meet purpose, resources, budget, youth president approval)
+- 1.2:  Attendance & reporting
 
-## Security & Compliance
+# Security & Compliance
 **Hippa**
 Per HIPPA adult users will be required to use credentials in order to access health information.  Credentials will be stored hashed and salted.  PHI will be stored in a table separate from PII.  A UID will be used to correlate PII to PHI.
 HIPAA requires (not optional):
@@ -285,17 +176,7 @@ Depending on the nature of the activity corresponding training/certifications wi
 **Supervisory Permissions**
 Persuant the handbook all activity requests will be sent to the Bishop for approval.  All activities which are co-ed or of *n* distance from the home ward will also require Stake Presidency approval.  These individuals will receive an electronic notification with a link which will describe the activity and allow for an electronic signature.  
 
-## Versions
-- 1.0:  Activity creation and approval tracking
-- 1.1:  Activity Resource Page (individuals: trainings, certs, equipment, skills), can be sent to members to fill out; Activity Planning (purpose, description, how meet purpose, resources, budget, youth president approval)
-- 1.2:  Attendance & reporting
-
-## Architecture
-- REST API:  Python with FASTAPI framework
-- DB: MYSQL db
-- Web Pages: HTML 5, CSS, JS
-- Environment:  Containerized (Docker)
-### Digital Signing
+## Digital Signing
 1. Identity Verification (KYC)
 - Before signing, verify the user’s identity
 - Basic SES: Email confirmation or 2FA
