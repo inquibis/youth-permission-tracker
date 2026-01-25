@@ -137,3 +137,16 @@ class ActivityHealthReport(BaseModel):
     medical_conditions:list
     medications:list
     special_notes:list
+
+class ActivityApprovals(BaseModel):
+    activity_id: str
+    activity_name: str
+    activity_start: datetime
+    bishop_approval: bool | None = None
+    bishop_approval_date: str | None = None
+    stake_approval: bool | None = None
+    stake_approval_date: str | None = None
+    groups: List[str]
+    total_youth:int
+    total_youth_permission:int
+    youth_approvals: List[dict] | None = None

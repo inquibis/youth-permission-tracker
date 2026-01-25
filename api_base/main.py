@@ -9,7 +9,7 @@ from fastapi import HTTPException, status, Depends as fastapiDepends
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 import qrcode
 from pathlib import Path as PathlibPath
-from schema import ActivityBase, ActivityHealthReport, ActivityInvitees, AdminUser, ConcernSurvey, FullActivity, InterestSurvey, PermissionGiven, ReturnGroupActivityList, YouthPermissionSubmission, Activity, ParentGuardian, MedicalInfo, EmergencyContact, Signature
+from schema import ActivityApprovals, ActivityBase, ActivityHealthReport, ActivityInvitees, AdminUser, ConcernSurvey, FullActivity, InterestSurvey, PermissionGiven, ReturnGroupActivityList, YouthPermissionSubmission, Activity, ParentGuardian, MedicalInfo, EmergencyContact, Signature
 import sqlite3
 import os
 import json
@@ -862,6 +862,32 @@ def get_all_activities(include_past: bool = Query(False, description="Include pa
     for row in rows:
         activities.append(ActivityBase(**row))
     return {"activities": activities}
+
+
+@app.get("/activities-pending-approval", tags=["activities"], description="Get all activities pending approval")
+def get_activities_pending_approval(db=Depends(get_db))->List[ActivityApprovals]:
+    cursor = db.cursor()
+    cursor.execute("SELECT activity_id, activity_name, date_start, date_end, bishop_approval INTEGER, bishop_approval_date, stake_approval, stake_approval_date, groups, requires_permission FROM activities WHERE requires_permission == 1 AND (bishop_approval IS NULL OR stake_approval IS NULL) AND start_time >= date('now')")
+    rows = cursor.fetchall()
+    activities = []
+    for row in rows:
+        cursor.execute("SELECT * FROM permission_given WHERE activity_id = ?", (row["activity_id"],)) # TODO change so it combines all youth and those with permission
+        act = ActivityApprovals(
+            activity_id=row["activity_id"],
+            activity_name=row["activity_name"],
+            date_start=row["date_start"],
+            bishop_approval=bool(row["bishop_approval"]) if row["bishop_approval"] is not None else None,
+            bishop_approval_date=row["bishop_approval_date"],
+            stake_approval=bool(row["stake_approval"]) if row["stake_approval"] is not None else None,
+            stake_approval_date=row["stake_approval_date"],
+            groups=row["groups"],
+            total_youth
+            youth_approvals=[PermissionGiven(**pg_row) for pg_row in cursor.fetchall()]  # TODO show dict of all youth and if have permission
+        )
+        activities.append(act)
+    return activities
+        
+    
 
 
 ####################################
