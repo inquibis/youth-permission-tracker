@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional, List, Any
+from typing import Optional, List, Any, Literal
 from datetime import datetime
 
 class Youth(BaseModel):
@@ -39,6 +39,7 @@ class YouthPermissionSubmission(BaseModel):
     emergency_contact: EmergencyContact
     signature: Signature
     signed_at: str
+    youth_id:str =""
 
 ####### activities #########
 class budget(BaseModel):
@@ -106,6 +107,9 @@ class AdminUser(BaseModel):
     role: str
     org_group:str
 
+class UserReturnModel(BaseModel):
+    user_id: str
+
 class InterestSurvey(BaseModel):
     youth_id: str
     interests: List[str]
@@ -150,3 +154,14 @@ class ActivityApprovals(BaseModel):
     total_youth:int
     total_youth_permission:int
     youth_approvals: List[dict] | None = None
+
+
+class PersonalGoal(BaseModel):
+    youth_id: str
+    goal_area: Literal["physical", "social", "intellectual", "spiritual"]
+    goal_name: str
+    goal_description: str
+    target_date: datetime
+    status: Literal["Not Started", "In Progress", "Completed", "Canceled"] = "Not Started"
+    progress_notes: Optional[List[str]] = None
+    completed: bool = False

@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Personal Goals</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 20px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.95;
+        }
+
+        .content {
+            padding: 40px 20px;
+        }
+
+        .smart-goals-section {
+            background: #f8f9fa;
+            border-left: 5px solid #667eea;
+            padding: 25px;
+            margin-bottom: 40px;
+            border-radius: 5px;
+        }
+
+        .smart-goals-section h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+        }
+
+        .smart-goals-section p {
+            color: #555;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+
+        .smart-list {
+            list-style: none;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .smart-list li {
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .smart-list strong {
+            color: #667eea;
+        }
+
+        .action-bar {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 30px;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #e0e0e0;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #d0d0d0;
+        }
+
+        .categories-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 25px;
+            margin-bottom: 40px;
+        }
+
+        .category-box {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 25px;
+            border-left: 5px solid;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .category-box:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        .category-physical { border-left-color: #ff6b6b; }
+        .category-social { border-left-color: #4ecdc4; }
+        .category-intellectual { border-left-color: #ffd93d; }
+        .category-spiritual { border-left-color: #a29bfe; }
+
+        .category-title {
+            font-size: 1.3em;
+            font-weight: bold;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .category-icon {
+            font-size: 1.5em;
+        }
+
+        .category-physical .category-icon { color: #ff6b6b; }
+        .category-social .category-icon { color: #4ecdc4; }
+        .category-intellectual .category-icon { color: #ffd93d; }
+        .category-spiritual .category-icon { color: #a29bfe; }
+
+        .goal-item {
+            background: white;
+            padding: 15px;
+            margin-bottom: 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-left: 3px solid #e0e0e0;
+        }
+
+        .goal-item:hover {
+            background: #f0f0f0;
+            border-left-color: #667eea;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .goal-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .goal-status {
+            display: inline-block;
+            font-size: 0.8em;
+            padding: 3px 8px;
+            border-radius: 3px;
+            margin-top: 5px;
+        }
+
+        .goal-status.in_progress {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .goal-status.not_started {
+            background: #e2e3e5;
+            color: #383d41;
+        }
+
+        .goal-status.completed {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .goal-details {
+            background: #f8f9fa;
+            padding: 30px;
+            border-radius: 10px;
+            margin-top: 30px;
+            border: 2px solid #e0e0e0;
+        }
+
+        .goal-details h3 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.4em;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 1em;
+            font-family: inherit;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #999;
+        }
+
+        .empty-state-icon {
+            font-size: 3em;
+            margin-bottom: 15px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-content {
+            background: white;
+            margin: 5% auto;
+            padding: 30px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h2 {
+            color: #667eea;
+        }
+
+        .close-btn {
+            font-size: 28px;
+            font-weight: bold;
+            color: #999;
+            cursor: pointer;
+            border: none;
+            background: none;
+        }
+
+        .close-btn:hover {
+            color: #333;
+        }
+
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            border: 1px solid #f5c6cb;
+        }
+
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            border: 1px solid #c3e6cb;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #667eea;
+        }
+
+        @media (max-width: 768px) {
+            .categories-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .header h1 {
+                font-size: 1.8em;
+            }
+
+            .action-bar {
+                flex-direction: column;
+            }
+
+            .form-actions {
+                flex-direction: column;
+            }
+
+            .form-actions .btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎯 My Personal Goals</h1>
+            <p>Set goals. Track progress. Achieve greatness.</p>
+        </div>
+
+        <div class="content">
+            <div id="message-container"></div>
+
+            <!-- SMART Goals Information Section -->
+            <div class="smart-goals-section">
+                <h2>How to Set SMART Goals</h2>
+                <p>A SMART goal is a goal framework that helps you create clear, actionable objectives. Here's what SMART means:</p>
+                <ul class="smart-list">
+                    <li><strong>Specific:</strong> Clear and well-defined. What exactly do you want to achieve?</li>
+                    <li><strong>Measurable:</strong> Quantifiable. How will you know when you've achieved it?</li>
+                    <li><strong>Achievable:</strong> Realistic and within reach. Is it possible with effort?</li>
+                    <li><strong>Relevant:</strong> Meaningful to you. Does it matter to your life?</li>
+                    <li><strong>Time-bound:</strong> Deadline. When will you accomplish this?</li>
+                </ul>
+                <p style="margin-top: 15px;"><em>Example: "I will run a 5K without stopping by June 30, 2026" is SMART. "Get fit" is not.</em></p>
+            </div>
+
+            <!-- Action Bar -->
+            <div class="action-bar">
+                <button class="btn btn-primary" onclick="openCreateModal()">+ New Goal</button>
+            </div>
+
+            <!-- Goals by Category -->
+            <div class="categories-grid" id="categories-container">
+                <div class="category-box category-physical">
+                    <div class="category-title">
+                        <span class="category-icon">💪</span>
+                        Physical
+                    </div>
+                    <div id="physical-goals"></div>
+                </div>
+
+                <div class="category-box category-social">
+                    <div class="category-title">
+                        <span class="category-icon">👥</span>
+                        Social
+                    </div>
+                    <div id="social-goals"></div>
+                </div>
+
+                <div class="category-box category-intellectual">
+                    <div class="category-title">
+                        <span class="category-icon">🧠</span>
+                        Intellectual
+                    </div>
+                    <div id="intellectual-goals"></div>
+                </div>
+
+                <div class="category-box category-spiritual">
+                    <div class="category-title">
+                        <span class="category-icon">✨</span>
+                        Spiritual
+                    </div>
+                    <div id="spiritual-goals"></div>
+                </div>
+            </div>
+
+            <!-- Goal Details Section (appears when goal selected) -->
+            <div id="goal-details-container" style="display: none;">
+                <div class="goal-details">
+                    <h3 id="detail-title">Goal Details</h3>
+                    <form id="goal-form">
+                        <div class="form-group">
+                            <label>Title:</label>
+                            <input type="text" id="goal-title" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Category:</label>
+                            <select id="goal-category" required>
+                                <option value="physical">Physical</option>
+                                <option value="social">Social</option>
+                                <option value="intellectual">Intellectual</option>
+                                <option value="spiritual">Spiritual</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Description:</label>
+                            <textarea id="goal-description" required></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Target Date:</label>
+                            <input type="date" id="goal-target-date" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Status:</label>
+                            <select id="goal-status" required>
+                                <option value="not_started">Not Started</option>
+                                <option value="in_progress">In Progress</option>
+                                <option value="completed">Completed</option>
+                            </select>
+                        </div>
+                        <div class="form-actions">
+                            <button type="button" class="btn btn-secondary" onclick="closeGoalDetails()">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Save Goal</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        // const API_ENV = localStorage.getItem('env') || 'production';
+         const API_ENV = localStorage.getItem('env') || 'test';
+        const API_BASE = localStorage.getItem('apiBase') || 'http://localhost:8000';
+        let currentUser = null;
+        let allGoals = [];
+        let selectedGoalId = null;
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            validateAuth();
+            loadGoals();
+        });
+
+        // JWT parsing and validation
+        function parseJwt(token) {
+            try {
+                return JSON.parse(atob(token.split('.')[1]));
+            } catch (e) {
+                return null;
+            }
+        }
+
+        function validateAuth() {
+            // Skip token check in test mode
+            if (API_ENV === 'test') {
+                currentUser = {
+                    sub: 'user123',
+                    role: 'youth'
+                };
+                return;
+            }
+
+            const token = localStorage.getItem('token');
+            if (!token) {
+                redirectToLogin();
+                return;
+            }
+
+            const user = parseJwt(token);
+            if (!user || user.role !== 'youth') {
+                showError('Access Denied. This page is for youth only.');
+                setTimeout(redirectToLogin, 2000);
+                return;
+            }
+
+            currentUser = user;
+        }
+
+        function redirectToLogin() {
+            window.location.href = 'login.html';
+        }
+
+        // Load goals from API or test file
+        async function loadGoals() {
+            try {
+                showLoading();
+                let goals;
+
+                if (API_ENV === 'test') {
+                    // Load from test file
+                    const response = await fetch('test/goals.json');
+                    if (!response.ok) throw new Error('Failed to load test data');
+                    goals = await response.json();
+                    // Filter by current user's youth_id
+                    goals = goals.filter(g => g.youth_id === currentUser.sub);
+                } else {
+                    // Load from API
+                    const response = await fetch(`${API_BASE}/goals/${currentUser.sub}`, {
+                        headers: {
+                            'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        }
+                    });
+                    if (!response.ok) throw new Error('Failed to load goals');
+                    goals = await response.json();
+                }
+
+                allGoals = goals;
+                renderGoals();
+                hideMessage();
+            } catch (error) {
+                console.error('Error loading goals:', error);
+                showError('Failed to load your goals. Please try again.');
+            }
+        }
+
+        // Render goals organized by category
+        function renderGoals() {
+            const categories = ['physical', 'social', 'intellectual', 'spiritual'];
+
+            categories.forEach(category => {
+                const container = document.getElementById(`${category}-goals`);
+                const categoryGoals = allGoals.filter(g => g.category === category);
+
+                if (categoryGoals.length === 0) {
+                    container.innerHTML = '<div class="empty-state"><p>No goals yet. Create one!</p></div>';
+                } else {
+                    container.innerHTML = categoryGoals.map(goal => `
+                        <div class="goal-item" onclick="selectGoal('${goal.id}')">
+                            <div class="goal-title">${escapeHtml(goal.title)}</div>
+                            <span class="goal-status ${goal.status}">${formatStatus(goal.status)}</span>
+                        </div>
+                    `).join('');
+                }
+            });
+        }
+
+        // Format status for display
+        function formatStatus(status) {
+            const statusMap = {
+                'not_started': 'Not Started',
+                'in_progress': 'In Progress',
+                'completed': 'Completed'
+            };
+            return statusMap[status] || status;
+        }
+
+        // Select a goal to view/edit details
+        function selectGoal(goalId) {
+            selectedGoalId = goalId;
+            const goal = allGoals.find(g => g.id === goalId);
+
+            if (goal) {
+                document.getElementById('detail-title').textContent = `Edit: ${goal.title}`;
+                document.getElementById('goal-title').value = goal.title;
+                document.getElementById('goal-category').value = goal.category;
+                document.getElementById('goal-description').value = goal.description;
+                document.getElementById('goal-target-date').value = goal.target_date;
+                document.getElementById('goal-status').value = goal.status;
+                document.getElementById('goal-details-container').style.display = 'block';
+                document.getElementById('goal-form').onsubmit = updateGoal;
+            }
+        }
+
+        // Open create new goal form
+        function openCreateModal() {
+            selectedGoalId = null;
+            document.getElementById('detail-title').textContent = 'Create New Goal';
+            document.getElementById('goal-form').reset();
+            document.getElementById('goal-details-container').style.display = 'block';
+            document.getElementById('goal-form').onsubmit = createGoal;
+        }
+
+        // Close goal details view
+        function closeGoalDetails() {
+            document.getElementById('goal-details-container').style.display = 'none';
+            selectedGoalId = null;
+        }
+
+        // Create new goal
+        async function createGoal(e) {
+            e.preventDefault();
+
+            const newGoal = {
+                youth_id: currentUser.sub,
+                title: document.getElementById('goal-title').value,
+                category: document.getElementById('goal-category').value,
+                description: document.getElementById('goal-description').value,
+                target_date: document.getElementById('goal-target-date').value,
+                status: document.getElementById('goal-status').value
+            };
+
+            try {
+                showLoading();
+
+                if (API_ENV === 'test') {
+                    // Simulate API response
+                    newGoal.id = 'goal-' + Date.now();
+                    newGoal.created_at = new Date().toISOString().split('T')[0];
+                    newGoal.updated_at = new Date().toISOString().split('T')[0];
+                    allGoals.push(newGoal);
+                    showSuccess('Goal created successfully!');
+                } else {
+                    const response = await fetch(`${API_BASE}/goals`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        },
+                        body: JSON.stringify(newGoal)
+                    });
+
+                    if (!response.ok) throw new Error('Failed to create goal');
+                    const created = await response.json();
+                    allGoals.push(created);
+                    showSuccess('Goal created successfully!');
+                }
+
+                renderGoals();
+                closeGoalDetails();
+                hideMessage();
+            } catch (error) {
+                console.error('Error creating goal:', error);
+                showError('Failed to create goal. Please try again.');
+            }
+        }
+
+        // Update existing goal
+        async function updateGoal(e) {
+            e.preventDefault();
+
+            if (!selectedGoalId) {
+                showError('No goal selected');
+                return;
+            }
+
+            const updatedGoal = {
+                title: document.getElementById('goal-title').value,
+                category: document.getElementById('goal-category').value,
+                description: document.getElementById('goal-description').value,
+                target_date: document.getElementById('goal-target-date').value,
+                status: document.getElementById('goal-status').value
+            };
+
+            try {
+                showLoading();
+
+                if (API_ENV === 'test') {
+                    // Simulate API response
+                    const index = allGoals.findIndex(g => g.id === selectedGoalId);
+                    if (index !== -1) {
+                        allGoals[index] = {
+                            ...allGoals[index],
+                            ...updatedGoal,
+                            updated_at: new Date().toISOString().split('T')[0]
+                        };
+                    }
+                    showSuccess('Goal updated successfully!');
+                } else {
+                    const response = await fetch(`${API_BASE}/goals/${selectedGoalId}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        },
+                        body: JSON.stringify(updatedGoal)
+                    });
+
+                    if (!response.ok) throw new Error('Failed to update goal');
+                    const updated = await response.json();
+                    const index = allGoals.findIndex(g => g.id === selectedGoalId);
+                    if (index !== -1) {
+                        allGoals[index] = updated;
+                    }
+                    showSuccess('Goal updated successfully!');
+                }
+
+                renderGoals();
+                closeGoalDetails();
+                hideMessage();
+            } catch (error) {
+                console.error('Error updating goal:', error);
+                showError('Failed to update goal. Please try again.');
+            }
+        }
+
+        // UI Helpers
+        function showMessage(message, type) {
+            const container = document.getElementById('message-container');
+            const className = type === 'error' ? 'error-message' : 'success-message';
+            container.innerHTML = `<div class="${className}">${escapeHtml(message)}</div>`;
+            container.style.display = 'block';
+        }
+
+        function showError(message) {
+            showMessage(message, 'error');
+        }
+
+        function showSuccess(message) {
+            showMessage(message, 'success');
+        }
+
+        function hideMessage() {
+            document.getElementById('message-container').innerHTML = '';
+        }
+
+        function showLoading() {
+            document.getElementById('message-container').innerHTML = '<div class="loading">Loading...</div>';
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>

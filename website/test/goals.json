@@ -1,0 +1,57 @@
+[
+  {
+    "id": "goal-1",
+    "youth_id": "user123",
+    "title": "Run a 5K",
+    "category": "physical",
+    "description": "Complete a 5K run without stopping",
+    "target_date": "2026-06-30",
+    "status": "in_progress",
+    "created_at": "2026-01-01",
+    "updated_at": "2026-01-15"
+  },
+  {
+    "id": "goal-2",
+    "youth_id": "user123",
+    "title": "Volunteer at local shelter",
+    "category": "social",
+    "description": "Volunteer at least 4 times at the local community shelter",
+    "target_date": "2026-08-31",
+    "status": "in_progress",
+    "created_at": "2026-01-05",
+    "updated_at": "2026-01-20"
+  },
+  {
+    "id": "goal-3",
+    "youth_id": "user123",
+    "title": "Read 12 books",
+    "category": "intellectual",
+    "description": "Read one book per month on topics of interest",
+    "target_date": "2026-12-31",
+    "status": "in_progress",
+    "created_at": "2026-01-10",
+    "updated_at": "2026-01-18"
+  },
+  {
+    "id": "goal-4",
+    "youth_id": "user123",
+    "title": "Daily meditation practice",
+    "category": "spiritual",
+    "description": "Meditate for 10 minutes every day to build mindfulness",
+    "target_date": "2026-12-31",
+    "status": "in_progress",
+    "created_at": "2026-01-12",
+    "updated_at": "2026-01-22"
+  },
+  {
+    "id": "goal-5",
+    "youth_id": "user123",
+    "title": "Strength training 3x/week",
+    "category": "physical",
+    "description": "Build strength with consistent gym workouts",
+    "target_date": "2026-06-30",
+    "status": "not_started",
+    "created_at": "2026-01-20",
+    "updated_at": "2026-01-20"
+  }
+]
