@@ -9,7 +9,7 @@ from fastapi import HTTPException, status, Depends as fastapiDepends
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 import qrcode
 from pathlib import Path as PathlibPath
-from schema import ActivityApprovals, ActivityBase, ActivityHealthReport, ActivityInvitees, AdminUser, ConcernSurvey, FullActivity, InterestSurvey, PermissionGiven, ReturnGroupActivityList, YouthPermissionSubmission, Activity, ParentGuardian, MedicalInfo, EmergencyContact, Signature
+from schema import ActivityApprovals, ActivityBase, ActivityHealthReport, ActivityInvitees, AdminUser, ConcernSurvey, FullActivity, InterestSurvey, PermissionGiven, PersonalGoal, ReturnGroupActivityList, UserReturnModel, YouthPermissionSubmission, Activity, ParentGuardian, MedicalInfo, EmergencyContact, Signature
 import sqlite3
 import os
 import json
@@ -341,6 +341,18 @@ def login(request:Request, username: str, password: str, db=Depends(get_db)):
     else:
         return {"message": "Invalid credentials"}
     
+@app.post("/youth", tags=["users"], description="Create a new youth user")
+def create_youth_account(username:str, password:str, group:str, db=Depends(get_db))->UserReturnModel:
+    cursor = db.cursor()
+    userid = guid() #TODO
+    cursor.execute(
+        "INSERT INTO admin_users (username, password, role, org_group, user_id) VALUES (?, ?, ?, ?, ?)",
+        (username, password, "youth", group, userid)
+    )
+    db.commit()
+    user_id = cursor.lastrowid  
+    return UserReturnModel(user_id=user_id)
+
 
 @app.post("/users", tags=["users"], description="Create a new user")
 async def create_user(user_data: YouthPermissionSubmission, db=Depends(get_db)):
@@ -387,6 +399,7 @@ async def get_user(youth_id: str, db=Depends(get_db))->Union[YouthPermissionSubm
             emergency_contact=emergency_info,
             signature=signature_info,
             signed_at=row["signed_at"],
+            youth_id=youth_id
         )
         return resp
     else:
@@ -1229,6 +1242,76 @@ def update_activity_for_reconciliation(activity_id: str, data: FullActivity, db=
     else:
         return {"message": "Activity not found."}
 
+    ##################
+    ### Reconcile activity
+    ##################
+
+@app.post("/goals", tags=["goals"], description="Set personal goal")
+def set_personal_goal(data: PersonalGoal, db=Depends(get_db), user=Depends(require_role("youth"))):
+    cursor = db.cursor()
+    cursor.execute(
+        """INSERT INTO personal_goals (youth_id, goal_area, goal_name, goal_description,  target_date, status, progress_notes)
+           VALUES (?, ?, ?, ?, ?, ?, ?)""",
+        (
+            data.youth_id,
+            data.goal_area,
+            data.goal_name,
+            data.goal_description,
+            data.target_date,
+            data.status,
+            json.dumps(data.progress_notes) if data.progress_notes else None
+        )
+    )
+    db.commit()
+    return {"message": "Personal goal set successfully."}
+
+@app.get("/goals/{youth_id}", tags=["goals"], description="Get personal goals for youth")
+def get_personal_goals(youth_id: str, db=Depends(get_db), user=Depends(require_role("youth")))->List[PersonalGoal]:
+    cursor = db.cursor()
+    cursor.execute(
+        "SELECT youth_id, goal_area, goal_name, goal_description, target_date, status, progress_notes, completed FROM personal_goals WHERE youth_id = ? group by goal_area", (youth_id,)
+    )
+    rows = cursor.fetchall()
+    goals = []
+    for row in rows:
+        progress_notes = json.loads(row["progress_notes"]) if row["progress_notes"] else None
+        goal = PersonalGoal(
+            youth_id=row["youth_id"],
+            goal_area=row["goal_area"],
+            goal_name=row["goal_name"],
+            goal_description=row["goal_description"],
+            target_date=row["target_date"],
+            status=row["status"],
+            progress_notes=progress_notes,
+            completed=bool(row["completed"])
+        )
+        goals.append(goal)
+    return goals
+
+
+@app.put("/goals/{youth_id}/{goal_name}", tags=["goals"], description="Update personal goal for youth")
+def update_personal_goal(youth_id: str, goal_name: str, data: PersonalGoal, db=Depends(get_db), user=Depends(require_role("youth"))):
+    cursor = db.cursor()
+    cursor.execute(
+        """UPDATE personal_goals 
+           SET goal_area = ?, goal_description = ?, target_date = ?, status = ?, progress_notes = ?, completed = ?
+           WHERE youth_id = ? AND goal_name = ?""",
+        (
+            data.goal_area,
+            data.goal_description,
+            data.target_date,
+            data.status,
+            json.dumps(data.progress_notes) if data.progress_notes else None,
+            1 if data.completed else 0,
+            youth_id,
+            goal_name
+        )
+    )
+    db.commit()
+    if cursor.rowcount > 0:
+        return {"message": "Personal goal updated successfully."}
+    else:
+        return {"message": "Personal goal not found."}
 
 # if __name__ == "__main__":
 # 	import uvicorn

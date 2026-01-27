@@ -40,6 +40,7 @@ class DBSetup:
                 password TEXT NOT NULL,
                 role TEXT NOT NULL,
                 org_group TEXT NOT NULL,
+                user_id TEXT UNIQUE NOT NULL,
                 created_at TEXT NOT NULL DEFAULT (datetime('now'))
             );
             """
@@ -69,6 +70,7 @@ class DBSetup:
                 signed_at TEXT NOT NULL,
                 created_at TEXT NOT NULL DEFAULT (datetime('now')),
                 updated_at TEXT
+                youth_id TEXT UNIQUE NOT NULL
             );
             """
         )
@@ -124,6 +126,29 @@ class DBSetup:
         self.conn.execute("CREATE INDEX IF NOT EXISTS idx_permission_given_youth_id ON permission_given(youth_id);")
         self.conn.execute("CREATE INDEX IF NOT EXISTS idx_permission_given_permission_code ON permission_given(permission_code);")
 
+        # Personal goals table
+        self.conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS personal_goals (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                goal_id TEXT UNIQUE,
+                youth_id TEXT NOT NULL,
+                goal_area TEXT NOT NULL,
+                goal_name TEXT NOT NULL,
+                goal_description TEXT NOT NULL,
+                target_date datetime NOT NULL,
+                status TEXT NOT NULL DEFAULT 'Not Started',
+                progress_notes TEXT,
+                completed INTEGER DEFAULT 0,
+                created_at TEXT DEFAULT (datetime('now')),
+                updated_at TEXT
+            );
+            """
+        )
+        self.conn.execute("CREATE INDEX IF NOT EXISTS idx_personal_goals_youth_id ON personal_goals(youth_id);")
+        self.conn.execute("CREATE INDEX IF NOT EXISTS idx_personal_goals_goal_area ON personal_goals(goal_area);")
+        self.conn.execute("CREATE INDEX IF NOT EXISTS idx_personal_goals_status ON personal_goals(status);")
+
         # Keep updated_at current on updates (SQLite trigger)
         self.conn.execute(
             """
@@ -132,6 +157,18 @@ class DBSetup:
             FOR EACH ROW
             BEGIN
                 UPDATE youth_medical SET updated_at = datetime('now') WHERE youth_id = NEW.youth_id;
+            END;
+            """
+        )
+
+        # Update trigger for personal goals
+        self.conn.execute(
+            """
+            CREATE TRIGGER IF NOT EXISTS trg_personal_goals_updated_at
+            AFTER UPDATE ON personal_goals
+            FOR EACH ROW
+            BEGIN
+                UPDATE personal_goals SET updated_at = datetime('now') WHERE id = NEW.id;
             END;
             """
         )
@@ -164,22 +201,22 @@ class DBSetup:
     def load_admins(self)->None:
         cursor = self.conn.cursor()
         admins = [
-            ('deacon_admin', 'password_d', 'president', 'deacons'),
-            ('teacher_admin', 'password_t', 'president', 'teachers'),
-            ('priest_admin', 'password_p', 'president', 'priest'),
-            ('younger_yw_admin', 'password_yyw', 'president', 'younger young women'),
-            ('older_yw_admin', 'password_oyw', 'president', 'older young women'),
-            ('bishop_admin', 'password_b', 'bishop', 'ecc_admin'),
-            ('stake_president_admin', 'password_sp', 'president', 'ecc_admin'),
-            ('admin', 'password_admin', 'admin', 'admin'),
-            ('deacon_advisor', 'password_da', 'advisor', 'deacons'),
-            ('teacher_advisor', 'password_ta', 'advisor', 'teachers'),
-            ('priest_advisor', 'password_pa', 'advisor', 'priest'),
-            ('younger_yw_advisor', 'password_yya', 'advisor', 'younger young women'),
-            ('older_yw_advisor', 'password_oya', 'advisor', 'older young women')
+            ('deacon_admin', 'password_d', 'president', 'deacons', 'some_user_id_1'),
+            ('teacher_admin', 'password_t', 'president', 'teachers', 'some_user_id_2'),
+            ('priest_admin', 'password_p', 'president', 'priest', 'some_user_id_3'),
+            ('younger_yw_admin', 'password_yyw', 'president', 'younger young women', 'some_user_id_4'),
+            ('older_yw_admin', 'password_oya', 'president', 'older young women', 'some_user_id_5'),
+            ('bishop_admin', 'password_b', 'bishop', 'ecc_admin', 'some_user_id_6'),
+            ('stake_president_admin', 'password_sp', 'president', 'ecc_admin', 'some_user_id_7'),
+            ('admin', 'password_admin', 'admin', 'admin', 'some_user_id_8'),
+            ('deacon_advisor', 'password_da', 'advisor', 'deacons', 'some_user_id_9'),
+            ('teacher_advisor', 'password_ta', 'advisor', 'teachers', 'some_user_id_10'),
+            ('priest_advisor', 'password_pa', 'advisor', 'priest', 'some_user_id_11'),
+            ('younger_yw_advisor', 'password_yya', 'advisor', 'younger young women', 'some_user_id_12'),
+            ('older_yw_advisor', 'password_oya', 'advisor', 'older young women', 'some_user_id_13')
         ]
         cursor.executemany('''
-            INSERT OR IGNORE INTO admin_users (username, password, role, org_group)
-            VALUES (?, ?, ?, ?)
+            INSERT OR IGNORE INTO admin_users (username, password, role, org_group, user_id)
+            VALUES (?, ?, ?, ?, ?)
         ''', admins)
         self.conn.commit()
