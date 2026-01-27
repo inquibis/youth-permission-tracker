@@ -1,0 +1,57 @@
+[
+    {
+      "activity_id": "cal-001",
+      "activity_name": "Young Men's Service Project",
+      "date_start": "2026-02-15T09:00:00",
+      "date_end": "2026-02-15T12:00:00",
+      "drivers": ["John Smith", "Mike Johnson"],
+      "description": "Community service cleanup and park maintenance",
+      "location": "Central Park",
+      "groups": ["Deacons", "Teachers"],
+      "requires_permission": false
+    },
+    {
+      "activity_id": "cal-002",
+      "activity_name": "Young Women's Retreat",
+      "date_start": "2026-03-01T08:00:00",
+      "date_end": "2026-03-02T17:00:00",
+      "drivers": ["Sarah Williams", "Mary Brown"],
+      "description": "Overnight retreat with activities and training",
+      "location": "Mountain Ridge Resort",
+      "groups": ["Younger Young Women", "Older Young Women"],
+      "requires_permission": true
+    },
+    {
+      "activity_id": "cal-003",
+      "activity_name": "Joint Youth Dance",
+      "date_start": "2026-02-28T18:00:00",
+      "date_end": "2026-02-28T21:00:00",
+      "drivers": ["David Lee"],
+      "description": "Recreation and social activity for all youth",
+      "location": "Stake Center",
+      "groups": ["Deacons", "Teachers", "Priests", "Younger Young Women", "Older Young Women"],
+      "requires_permission": false
+    },
+    {
+      "activity_id": "cal-004",
+      "activity_name": "Spiritual Training Session",
+      "date_start": "2026-02-20T19:00:00",
+      "date_end": "2026-02-20T20:30:00",
+      "drivers": ["President Johnson"],
+      "description": "Interactive training on personal development and spiritual growth",
+      "location": "Main Hall",
+      "groups": ["All"],
+      "requires_permission": false
+    },
+    {
+      "activity_id": "cal-005",
+      "activity_name": "Winter Sports Day",
+      "date_start": "2026-02-22T10:00:00",
+      "date_end": "2026-02-22T15:00:00",
+      "drivers": ["Coach Martinez", "Coach Thompson"],
+      "description": "Skiing, sledding, and winter games for all youth",
+      "location": "Snowbird Ski Resort",
+      "groups": ["All"],
+      "requires_permission": true
+    }
+]

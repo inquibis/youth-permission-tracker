@@ -343,16 +343,28 @@
       </button>
       <div class="collapse navbar-collapse" id="navbarNav">
         <ul class="navbar-nav ms-auto">
+           <!-- Parent Dropdown -->
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" id="parentDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+              <i class="fas fa-user-tie"></i> Parents
+            </a>
+            <ul class="dropdown-menu" aria-labelledby="parentDropdown">
+              <li><a class="dropdown-item" href="youth-signup.html"><i class="fas fa-user-plus"></i> Sign Up</a></li>                           
+              <li><a class="dropdown-item" href="activity-parent-view.html"><i class="fas fa-user-check"></i> Parent Activity View</a></li>
+              <li><a class="dropdown-item" href="permission-parental.html"><i class="fas fa-file-contract"></i> Permission Form</a></li>
+              <li><a class="dropdown-item" href="calendar.html"><i class="fas fa-user-check"></i>Activity Calendar</a></li>
+            </ul>
+          </li>
+
           <!-- Youth Dropdown -->
           <li class="nav-item dropdown">
             <a class="nav-link dropdown-toggle" href="#" id="youthDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
               <i class="fas fa-user-tie"></i> Youth
             </a>
-            <ul class="dropdown-menu" aria-labelledby="youthDropdown">
-              <li><a class="dropdown-item" href="youth-signup.html"><i class="fas fa-user-plus"></i> Sign Up</a></li>              
+            <ul class="dropdown-menu" aria-labelledby="youthDropdown">              
               <li><a class="dropdown-item" href="activity-interests.html"><i class="fas fa-user-plus"></i> Interests</a></li>
-              <li><a class="dropdown-item" href="activity-parent-view.html"><i class="fas fa-user-check"></i> Parent Activity View</a></li>
-              <li><a class="dropdown-item" href="permission-parental.html"><i class="fas fa-file-contract"></i> Permission Form</a></li>
+              <li><a class="dropdown-item" href="youth-goals.html"><i class="fas fa-user-plus"></i> Personal Goals</a></li>
+              <li><a class="dropdown-item" href="calendar.html"><i class="fas fa-user-check"></i>Activity Calendar</a></li>
             </ul>
           </li>
 

@@ -168,6 +168,15 @@
     });
   }
 
+  // Helper to parse JWT
+  function parseJwt(token) {
+      try {
+          return JSON.parse(atob(token.split('.')[1]));
+      } catch (e) {
+          return null;
+      }
+  }
+
   function renderLists(){
     driversList.textContent = drivers.join(', ');
     groupsList.textContent = groups.join(', ');
@@ -301,6 +310,27 @@
   }
 
 })();
+
+// Get JWT from localStorage (adjust if stored elsewhere)
+const token = localStorage.getItem('jwt');
+const user = token ? parseJwt(token) : null;
+const role = user && user.role ? user.role : null;
+
+// Block access for parent/youth
+if (role === 'parent' || role === 'youth') {
+    document.body.innerHTML = '<h2>Access Denied</h2>';
+} else {
+    // Disable buttons for advisor
+    if (role === 'advisor') {
+        window.addEventListener('DOMContentLoaded', function() {
+            // Adjust selectors as needed for your buttons
+            const createBtn = document.querySelector('#create-btn');
+            const updateBtn = document.querySelector('#update-btn');
+            if (createBtn) createBtn.disabled = true;
+            if (updateBtn) updateBtn.disabled = true;
+        });
+    }
+}
 </script>
 </body>
 </html>
