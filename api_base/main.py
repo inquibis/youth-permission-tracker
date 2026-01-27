@@ -340,17 +340,21 @@ def login(request:Request, username: str, password: str, db=Depends(get_db)):
         return {"access_token": access_token, "token_type": "bearer"}
     else:
         return {"message": "Invalid credentials"}
+
+def guid():
+    """Generate a unique GUID/UUID string"""
+    return str(uuid.uuid4())
     
 @app.post("/youth", tags=["users"], description="Create a new youth user")
 def create_youth_account(username:str, password:str, group:str, db=Depends(get_db))->UserReturnModel:
     cursor = db.cursor()
-    userid = guid() #TODO
+    user_id = guid()
     cursor.execute(
         "INSERT INTO admin_users (username, password, role, org_group, user_id) VALUES (?, ?, ?, ?, ?)",
-        (username, password, "youth", group, userid)
+        (username, password, "youth", group, user_id)
     )
     db.commit()
-    user_id = cursor.lastrowid  
+    # user_id = cursor.lastrowid
     return UserReturnModel(user_id=user_id)
 
 
