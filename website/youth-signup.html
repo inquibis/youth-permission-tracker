@@ -55,6 +55,10 @@
       </select>
     </label>
 
+    <h3>Youth Account Credentials</h3>
+    <label>Username <input type="text" id="y_username" required></label>
+    <label>Password <input type="password" id="y_password" required></label>
+
     <h3>Parent / Guardian</h3>
     <label>Name <input type="text" id="pg_name" required></label>
     <div class="row">
@@ -229,17 +233,61 @@
     };
 
     try{
-      const res = await fetch(BASE_URL + '/users/', {
+      // Step 1: Create the youth and get the user_id
+      status.textContent = 'Creating youth account...'; status.className = '';
+      
+      const youthCredsPayload = {
+        first_name: payload.youth.first_name,
+        last_name: payload.youth.last_name,
+        group: payload.youth.group
+      };
+
+      const youthRes = await fetch(BASE_URL + '/youth', {
         method: 'POST',
         headers: {'Content-Type':'application/json'},
-        body: JSON.stringify(payload)
+        body: JSON.stringify(youthCredsPayload)
       });
-      if(res.ok){
+      
+      if(!youthRes.ok){
+        const text = await youthRes.text();
+        status.textContent = 'Error creating youth: '+youthRes.status+ ' ' + text; status.className='error';
+        return;
+      }
+      
+      const youthData = await youthRes.json();
+      const youth_id = youthData.user_id || youthData.id || youthData.youth_id;
+      
+      if(!youth_id){
+        status.textContent = 'Error: No user_id returned from youth creation'; status.className='error';
+        return;
+      }
+      
+      // Step 2: Create the user account with the returned youth_id
+      status.textContent = 'Creating user account...'; status.className = '';
+      
+      const userPayload = {
+        youth_id: youth_id,
+        permission_code: permission_code,
+        youth: payload.youth,
+        parent_guardian: payload.parent_guardian,
+        medical: payload.medical,
+        emergency_contact: payload.emergency_contact,
+        signature: payload.signature,
+        signed_at: payload.signed_at
+      };
+      
+      const userRes = await fetch(BASE_URL + '/users/', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify(userPayload)
+      });
+      
+      if(userRes.ok){
         status.textContent = 'Submitted successfully.'; status.className='success';
         form.reset(); strokes.length = 0; drawAll();
       }else{
-        const text = await res.text();
-        status.textContent = 'Error: '+res.status+ ' ' + text; status.className='error';
+        const text = await userRes.text();
+        status.textContent = 'Error: '+userRes.status+ ' ' + text; status.className='error';
       }
     }catch(err){
       status.textContent = 'Network error: '+err.message; status.className='error';
