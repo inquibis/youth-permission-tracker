@@ -17,8 +17,8 @@ from icalendar import Calendar, Event, vCalAddress, vText
 from datetime import datetime, timedelta, timezone
 import uuid
 from contact_engine import ContactEngine
-from db_setup import DBSetup
 from jose import jwt, JWTError
+from db import DatabaseEngine
 
 app = FastAPI()
 contact_engine = ContactEngine()
@@ -38,7 +38,7 @@ SECRET_KEY = os.getenv("SECRET_KEY", "super-secret-key")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
-
+DB = DatabaseEngine(DB_PATH)
 
 # def get_db():
 # 	return app.state._db
@@ -46,87 +46,14 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 @app.on_event("startup")
 def startup():
-    db_path = PathlibPath(DB_PATH)
-    # 1. DB_PATH must include a filename
-    if not db_path.suffix:
-        raise RuntimeError(
-            f"Invalid DB_PATH '{db_path}'. "
-            "DB_PATH must point to a SQLite file, e.g. '/data/data.sqlite3'."
-        )
-
-    # 2. Parent directory must be creatable
-    try:
-        db_path.parent.mkdir(parents=True, exist_ok=True)
-    except Exception as e:
-        raise RuntimeError(
-            f"Cannot create database directory '{db_path.parent}': {e}"
-        ) from e
-
-    # 3. Parent path must be a directory
-    if not db_path.parent.is_dir():
-        raise RuntimeError(
-            f"DB_PATH parent '{db_path.parent}' exists but is not a directory."
-        )
-
-    # 4. Try opening SQLite to catch permission/locking issues early
-    try:
-        conn = sqlite3.connect(DB_PATH, check_same_thread=False)
-        conn.execute("PRAGMA journal_mode=WAL;")
-    except Exception as e:
-        raise RuntimeError(
-            f"SQLite failed to open database at '{DB_PATH}': {e}"
-        ) from e
-
-    conn.row_factory = sqlite3.Row
-
-    # Helpful pragmas for reliability/performance on SQLite
-    conn.execute("PRAGMA foreign_keys = ON;")
-    conn.execute("PRAGMA journal_mode = WAL;")
-    conn.execute("PRAGMA synchronous = NORMAL;")
-
-    db_setup=DBSetup(conn)
-    db_setup.create_tables()
-    db_setup.load_admins()
-    app.state._db = conn
-    conn.close()
+    DB.startup(app)
 
 
 
 @app.on_event("shutdown")
 def shutdown():
-	db = getattr(app.state, "_db", None)
-	if db:
-		db.close()
-
-
-def get_db():
-    """
-    Per-request SQLite connection.
-    Ensures each request gets a fresh connection that is closed after the request.
-    """
-    db_path = PathlibPath(DB_PATH)
-
-    # Fail loudly if DB_PATH is invalid
-    if not db_path.suffix:
-        raise RuntimeError(
-            f"Invalid DB_PATH '{DB_PATH}'. DB_PATH must point to a SQLite file, e.g. '/data/data.sqlite3'."
-        )
-
-    # Ensure directory exists
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-
-    conn = sqlite3.connect(str(db_path), check_same_thread=False)
-    conn.row_factory = sqlite3.Row
-
-    # Pragmas (safe to do per connection)
-    conn.execute("PRAGMA foreign_keys = ON;")
-    conn.execute("PRAGMA journal_mode = WAL;")
-    conn.execute("PRAGMA synchronous = NORMAL;")
-
-    try:
-        yield conn
-    finally:
-        conn.close()
+	# Connection is closed per-request in get_db()
+	pass
 
 
 def require_role(allowed_roles: set[str]):
@@ -152,11 +79,12 @@ def require_role(allowed_roles: set[str]):
         if not role or not username:
             raise HTTPException(status_code=403, detail="Token missing user/role")
 
-        if role not in allowed_roles:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Insufficient permissions",
-            )
+        if role != "all":
+            if role not in allowed_roles:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Insufficient permissions",
+                )
 
         return payload  # return user info if needed
     return role_checker
@@ -172,7 +100,7 @@ def audit_log_event(
     resource_id: Optional[str] = None,
     success: bool = True,
     details: Optional[dict[str, Any]] = None,
-    db = Depends(get_db)
+    db = Depends(DB.get_db)
 ) -> None:
     """
     Logs an audit event to the audit_log table.
@@ -233,7 +161,7 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
 #############################################################################################################
 
 @app.get("/", description="Root endpoint", summary="Get API root and visit count")
-async def read_root(db=Depends(get_db))->dict:
+async def read_root(db=Depends(DB.get_db))->dict:
 	db.execute("INSERT INTO visits (created_at) VALUES (datetime('now'))")
 	db.commit()
 	cur = db.execute("SELECT COUNT(*) FROM visits")
@@ -242,7 +170,7 @@ async def read_root(db=Depends(get_db))->dict:
 
 
 @app.get("/health", tags=["health"], description="Health check endpoint", summary="Check API health status")
-async def health(db=Depends(get_db))->dict:
+async def health(db=Depends(DB.get_db))->dict:
     db.execute("SELECT 1")
     return {"status": "ok"}
 
@@ -254,7 +182,7 @@ async def health(db=Depends(get_db))->dict:
 def login_for_access_token(
     request: Request,
     form_data: OAuth2PasswordRequestForm = fastapiDepends(),
-    db=Depends(get_db),
+    db=Depends(DB.get_db),
 ):
     cursor = db.cursor()
     cursor.execute(
@@ -296,7 +224,7 @@ def login_for_access_token(
 
 
 @app.get("/login", tags=["admin-users","auth"], description="Admin user login", summary="Authenticate admin user")
-def login(request:Request, username: str, password: str, db=Depends(get_db)):
+def login(request:Request, username: str, password: str, db=Depends(DB.get_db)):
     cursor = db.cursor()
     if os.getenv("ENV", "test").lower() == "test":
         token_data = {
@@ -347,8 +275,8 @@ def guid():
     return str(uuid.uuid4())
     
 
-@app.post("/youth", tags=["users"], description="Create a new youth user",summary="Create youth user account.  Happens via parent medical form creation"))
-def create_youth_account(username:str, password:str, group:str, db=Depends(get_db))->UserReturnModel:
+@app.post("/youth", tags=["users"], description="Create a new youth user",summary="Create youth user account.  Happens via parent medical form creation")
+def create_youth_account(username:str, password:str, group:str, db=Depends(DB.get_db))->UserReturnModel:
     cursor = db.cursor()
     user_id = guid()
     cursor.execute(
@@ -361,7 +289,7 @@ def create_youth_account(username:str, password:str, group:str, db=Depends(get_d
 
 
 @app.post("/users", tags=["users"], description="Create a new user", summary="Create new user with medical info")
-async def create_user(user_data: YouthPermissionSubmission, db=Depends(get_db)):
+async def create_user(user_data: YouthPermissionSubmission, db=Depends(DB.get_db)):
     cursor = db.cursor()
     sql = """
     INSERT INTO youth_medical 
@@ -386,7 +314,7 @@ async def create_user(user_data: YouthPermissionSubmission, db=Depends(get_db)):
 
 
 @app.get("/users/{youth_id}",tags=["users"],description="Get user by youth ID", summary="Retrieve user information")
-async def get_user(youth_id: str, db=Depends(get_db))->Union[YouthPermissionSubmission,dict]:
+async def get_user(youth_id: str, db=Depends(DB.get_db))->Union[YouthPermissionSubmission,dict]:
     cursor = db.cursor()
     cursor.execute(     
         "SELECT * FROM youth_medical WHERE youth_id = ?", (youth_id.lower(),)
@@ -413,7 +341,7 @@ async def get_user(youth_id: str, db=Depends(get_db))->Union[YouthPermissionSubm
 	
 	
 @app.delete("/users/{youth_id}",tags=["users"],description="Delete user by youth ID", summary="Delete user account")
-async def delete_user(youth_id: str,db=Depends(get_db)):
+async def delete_user(youth_id: str,db=Depends(DB.get_db)):
     cursor = db.cursor()
     cursor.execute(
         "DELETE FROM youth_medical WHERE youth_id = ?", (youth_id.lower(),)
@@ -426,7 +354,7 @@ async def delete_user(youth_id: str,db=Depends(get_db)):
 
 
 @app.put("/users/{youth_id}", tags=["users"], description="Update user by youth ID", summary="Update user information")
-async def update_user(youth_id: str, user_data: YouthPermissionSubmission, db=Depends(get_db))->Dict[str, str]:
+async def update_user(youth_id: str, user_data: YouthPermissionSubmission, db=Depends(DB.get_db))->Dict[str, str]:
     cursor = db.cursor()
     sql = """
     UPDATE youth_medical 
@@ -454,7 +382,7 @@ async def update_user(youth_id: str, user_data: YouthPermissionSubmission, db=De
     
 
 @app.get("/users-health", tags=["users"], description="Get health information of all users of an activity", summary="Retrieve health information for activity participants")
-async def get_users_health(request: Request, activity_id: str, user=Depends(require_role({"advisor", "admin", "ecc_admin"})), db=Depends(get_db))->List[MedicalInfo]:
+async def get_users_health(request: Request, activity_id: str, user=Depends(require_role({"advisor", "admin", "ecc_admin"})), db=Depends(DB.get_db))->List[MedicalInfo]:
     cursor = db.cursor()
     cursor.execute(
         "SELECT participants_youth_ids FROM activities WHERE activity_id = ?", (activity_id,)
@@ -491,7 +419,7 @@ async def get_users_health(request: Request, activity_id: str, user=Depends(requ
 
 
 @app.get("/users-emergency-contacts", tags=["users"], description="Get emergency contacts of all users of an activity", summary="Retrieve emergency contacts for activity participants")
-async def get_users_emergency_contacts(activity_id: str,  user=Depends(require_role({"advisor", "admin", "ecc_admin"})), db=Depends(get_db))->List[EmergencyContact]:
+async def get_users_emergency_contacts(activity_id: str,  user=Depends(require_role({"advisor", "admin", "ecc_admin"})), db=Depends(DB.get_db))->List[EmergencyContact]:
     cursor = db.cursor()
     cursor.execute(
         "SELECT participants_youth_ids FROM activities WHERE activity_id = ?", (activity_id,)
@@ -516,7 +444,7 @@ async def get_users_emergency_contacts(activity_id: str,  user=Depends(require_r
 ######  Interests and Concerns
 ######################################
 @app.post("/interest-survey", tags=["interest-survey"], description="Submit interest survey", summary="Submit youth interest survey")
-async def submit_interest_survey(data:InterestSurvey,db=Depends(get_db)):
+async def submit_interest_survey(data:InterestSurvey,db=Depends(DB.get_db)):
     cursor = db.cursor()
     # verify if user already has interests entered for this year and if so return error
     sql = "SELECT COUNT(*) FROM interest_survey WHERE youth_id = ? AND strftime('%Y', submitted_at) = strftime('%Y', 'now')"
@@ -543,7 +471,7 @@ async def submit_interest_survey(data:InterestSurvey,db=Depends(get_db)):
 
 
 @app.post("/interest-survey-reset", tags=["interest-survey"], description="Reset interest survey for youth", summary="Reset youth interest survey")
-async def reset_interest_survey(youth_id: str,db=Depends(get_db)):
+async def reset_interest_survey(youth_id: str,db=Depends(DB.get_db)):
     cursor = db.cursor()
     cursor.execute(
         "DELETE FROM interest_survey WHERE youth_id = ?", (youth_id,)
@@ -553,7 +481,7 @@ async def reset_interest_survey(youth_id: str,db=Depends(get_db)):
 
 
 @app.get("/interest-survey/{group}", tags=["interest-survey"], description="Get interest survey responses for a group", summary="Retrieve group interest surveys")
-async def get_interest_survey(group: str, db=Depends(get_db)):
+async def get_interest_survey(group: str, db=Depends(DB.get_db)):
     cursor = db.cursor()
     cursor.execute('SELECT interests FROM interest_survey WHERE "group" = ?', (group,))
     rows = cursor.fetchall()
@@ -561,7 +489,7 @@ async def get_interest_survey(group: str, db=Depends(get_db)):
 
 
 @app.get("/group-concerns/{group}", tags=["interest-survey"], description="Get concern survey responses for a group", summary="Retrieve group concern surveys")
-async def get_concern_survey(group: str, db=Depends(get_db)):
+async def get_concern_survey(group: str, db=Depends(DB.get_db)):
     cursor = db.cursor()
     cursor.execute('SELECT concerns FROM concern_survey WHERE "org_group" = ?', (group,))
     rows = cursor.fetchall()
@@ -570,7 +498,7 @@ async def get_concern_survey(group: str, db=Depends(get_db)):
 
 
 @app.post("/group-concerns", tags=["interest-survey"], description="Submit concern survey for a group", summary="Submit group concern survey")
-async def submit_concern_survey(data:ConcernSurvey, db=Depends(get_db)):
+async def submit_concern_survey(data:ConcernSurvey, db=Depends(DB.get_db)):
     cursor = db.cursor()
     sql = """
     INSERT INTO concern_survey (concerns, org_group, submitted_at)
@@ -593,7 +521,7 @@ async def submit_concern_survey(data:ConcernSurvey, db=Depends(get_db)):
 ##### create activity management endpoints
 #######################################
 @app.get("/group-participants/{group}", tags=["activities"], description="Get list of participants for a group", summary="List group participants")
-def list_group_participants(group:str, db=Depends(get_db))->list:
+def list_group_participants(group:str, db=Depends(DB.get_db))->list:
     # get list of user ids in the group
     cursor = db.cursor()
     cursor.execute(
@@ -604,7 +532,7 @@ def list_group_participants(group:str, db=Depends(get_db))->list:
 
 
 @app.post("/activities", tags=["activities"], description="Create a new activity", summary="Create new activity")
-async def create_activity(activity_data: Activity, db=Depends(get_db)):
+async def create_activity(activity_data: Activity, db=Depends(DB.get_db)):
     # fill in additional information
     coed = False
     if ("deacon"or "teacher"or"priest") and ("young women") in activity_data.groups:
@@ -661,7 +589,7 @@ async def create_activity(activity_data: Activity, db=Depends(get_db)):
 
 
 @app.get("/activities/{activity_id}", tags=["activities"], description="Get activity by ID", summary="Retrieve activity details")
-async def get_activity(activity_id: str, db=Depends(get_db))->Activity:
+async def get_activity(activity_id: str, db=Depends(DB.get_db))->Activity:
     cursor = db.cursor()
     cursor.execute(
         "SELECT data FROM activities WHERE activity_id = ?", (activity_id,)
@@ -674,7 +602,7 @@ async def get_activity(activity_id: str, db=Depends(get_db))->Activity:
 
 
 @app.delete("/activities/{activity_id}", tags=["activities"], description="Delete activity by ID", summary="Delete activity")
-async def delete_activity(activity_id: str, db=Depends(get_db)):
+async def delete_activity(activity_id: str, db=Depends(DB.get_db)):
     cursor = db.cursor()
     cursor.execute(
         "DELETE FROM activities WHERE activity_id = ?", (activity_id,)
@@ -683,8 +611,8 @@ async def delete_activity(activity_id: str, db=Depends(get_db)):
     return {"message": "Activity deleted successfully."}
 
 
-@app.put("/activities/{activity_id}", tags=["activities"], description="Update activity by ID", summary="Update activity details"))
-async def update_activity(activity_id: str, activity_data: Activity, db=Depends(get_db)):
+@app.put("/activities/{activity_id}", tags=["activities"], description="Update activity by ID", summary="Update activity details")
+async def update_activity(activity_id: str, activity_data: Activity, db=Depends(DB.get_db)):
     cursor = db.cursor()
     
     # Check if activity exists
@@ -746,7 +674,7 @@ async def update_activity(activity_id: str, activity_data: Activity, db=Depends(
 
 
 @app.get("/participants/{activity_id}", tags=["activities"], description="Get participants for activity by ID", summary="Retrieve activity participants")
-async def get_activity_participants(activity_id: str, db=Depends(get_db))->List[ActivityInvitees]:
+async def get_activity_participants(activity_id: str, db=Depends(DB.get_db))->List[ActivityInvitees]:
     cursor = db.cursor()
     cursor.execute(
         "SELECT activities.participants_youth_ids, youth.first_name, youth.last_name FROM activities INNER JOIN youth ON activities.participants_youth_ids = youth.youth_id WHERE activity_id = ?", (activity_id,)
@@ -773,7 +701,7 @@ async def get_activity_participants(activity_id: str, db=Depends(get_db))->List[
 
 
 @app.get("/group-membership/{group}", tags=["activities"], description="Get participants for a group", summary="Retrieve group membership")
-async def get_group_membership(group: str, db=Depends(get_db)):
+async def get_group_membership(group: str, db=Depends(DB.get_db)):
     cursor = db.cursor()
     cursor.execute(
         "SELECT participants_youth_ids FROM activities WHERE groups LIKE ?", (f"%{group}%",)
@@ -786,7 +714,7 @@ async def get_group_membership(group: str, db=Depends(get_db)):
 
 
 @app.get("/activities/permission-info/{activity_id}",tags=["activities"],description="Get permission info for activity by ID", summary="Retrieve activity permission information")
-async def get_activity_permission_info(activity_id: str, db=Depends(get_db))->ActivityBase:
+async def get_activity_permission_info(activity_id: str, db=Depends(DB.get_db))->ActivityBase:
     cursor = db.cursor()
     cursor.execute(
         "SELECT  activity_name, date_start, date_end, drivers, description, groups, requires_permission, location FROM activities WHERE activity_id = ?", (activity_id,)    
@@ -800,7 +728,7 @@ async def get_activity_permission_info(activity_id: str, db=Depends(get_db))->Ac
 
 
 @app.post("/activity-permissions", tags=["activity-permissions"], description="Assign permission to activity", summary="Record activity permission")
-async def assign_permission_to_activity(permission_data: PermissionGiven, db=Depends(get_db)):
+async def assign_permission_to_activity(permission_data: PermissionGiven, db=Depends(DB.get_db)):
     cursor = db.cursor()
 
     # Get the youth_id from youth_medical table using permission_code
@@ -831,7 +759,7 @@ async def assign_permission_to_activity(permission_data: PermissionGiven, db=Dep
 
 
 @app.get("/activity-groups", tags=["activities"], description="Get all group activities", summary="Retrieve group activities")
-def get_activity_groups(db=Depends(get_db),user=Depends(require_role({"advisor", "admin", "ecc_admin", "president"})))->List[ReturnGroupActivityList]:
+def get_activity_groups(db=Depends(DB.get_db),user=Depends(require_role({"advisor", "admin", "ecc_admin", "president"})))->List[ReturnGroupActivityList]:
     group = user.get("org_group")
     cursor = db.cursor()
     cursor.execute(
@@ -842,7 +770,7 @@ def get_activity_groups(db=Depends(get_db),user=Depends(require_role({"advisor",
 
 
 @app.get("/activity-health-reports/{activity_id}", tags=["activities"], description="Get health reports for activity by ID", summary="Retrieve activity health reports")
-def get_activity_health_reports(activity_id: str, db=Depends(get_db), users=Depends(require_role({"advisor", "admin", "ecc_admin", "president"})))->ActivityHealthReport:
+def get_activity_health_reports(activity_id: str, db=Depends(DB.get_db), users=Depends(require_role({"advisor", "admin", "ecc_admin", "president"})))->ActivityHealthReport:
     cursor = db.cursor()
     cursor.execute(
         "SELECT participants_youth_ids FROM activities WHERE activity_id = ?", (activity_id,)
@@ -881,7 +809,7 @@ def get_activity_health_reports(activity_id: str, db=Depends(get_db), users=Depe
 
 
 @app.get("/activities-all-parents", tags=["activities"], description="Get all activities with parent details", summary="Retrieve activities for parent")
-def get_all_activities_with_parents(parent_code:str = Query(..., description="Parent permission code"), db=Depends(get_db)):
+def get_all_activities_with_parents(parent_code:str = Query(..., description="Parent permission code"), db=Depends(DB.get_db)):
     cursor = db.cursor()
     cursor.execute(
         "SELECT activity_id, activity_name, date_start, date_end, drivers, description, groups, requires_permission FROM activities WHERE activity_id IN (SELECT activity_id FROM permission_given WHERE permission_code = ?)", (parent_code,)
@@ -894,7 +822,7 @@ def get_all_activities_with_parents(parent_code:str = Query(..., description="Pa
 
 
 @app.get("/activities-all", tags=["activities"], description="Get all activities", summary="Retrieve all activities")
-def get_all_activities(include_past: bool = Query(False, description="Include past activities"), db=Depends(get_db) )->Dict[str, List[ActivityBase]]:
+def get_all_activities(include_past: bool = Query(False, description="Include past activities"), db=Depends(DB.get_db) )->Dict[str, List[ActivityBase]]:
     cursor = db.cursor()
     if include_past:
         cursor.execute("SELECT activity_id, activity_name, date_start, date_end, drivers, description, groups FROM activities")
@@ -908,7 +836,7 @@ def get_all_activities(include_past: bool = Query(False, description="Include pa
 
 
 @app.get("/activities-pending-approval", tags=["activities"], description="Get all activities pending approval", summary="Retrieve pending activity approvals")
-def get_activities_pending_approval(db=Depends(get_db))->List[ActivityApprovals]:
+def get_activities_pending_approval(db=Depends(DB.get_db))->List[ActivityApprovals]:
     cursor = db.cursor()
     cursor.execute("SELECT activity_id, activity_name, date_start, date_end, bishop_approval INTEGER, bishop_approval_date, stake_approval, stake_approval_date, groups, requires_permission FROM activities WHERE requires_permission == 1 AND (bishop_approval IS NULL OR stake_approval IS NULL) AND start_time >= date('now')")
     rows = cursor.fetchall()
@@ -939,7 +867,7 @@ def get_activities_pending_approval(db=Depends(get_db))->List[ActivityApprovals]
 ## Ecclesiastical Activity Endpoints
 ####################################
 @app.post("/admin-users", tags=["admin-users","auth"], description="Create a new admin user", summary="Create admin user account")
-async def create_admin_user(user =  AdminUser, db=Depends(get_db)):
+async def create_admin_user(user =  AdminUser, db=Depends(DB.get_db)):
     cursor = db.cursor()
     cursor.execute(
         "UPDATE admin_users SET username = ?, password = ?, role = ? WHERE org_group = ?",
@@ -950,7 +878,7 @@ async def create_admin_user(user =  AdminUser, db=Depends(get_db)):
 
 
 @app.get("/login", tags=["admin-users","auth"], description="Admin user login", summary="Authenticate admin user")
-def login_func(username: str, password: str, db=Depends(get_db)):
+def login_func(username: str, password: str, db=Depends(DB.get_db)):
     cursor = db.cursor()
     cursor.execute(
         "SELECT role, org_group, username FROM admin_users WHERE username = ? AND password = ?",
@@ -983,7 +911,7 @@ def verify_login(token: str):
 
 
 @app.get("/activity-permission-ecclesiastical", tags=["admin-users","activities"], description="Get activity permission details for Bishop/Stake President", summary="Get ecclesiastical approvals")
-def get_activity_permission_ecclesiastical(is_bishop: bool = Query(..., description="Is the requester a bishop?"), is_stake_president: bool = Query(..., description="Is the requester a stake president"), db=Depends(get_db))->List[FullActivity]:
+def get_activity_permission_ecclesiastical(is_bishop: bool = Query(..., description="Is the requester a bishop?"), is_stake_president: bool = Query(..., description="Is the requester a stake president"), db=Depends(DB.get_db))->List[FullActivity]:
 # get a list of all activities needing ecclesiastical approval
     cursor = db.cursor()
     where_clause = ""
@@ -1008,7 +936,7 @@ def approve_activity_permission_ecclesiastical(
     activity_id: str = Path(..., description="The ID of the activity"),
     is_bishop: bool = Query(..., description="Is the requester a bishop?"),
     is_stake_president: bool = Query(..., description="Is the requester a stake president?"),
-    db=Depends(get_db),
+    db=Depends(DB.get_db),
 ):
     cursor = db.cursor()
     if is_bishop:
@@ -1033,7 +961,7 @@ def approve_activity_permission_ecclesiastical(
 )
 def sms_activity_permission(
     activity_id: str = Path(..., description="The ID of the activity"),
-    db=Depends(get_db),
+    db=Depends(DB.get_db),
 ):
     cursor = db.cursor()
     cursor.execute(
@@ -1059,7 +987,7 @@ def sms_activity_permission(
 )
 def email_activity_permission(
     activity_id: str = Path(..., description="The ID of the activity"),
-    db=Depends(get_db),
+    db=Depends(DB.get_db),
 ):
     cursor = db.cursor()
     cursor.execute(
@@ -1110,8 +1038,8 @@ def generate_qr(acivity_id: str = Query(..., description="The ID of the activity
     return Response(content=buf.getvalue(), media_type="image/png")
 
 
-@app.get("/activity-calendar",tags=["tools","activities"], description="Generate calendar invite for activity event", summary="Generate calendar invite for the activity"))
-def invite(activity_id: str = Query(..., description="The ID of the activity"), db=Depends(get_db)):
+@app.get("/activity-calendar",tags=["tools","activities"], description="Generate calendar invite for activity event", summary="Generate calendar invite for the activity")
+def invite(activity_id: str = Query(..., description="The ID of the activity"), db=Depends(DB.get_db)):
     cursor = db.cursor()
     cursor.execute(
         "SELECT  activity_name, date_start, date_end, drivers, description, groups FROM activities WHERE activity_id = ?", (activity_id,)    
@@ -1151,7 +1079,7 @@ def invite(activity_id: str = Query(..., description="The ID of the activity"), 
     ### Reconcile activity
     ##################
 @app.post("/activities/reconcile", tags=["activities"], description="Reconcile activities", summary="Reconcile activity details")
-async def reconcile_activities(data:FullActivity, db=Depends(get_db)):
+async def reconcile_activities(data:FullActivity, db=Depends(DB.get_db)):
     cursor = db.cursor()
 
     # Serialize complex fields as JSON
@@ -1197,7 +1125,7 @@ async def reconcile_activities(data:FullActivity, db=Depends(get_db)):
 
 
 @app.get("/activities/reconcile/{activity_id}", tags=["activities"], description="Get activity for reconciliation by ID", summary="Retrieve activity for reconciliation")
-def get_activity_for_reconciliation(activity_id: str, db=Depends(get_db))->FullActivity:
+def get_activity_for_reconciliation(activity_id: str, db=Depends(DB.get_db))->FullActivity:
     cursor = db.cursor()
     cursor.execute(
         "SELECT * FROM activities WHERE activity_id = ?", (activity_id,)
@@ -1210,7 +1138,7 @@ def get_activity_for_reconciliation(activity_id: str, db=Depends(get_db))->FullA
 
 
 @app.put("/activities/reconcile/{activity_id}", tags=["activities"], description="Update activity for reconciliation by ID", summary="Update reconciled activity")
-def update_activity_for_reconciliation(activity_id: str, data: FullActivity, db=Depends(get_db)):
+def update_activity_for_reconciliation(activity_id: str, data: FullActivity, db=Depends(DB.get_db)):
     cursor = db.cursor()
 
     # Serialize complex fields as JSON
@@ -1259,7 +1187,7 @@ def update_activity_for_reconciliation(activity_id: str, data: FullActivity, db=
     ##################
 
 @app.post("/goals", tags=["goals"], description="Set personal goal", summary="Create personal goal")
-def set_personal_goal(data: PersonalGoal, db=Depends(get_db), user=Depends(require_role("youth"))):
+def set_personal_goal(data: PersonalGoal, db=Depends(DB.get_db), user=Depends(require_role("youth"))):
     cursor = db.cursor()
     cursor.execute(
         """INSERT INTO personal_goals (youth_id, goal_area, goal_name, goal_description,  target_date, status, progress_notes, visibility_level)
@@ -1279,7 +1207,7 @@ def set_personal_goal(data: PersonalGoal, db=Depends(get_db), user=Depends(requi
     return {"message": "Personal goal set successfully."}
 
 @app.get("/goals/{youth_id}", tags=["goals"], description="Get personal goals for youth", summary="Retrieve youth personal goals")
-def get_personal_goals(youth_id: str, db=Depends(get_db), user=Depends(require_role("youth")))->List[PersonalGoal]:
+def get_personal_goals(youth_id: str, db=Depends(DB.get_db), user=Depends(require_role("youth")))->List[PersonalGoal]:
     cursor = db.cursor()
     cursor.execute(
         "SELECT youth_id, goal_area, goal_name, goal_description, target_date, status, progress_notes, completed, visibility_level FROM personal_goals WHERE youth_id = ? group by goal_area", (youth_id,)
@@ -1303,8 +1231,8 @@ def get_personal_goals(youth_id: str, db=Depends(get_db), user=Depends(require_r
     return goals
 
 
-@app.put("/goals/{youth_id}/{goal_name}", tags=["goals"], description="Update personal goal for youth", summary="Update personal goal"))
-def update_personal_goal(youth_id: str, goal_name: str, data: PersonalGoal, db=Depends(get_db), user=Depends(require_role("youth"))):
+@app.put("/goals/{youth_id}/{goal_name}", tags=["goals"], description="Update personal goal for youth", summary="Update personal goal")
+def update_personal_goal(youth_id: str, goal_name: str, data: PersonalGoal, db=Depends(DB.get_db), user=Depends(require_role("youth"))):
     cursor = db.cursor()
     cursor.execute(
         """UPDATE personal_goals 
@@ -1327,6 +1255,39 @@ def update_personal_goal(youth_id: str, goal_name: str, data: PersonalGoal, db=D
         return {"message": "Personal goal updated successfully."}
     else:
         return {"message": "Personal goal not found."}
+
+
+@app.get("/goal-view", tags=["goals"], description="View goals", summary="Allows viewing of goals based on visibility level")
+def view_youth_goals(db=Depends(DB.get_db), user=Depends(require_role("all")))->List[PersonalGoal]:
+    cursor = db.cursor()
+    if user.role =="ecc_admin":
+        where_clause = " WHERE visibility_level IN ('public','ecclesiastical') "
+    elif user.role =="advisor":
+        where_clause = " WHERE visibility_level IN ('public','advisor') "
+    elif user.role == "youth": #TODO change so only show goals of same group
+        where_clause = " WHERE visibility_level IN ('public','group') AND group_"
+    elif user.role == "parent":
+        where_clause = " WHERE visibility_level IN ('public','parent') AND youth_id IN (SELECT youth_id FROM youth_parent WHERE parent_code = ? )"
+    cursor.execute(
+        "SELECT youth_id, goal_area, goal_name, goal_description, target_date, status, progress_notes, completed, visibility_level FROM personal_goals GROUP BY goal_area " + where_clause
+    )
+    rows = cursor.fetchall()
+    goals = []
+    for row in rows:
+        progress_notes = json.loads(row["progress_notes"]) if row["progress_notes"] else None
+        goal = PersonalGoal(
+            youth_id=row["youth_id"],
+            goal_area=row["goal_area"],
+            goal_name=row["goal_name"],
+            goal_description=row["goal_description"],
+            target_date=row["target_date"],
+            status=row["status"],
+            progress_notes=progress_notes,
+            completed=bool(row["completed"]),
+            visibility_level=row["visibility_level"]
+        )
+        goals.append(goal)
+    return goals
 
 # if __name__ == "__main__":
 # 	import uvicorn
