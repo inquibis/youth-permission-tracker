@@ -19,3 +19,35 @@ Dockerfile
 * db outside so peristent
 * host web
 * host api
+
+texting can be all (bishop)
+text only those who haven't said yes to an activity
+
+if parent multi kids make sure approval is per (select youth in drop down)
+
+goals
+* set visibility level on each goal
+
+need new page to be able to view goals
+based on token group(s) and role(s) it will show goals group by group first, and then by user and then by category
+
+if role is youth can only view personal and group
+if role is advisor can only view group
+if role is parent can only see children
+if role is bishopric can view groups
+
+
+links:
+church safety resource site
+activity ideas (Church)
+activity planning/leadership training resources
+
+main page
+menu visibility changes based on role
+create admin gives role to an existing end-user
+bishopric can perform any function
+
+allow non sqlite db backend
+find costs on hosting options
+
+talk to Stake on the domain
