@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Activity Lookup</title>
+  <link rel="stylesheet" href="scripts/styles.css">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    h1 {
+      margin-bottom: 20px;
+    }
+    label {
+      display: inline-block;
+      margin: 10px 0 5px;
+      font-weight: bold;
+    }
+    select, input {
+      padding: 8px;
+      margin-bottom: 15px;
+      display: block;
+      width: 250px;
+      max-width: 100%;
+    }
+    button {
+      padding: 8px 14px;
+      border: none;
+      background: #3498db;
+      color: white;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #2980b9;
+    }
+    table {
+      margin-top: 20px;
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: left;
+    }
+    th {
+      background: #f2f2f2;
+    }
+    .link-btn {
+      background: #2ecc71;
+      padding: 4px 8px;
+      color: white;
+      border-radius: 4px;
+      text-decoration: none;
+      font-size: 13px;
+    }
+    .link-btn:hover {
+      background: #27ae60;
+    }
+  </style>
+</head>
+<body>
+  <div id="navbar-placeholder"></div>
+
+  <h1>Activity Lookup</h1>
+  <form id="lookup-form">
+    <label for="group">Group</label>
+    <select id="group" required>
+      <option value="">-- Select Group --</option>
+      <option value="Deacon">Deacon</option>
+      <option value="Teacher">Teacher</option>
+      <option value="Priest">Priest</option>
+      <option value="Young Man">Young Man</option>
+      <option value="Young Woman">Young Woman</option>
+      <option value="Young Woman-younger">Young Woman-younger</option>
+      <option value="Young Woman-older">Young Woman-older</option>
+    </select>
+
+    <label for="year">Year (optional)</label>
+    <input type="number" id="year" placeholder="e.g. 2025">
+
+    <button type="submit">Search</button>
+  </form>
+
+  <div id="results"></div>
+
+  <script type="module">
+    import { loadNavbar } from "./scripts/navbar.js";
+    import { getAllActivities } from "./scripts/api.js";
+
+    loadNavbar();
+
+    const form = document.getElementById("lookup-form");
+    const resultsDiv = document.getElementById("results");
+
+    form.addEventListener("submit", e => {
+      e.preventDefault();
+      const group = document.getElementById("group").value;
+      const year = document.getElementById("year").value;
+
+      if (!group) {
+        alert("Please select a group.");
+        return;
+      }
+
+      resultsDiv.innerHTML = "<p>Loading...</p>";
+
+      // Get all activities (API in prod, example JSON in test)
+      getAllActivities()
+        .then(data => {
+          resultsDiv.innerHTML = "";
+
+          // Normalize activities to {id, name, groups, date_start, date_end}
+          const activities = (data || []).map(a => ({
+            id: a.id || a.activity_id || a.activityId,
+            name: a.activity_name || a.name || a.activity,
+            groups: a.groups || [],
+            year: a.date_start ? new Date(a.date_start).getFullYear() : null
+          }));
+
+          // Filter by group + optional year
+          let filtered = activities.filter(a =>
+            a.groups.includes(group) || a.name.toLowerCase().includes(group.toLowerCase())
+          );
+          if (year) {
+            filtered = filtered.filter(a => a.year == year);
+          }
+
+          if (filtered.length === 0) {
+            resultsDiv.innerHTML = "<p>No activities found.</p>";
+            return;
+          }
+
+          const table = document.createElement("table");
+          const thead = document.createElement("thead");
+          thead.innerHTML = "<tr><th>Activity Name</th><th>Activity ID</th><th>Year</th><th>Action</th></tr>";
+          table.appendChild(thead);
+
+          const tbody = document.createElement("tbody");
+          filtered.forEach(act => {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+              <td>${act.name}</td>
+              <td>${act.id}</td>
+              <td>${act.year || "N/A"}</td>
+              <td><a class="link-btn" href="activity-review.html?activity_id=${act.id}">View Review</a></td>
+            `;
+            tbody.appendChild(tr);
+          });
+          table.appendChild(tbody);
+
+          resultsDiv.appendChild(table);
+        })
+        .catch(err => {
+          console.error(err);
+          resultsDiv.innerHTML = "<p>Error fetching activities.</p>";
+        });
+    });
+  </script>
+</body>
+</html>

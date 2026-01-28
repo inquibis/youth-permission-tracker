@@ -77,7 +77,7 @@ def main() -> int:
         sys.executable,
         "-m",
         "uvicorn",
-        "api_base.main:app",
+        "main:app",
         "--reload",
         "--host",
         args.bind,
