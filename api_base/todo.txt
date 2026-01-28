@@ -25,6 +25,8 @@ text only those who haven't said yes to an activity
 
 if parent multi kids make sure approval is per (select youth in drop down)
 
+load activities into a google calendar
+
 goals
 * set visibility level on each goal
 
