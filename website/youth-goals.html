@@ -471,6 +471,17 @@
                                 <option value="completed">Completed</option>
                             </select>
                         </div>
+                        <div class="form-group">
+                            <label>Visibility:</label>
+                            <select id="goal-visibility" required>
+                                <option value="private">Private (Only Me)</option>
+                                <option value="parents">Parents/Guardians</option>
+                                <option value="group">Quorum/class members</option>
+                                <option value="group_leaders">Quorum/class advisors</option>
+                                <option value="bishopric">Bishopric</option>
+                                <option value="public">Everyone</option>
+                            </select>
+                        </div>
                         <div class="form-actions">
                             <button type="button" class="btn btn-secondary" onclick="closeGoalDetails()">Cancel</button>
                             <button type="submit" class="btn btn-primary">Save Goal</button>
@@ -611,6 +622,7 @@
                 document.getElementById('goal-description').value = goal.description;
                 document.getElementById('goal-target-date').value = goal.target_date;
                 document.getElementById('goal-status').value = goal.status;
+                document.getElementById('goal-visibility').value = goal.visibility_level || 'private';
                 document.getElementById('goal-details-container').style.display = 'block';
                 document.getElementById('goal-form').onsubmit = updateGoal;
             }
@@ -641,7 +653,8 @@
                 category: document.getElementById('goal-category').value,
                 description: document.getElementById('goal-description').value,
                 target_date: document.getElementById('goal-target-date').value,
-                status: document.getElementById('goal-status').value
+                status: document.getElementById('goal-status').value,
+                visibility_level: document.getElementById('goal-visibility').value
             };
 
             try {
@@ -693,7 +706,8 @@
                 category: document.getElementById('goal-category').value,
                 description: document.getElementById('goal-description').value,
                 target_date: document.getElementById('goal-target-date').value,
-                status: document.getElementById('goal-status').value
+                status: document.getElementById('goal-status').value,
+                visibility_level: document.getElementById('goal-visibility').value
             };
 
             try {

@@ -7,6 +7,9 @@ twilio
 dotenv
 python-multipart
 
+# Database engine
+psycopg2
+
 # QR code generation
 qrcode[pil]
 pillow
