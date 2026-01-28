@@ -232,7 +232,7 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
 ### API Endpoints
 #############################################################################################################
 
-@app.get("/")
+@app.get("/", description="Root endpoint", summary="Get API root and visit count")
 async def read_root(db=Depends(get_db))->dict:
 	db.execute("INSERT INTO visits (created_at) VALUES (datetime('now'))")
 	db.commit()
@@ -241,8 +241,8 @@ async def read_root(db=Depends(get_db))->dict:
 	return {"message": "Hello, world!", "visits": count}
 
 
-@app.get("/health", tags=["health"])
-async def health(db=Depends(get_db))->dict:    
+@app.get("/health", tags=["health"], description="Health check endpoint", summary="Check API health status")
+async def health(db=Depends(get_db))->dict:
     db.execute("SELECT 1")
     return {"status": "ok"}
 
@@ -250,7 +250,7 @@ async def health(db=Depends(get_db))->dict:
 #####################################
 ##### User Management Endpoints #####
 #####################################
-@app.post("/token", tags=["auth"])
+@app.post("/token", tags=["auth"], description="Authenticate admin user and get JWT token", summary="Login for access token")
 def login_for_access_token(
     request: Request,
     form_data: OAuth2PasswordRequestForm = fastapiDepends(),
@@ -295,7 +295,7 @@ def login_for_access_token(
     return {"access_token": access_token, "token_type": "bearer"}
 
 
-@app.get("/login", tags=["admin-users"], description="Admin user login")
+@app.get("/login", tags=["admin-users","auth"], description="Admin user login", summary="Authenticate admin user")
 def login(request:Request, username: str, password: str, db=Depends(get_db)):
     cursor = db.cursor()
     if os.getenv("ENV", "test").lower() == "test":
@@ -341,11 +341,13 @@ def login(request:Request, username: str, password: str, db=Depends(get_db)):
     else:
         return {"message": "Invalid credentials"}
 
+
 def guid():
     """Generate a unique GUID/UUID string"""
     return str(uuid.uuid4())
     
-@app.post("/youth", tags=["users"], description="Create a new youth user")
+
+@app.post("/youth", tags=["users"], description="Create a new youth user",summary="Create youth user account.  Happens via parent medical form creation"))
 def create_youth_account(username:str, password:str, group:str, db=Depends(get_db))->UserReturnModel:
     cursor = db.cursor()
     user_id = guid()
@@ -358,7 +360,7 @@ def create_youth_account(username:str, password:str, group:str, db=Depends(get_d
     return UserReturnModel(user_id=user_id)
 
 
-@app.post("/users", tags=["users"], description="Create a new user")
+@app.post("/users", tags=["users"], description="Create a new user", summary="Create new user with medical info")
 async def create_user(user_data: YouthPermissionSubmission, db=Depends(get_db)):
     cursor = db.cursor()
     sql = """
@@ -383,7 +385,7 @@ async def create_user(user_data: YouthPermissionSubmission, db=Depends(get_db)):
     return {"message": "User created successfully."}
 
 
-@app.get("/users/{youth_id}",tags=["users"],description="Get user by youth ID")
+@app.get("/users/{youth_id}",tags=["users"],description="Get user by youth ID", summary="Retrieve user information")
 async def get_user(youth_id: str, db=Depends(get_db))->Union[YouthPermissionSubmission,dict]:
     cursor = db.cursor()
     cursor.execute(     
@@ -410,7 +412,7 @@ async def get_user(youth_id: str, db=Depends(get_db))->Union[YouthPermissionSubm
         return {"message": "User not found."}
 	
 	
-@app.delete("/users/{youth_id}",tags=["users"],description="Delete user by youth ID")
+@app.delete("/users/{youth_id}",tags=["users"],description="Delete user by youth ID", summary="Delete user account")
 async def delete_user(youth_id: str,db=Depends(get_db)):
     cursor = db.cursor()
     cursor.execute(
@@ -420,10 +422,10 @@ async def delete_user(youth_id: str,db=Depends(get_db)):
     if cursor.rowcount > 0:
         return {"message": "User deleted successfully."}
     else:
-        return {"message": "User not found."}   
+        return {"message": "User not found."}
 
 
-@app.put("/users/{youth_id}", tags=["users"], description="Update user by youth ID")
+@app.put("/users/{youth_id}", tags=["users"], description="Update user by youth ID", summary="Update user information")
 async def update_user(youth_id: str, user_data: YouthPermissionSubmission, db=Depends(get_db))->Dict[str, str]:
     cursor = db.cursor()
     sql = """
@@ -451,7 +453,7 @@ async def update_user(youth_id: str, user_data: YouthPermissionSubmission, db=De
         return {"message": "User not found."}
     
 
-@app.get("/users-health", tags=["users"], description="Get health information of all users of an activity")
+@app.get("/users-health", tags=["users"], description="Get health information of all users of an activity", summary="Retrieve health information for activity participants")
 async def get_users_health(request: Request, activity_id: str, user=Depends(require_role({"advisor", "admin", "ecc_admin"})), db=Depends(get_db))->List[MedicalInfo]:
     cursor = db.cursor()
     cursor.execute(
@@ -488,7 +490,7 @@ async def get_users_health(request: Request, activity_id: str, user=Depends(requ
     return medical_infos
 
 
-@app.get("/users-emergency-contacts", tags=["users"], description="Get emergency contacts of all users of an activity")
+@app.get("/users-emergency-contacts", tags=["users"], description="Get emergency contacts of all users of an activity", summary="Retrieve emergency contacts for activity participants")
 async def get_users_emergency_contacts(activity_id: str,  user=Depends(require_role({"advisor", "admin", "ecc_admin"})), db=Depends(get_db))->List[EmergencyContact]:
     cursor = db.cursor()
     cursor.execute(
@@ -513,7 +515,7 @@ async def get_users_emergency_contacts(activity_id: str,  user=Depends(require_r
 #######################################
 ######  Interests and Concerns
 ######################################
-@app.post("/interest-survey", tags=["interest-survey"], description="Submit interest survey")
+@app.post("/interest-survey", tags=["interest-survey"], description="Submit interest survey", summary="Submit youth interest survey")
 async def submit_interest_survey(data:InterestSurvey,db=Depends(get_db)):
     cursor = db.cursor()
     # verify if user already has interests entered for this year and if so return error
@@ -540,7 +542,7 @@ async def submit_interest_survey(data:InterestSurvey,db=Depends(get_db)):
     return {"message": "Interest survey submitted successfully."}
 
 
-@app.post("/interest-survey-reset", tags=["interest-survey"], description="Reset interest survey for youth")
+@app.post("/interest-survey-reset", tags=["interest-survey"], description="Reset interest survey for youth", summary="Reset youth interest survey")
 async def reset_interest_survey(youth_id: str,db=Depends(get_db)):
     cursor = db.cursor()
     cursor.execute(
@@ -550,7 +552,7 @@ async def reset_interest_survey(youth_id: str,db=Depends(get_db)):
     return {"message": "Interest survey reset successfully."}
 
 
-@app.get("/interest-survey/{group}", tags=["interest-survey"])
+@app.get("/interest-survey/{group}", tags=["interest-survey"], description="Get interest survey responses for a group", summary="Retrieve group interest surveys")
 async def get_interest_survey(group: str, db=Depends(get_db)):
     cursor = db.cursor()
     cursor.execute('SELECT interests FROM interest_survey WHERE "group" = ?', (group,))
@@ -558,7 +560,7 @@ async def get_interest_survey(group: str, db=Depends(get_db)):
     return [json.loads(r[0]) for r in rows]
 
 
-@app.get("/group-concerns/{group}", tags=["interest-survey"])
+@app.get("/group-concerns/{group}", tags=["interest-survey"], description="Get concern survey responses for a group", summary="Retrieve group concern surveys")
 async def get_concern_survey(group: str, db=Depends(get_db)):
     cursor = db.cursor()
     cursor.execute('SELECT concerns FROM concern_survey WHERE "org_group" = ?', (group,))
@@ -567,7 +569,7 @@ async def get_concern_survey(group: str, db=Depends(get_db)):
 
 
 
-@app.post("/group-concerns", tags=["interest-survey"], description="Submit concern survey for a group")
+@app.post("/group-concerns", tags=["interest-survey"], description="Submit concern survey for a group", summary="Submit group concern survey")
 async def submit_concern_survey(data:ConcernSurvey, db=Depends(get_db)):
     cursor = db.cursor()
     sql = """
@@ -590,7 +592,7 @@ async def submit_concern_survey(data:ConcernSurvey, db=Depends(get_db)):
 #######################################
 ##### create activity management endpoints
 #######################################
-@app.get("/group-participants/{group}", tags=["activities"], description="Get list of participants for a group")
+@app.get("/group-participants/{group}", tags=["activities"], description="Get list of participants for a group", summary="List group participants")
 def list_group_participants(group:str, db=Depends(get_db))->list:
     # get list of user ids in the group
     cursor = db.cursor()
@@ -601,7 +603,7 @@ def list_group_participants(group:str, db=Depends(get_db))->list:
     return rows
 
 
-@app.post("/activities", tags=["activities"], description="Create a new activity")
+@app.post("/activities", tags=["activities"], description="Create a new activity", summary="Create new activity")
 async def create_activity(activity_data: Activity, db=Depends(get_db)):
     # fill in additional information
     coed = False
@@ -658,7 +660,7 @@ async def create_activity(activity_data: Activity, db=Depends(get_db)):
     return {"message": "Activity created successfully.", "activity_id": activity_id}
 
 
-@app.get("/activities/{activity_id}", tags=["activities"], description="Get activity by ID")
+@app.get("/activities/{activity_id}", tags=["activities"], description="Get activity by ID", summary="Retrieve activity details")
 async def get_activity(activity_id: str, db=Depends(get_db))->Activity:
     cursor = db.cursor()
     cursor.execute(
@@ -671,7 +673,7 @@ async def get_activity(activity_id: str, db=Depends(get_db))->Activity:
         return {"message": "Activity not found."}
 
 
-@app.delete("/activities/{activity_id}", tags=["activities"], description="Delete activity by ID")
+@app.delete("/activities/{activity_id}", tags=["activities"], description="Delete activity by ID", summary="Delete activity")
 async def delete_activity(activity_id: str, db=Depends(get_db)):
     cursor = db.cursor()
     cursor.execute(
@@ -681,7 +683,7 @@ async def delete_activity(activity_id: str, db=Depends(get_db)):
     return {"message": "Activity deleted successfully."}
 
 
-@app.put("/activities/{activity_id}", tags=["activities"], description="Update activity by ID")
+@app.put("/activities/{activity_id}", tags=["activities"], description="Update activity by ID", summary="Update activity details"))
 async def update_activity(activity_id: str, activity_data: Activity, db=Depends(get_db)):
     cursor = db.cursor()
     
@@ -743,7 +745,7 @@ async def update_activity(activity_id: str, activity_data: Activity, db=Depends(
 
 
 
-@app.get("/participants/{activity_id}", tags=["activities"], description="Get participants for activity by ID")
+@app.get("/participants/{activity_id}", tags=["activities"], description="Get participants for activity by ID", summary="Retrieve activity participants")
 async def get_activity_participants(activity_id: str, db=Depends(get_db))->List[ActivityInvitees]:
     cursor = db.cursor()
     cursor.execute(
@@ -770,7 +772,7 @@ async def get_activity_participants(activity_id: str, db=Depends(get_db))->List[
         return {"message": "Activity not found."}
 
 
-@app.get("/group-membership/{group}", tags=["activities"], description="Get participants for a group")
+@app.get("/group-membership/{group}", tags=["activities"], description="Get participants for a group", summary="Retrieve group membership")
 async def get_group_membership(group: str, db=Depends(get_db)):
     cursor = db.cursor()
     cursor.execute(
@@ -783,7 +785,7 @@ async def get_group_membership(group: str, db=Depends(get_db)):
     return {"participants": all_participants}
 
 
-@app.get("/activities/permission-info/{activity_id}",tags=["activities"],description="Get permission info for activity by ID")
+@app.get("/activities/permission-info/{activity_id}",tags=["activities"],description="Get permission info for activity by ID", summary="Retrieve activity permission information")
 async def get_activity_permission_info(activity_id: str, db=Depends(get_db))->ActivityBase:
     cursor = db.cursor()
     cursor.execute(
@@ -797,7 +799,7 @@ async def get_activity_permission_info(activity_id: str, db=Depends(get_db))->Ac
         return {"message": "Activity not found."}
 
 
-@app.post("/activity-permissions", tags=["activity-permissions"], description="Assign permission to activity")
+@app.post("/activity-permissions", tags=["activity-permissions"], description="Assign permission to activity", summary="Record activity permission")
 async def assign_permission_to_activity(permission_data: PermissionGiven, db=Depends(get_db)):
     cursor = db.cursor()
 
@@ -828,7 +830,7 @@ async def assign_permission_to_activity(permission_data: PermissionGiven, db=Dep
     return {"message": "Permission to attend activity recorded.", "youth_id": youth_id}
 
 
-@app.get("/activity-groups", tags=["activities"], description="Get all group activities")
+@app.get("/activity-groups", tags=["activities"], description="Get all group activities", summary="Retrieve group activities")
 def get_activity_groups(db=Depends(get_db),user=Depends(require_role({"advisor", "admin", "ecc_admin", "president"})))->List[ReturnGroupActivityList]:
     group = user.get("org_group")
     cursor = db.cursor()
@@ -839,7 +841,7 @@ def get_activity_groups(db=Depends(get_db),user=Depends(require_role({"advisor",
     return [ReturnGroupActivityList(**row) for row in rows]
 
 
-@app.get("/activity-health-reports/{activity_id}", tags=["activities"], description="Get health reports for activity by ID")
+@app.get("/activity-health-reports/{activity_id}", tags=["activities"], description="Get health reports for activity by ID", summary="Retrieve activity health reports")
 def get_activity_health_reports(activity_id: str, db=Depends(get_db), users=Depends(require_role({"advisor", "admin", "ecc_admin", "president"})))->ActivityHealthReport:
     cursor = db.cursor()
     cursor.execute(
@@ -878,7 +880,7 @@ def get_activity_health_reports(activity_id: str, db=Depends(get_db), users=Depe
     )
 
 
-@app.get("/activities-all-parents", tags=["activities"], description="Get all activities with parent details")
+@app.get("/activities-all-parents", tags=["activities"], description="Get all activities with parent details", summary="Retrieve activities for parent")
 def get_all_activities_with_parents(parent_code:str = Query(..., description="Parent permission code"), db=Depends(get_db)):
     cursor = db.cursor()
     cursor.execute(
@@ -891,7 +893,7 @@ def get_all_activities_with_parents(parent_code:str = Query(..., description="Pa
     return {"activities": activities}
 
 
-@app.get("/activities-all", tags=["activities"], description="Get all activities")
+@app.get("/activities-all", tags=["activities"], description="Get all activities", summary="Retrieve all activities")
 def get_all_activities(include_past: bool = Query(False, description="Include past activities"), db=Depends(get_db) )->Dict[str, List[ActivityBase]]:
     cursor = db.cursor()
     if include_past:
@@ -905,7 +907,7 @@ def get_all_activities(include_past: bool = Query(False, description="Include pa
     return {"activities": activities}
 
 
-@app.get("/activities-pending-approval", tags=["activities"], description="Get all activities pending approval")
+@app.get("/activities-pending-approval", tags=["activities"], description="Get all activities pending approval", summary="Retrieve pending activity approvals")
 def get_activities_pending_approval(db=Depends(get_db))->List[ActivityApprovals]:
     cursor = db.cursor()
     cursor.execute("SELECT activity_id, activity_name, date_start, date_end, bishop_approval INTEGER, bishop_approval_date, stake_approval, stake_approval_date, groups, requires_permission FROM activities WHERE requires_permission == 1 AND (bishop_approval IS NULL OR stake_approval IS NULL) AND start_time >= date('now')")
@@ -936,7 +938,7 @@ def get_activities_pending_approval(db=Depends(get_db))->List[ActivityApprovals]
 ####################################
 ## Ecclesiastical Activity Endpoints
 ####################################
-@app.post("/admin-users", tags=["admin-users"], description="Create a new admin user")
+@app.post("/admin-users", tags=["admin-users","auth"], description="Create a new admin user", summary="Create admin user account")
 async def create_admin_user(user =  AdminUser, db=Depends(get_db)):
     cursor = db.cursor()
     cursor.execute(
@@ -947,7 +949,7 @@ async def create_admin_user(user =  AdminUser, db=Depends(get_db)):
     return {"message": "Admin user created successfully."}
 
 
-@app.get("/login", tags=["admin-users"], description="Admin user login")
+@app.get("/login", tags=["admin-users","auth"], description="Admin user login", summary="Authenticate admin user")
 def login_func(username: str, password: str, db=Depends(get_db)):
     cursor = db.cursor()
     cursor.execute(
@@ -971,7 +973,7 @@ def login_func(username: str, password: str, db=Depends(get_db)):
         return {"message": "Invalid credentials"}
 
 
-@app.post("/login-verify", tags=["admin-users"], description="Verify admin user token")
+@app.post("/login-verify", tags=["admin-users","auth"], description="Verify admin user token", summary="Verify authentication token")
 def verify_login(token: str):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
@@ -980,7 +982,7 @@ def verify_login(token: str):
         return {"message": "Invalid token"}
 
 
-@app.get("/activity-permission-ecclesiastical", summary="Get activity permission details for Bishop/Stake President")
+@app.get("/activity-permission-ecclesiastical", tags=["admin-users","activities"], description="Get activity permission details for Bishop/Stake President", summary="Get ecclesiastical approvals")
 def get_activity_permission_ecclesiastical(is_bishop: bool = Query(..., description="Is the requester a bishop?"), is_stake_president: bool = Query(..., description="Is the requester a stake president"), db=Depends(get_db))->List[FullActivity]:
 # get a list of all activities needing ecclesiastical approval
     cursor = db.cursor()
@@ -998,7 +1000,9 @@ def get_activity_permission_ecclesiastical(is_bishop: bool = Query(..., descript
 
 @app.post(
     "/activity-permission-ecclesiastical/{activity_id}/approve",
-    summary="Approve activity permission for Bishop/Stake President",
+    tags=["admin-users","activities"],
+    description="Approve activity permission for Bishop/Stake President",
+    summary="Approve activity permission"
 )
 def approve_activity_permission_ecclesiastical(
     activity_id: str = Path(..., description="The ID of the activity"),
@@ -1023,7 +1027,9 @@ def approve_activity_permission_ecclesiastical(
 
 @app.get(
     "/sms-activity-permission/{activity_id}",
-    summary="Generate SMS content for activity permission",
+    tags=["tools","activities"],
+    description="Generate SMS content for activity permission",
+    summary="Generate SMS message for activity permission request"
 )
 def sms_activity_permission(
     activity_id: str = Path(..., description="The ID of the activity"),
@@ -1047,7 +1053,9 @@ def sms_activity_permission(
 
 @app.get(
     "/email-activity-permission/{activity_id}",
-    summary="Generate email content for activity permission",
+    tags=["tools","activities"],
+    description="Generate email content for activity permission",
+    summary="Generate email message for activity permission request"
 )
 def email_activity_permission(
     activity_id: str = Path(..., description="The ID of the activity"),
@@ -1088,7 +1096,7 @@ def email_activity_permission(
     return {"email_content": email_content}
 
 
-@app.get("/activity-qrcode", summary="Generate QR for the activity")
+@app.get("/activity-qrcode", tags=["tools","activities"], description="Generate QR code for activity permission link", summary="Generate QR for the activity")
 def generate_qr(acivity_id: str = Query(..., description="The ID of the activity")):
     qr = qrcode.QRCode(box_size=10, border=4)
     base_url = os.getenv("BASE_URL", "http://localhost:8000")
@@ -1102,7 +1110,7 @@ def generate_qr(acivity_id: str = Query(..., description="The ID of the activity
     return Response(content=buf.getvalue(), media_type="image/png")
 
 
-@app.get("/activity-calendar", summary="Generate calendar invite for the activity")
+@app.get("/activity-calendar",tags=["tools","activities"], description="Generate calendar invite for activity event", summary="Generate calendar invite for the activity"))
 def invite(activity_id: str = Query(..., description="The ID of the activity"), db=Depends(get_db)):
     cursor = db.cursor()
     cursor.execute(
@@ -1142,7 +1150,7 @@ def invite(activity_id: str = Query(..., description="The ID of the activity"), 
     ##################
     ### Reconcile activity
     ##################
-@app.post("/activities/reconcile", tags=["activities"], description="Reconcile activities")
+@app.post("/activities/reconcile", tags=["activities"], description="Reconcile activities", summary="Reconcile activity details")
 async def reconcile_activities(data:FullActivity, db=Depends(get_db)):
     cursor = db.cursor()
 
@@ -1188,7 +1196,7 @@ async def reconcile_activities(data:FullActivity, db=Depends(get_db)):
         return {"message": "Activity not found."}
 
 
-@app.get("/activities/reconcile/{activity_id}", tags=["activities"], description="Get activity for reconciliation by ID")
+@app.get("/activities/reconcile/{activity_id}", tags=["activities"], description="Get activity for reconciliation by ID", summary="Retrieve activity for reconciliation")
 def get_activity_for_reconciliation(activity_id: str, db=Depends(get_db))->FullActivity:
     cursor = db.cursor()
     cursor.execute(
@@ -1201,7 +1209,7 @@ def get_activity_for_reconciliation(activity_id: str, db=Depends(get_db))->FullA
     return activity_data
 
 
-@app.put("/activities/reconcile/{activity_id}", tags=["activities"], description="Update activity for reconciliation by ID")
+@app.put("/activities/reconcile/{activity_id}", tags=["activities"], description="Update activity for reconciliation by ID", summary="Update reconciled activity")
 def update_activity_for_reconciliation(activity_id: str, data: FullActivity, db=Depends(get_db)):
     cursor = db.cursor()
 
@@ -1250,7 +1258,7 @@ def update_activity_for_reconciliation(activity_id: str, data: FullActivity, db=
     ### Reconcile activity
     ##################
 
-@app.post("/goals", tags=["goals"], description="Set personal goal")
+@app.post("/goals", tags=["goals"], description="Set personal goal", summary="Create personal goal")
 def set_personal_goal(data: PersonalGoal, db=Depends(get_db), user=Depends(require_role("youth"))):
     cursor = db.cursor()
     cursor.execute(
@@ -1269,7 +1277,7 @@ def set_personal_goal(data: PersonalGoal, db=Depends(get_db), user=Depends(requi
     db.commit()
     return {"message": "Personal goal set successfully."}
 
-@app.get("/goals/{youth_id}", tags=["goals"], description="Get personal goals for youth")
+@app.get("/goals/{youth_id}", tags=["goals"], description="Get personal goals for youth", summary="Retrieve youth personal goals")
 def get_personal_goals(youth_id: str, db=Depends(get_db), user=Depends(require_role("youth")))->List[PersonalGoal]:
     cursor = db.cursor()
     cursor.execute(
@@ -1293,7 +1301,7 @@ def get_personal_goals(youth_id: str, db=Depends(get_db), user=Depends(require_r
     return goals
 
 
-@app.put("/goals/{youth_id}/{goal_name}", tags=["goals"], description="Update personal goal for youth")
+@app.put("/goals/{youth_id}/{goal_name}", tags=["goals"], description="Update personal goal for youth", summary="Update personal goal"))
 def update_personal_goal(youth_id: str, goal_name: str, data: PersonalGoal, db=Depends(get_db), user=Depends(require_role("youth"))):
     cursor = db.cursor()
     cursor.execute(
