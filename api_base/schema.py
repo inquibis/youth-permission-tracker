@@ -165,3 +165,7 @@ class PersonalGoal(BaseModel):
     status: Literal["Not Started", "In Progress", "Completed", "Canceled"] = "Not Started"
     progress_notes: Optional[List[str]] = None
     completed: bool = False
+    visibility_level: Literal["private", "parents", "group", "group_leaders", "bishopric", "everyone"] = "private"
+
+    # levels of visibility on a goal
+    # private, parents, group, group leaders, bishopric, everyone

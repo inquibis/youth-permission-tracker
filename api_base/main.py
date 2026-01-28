@@ -1262,8 +1262,8 @@ def update_activity_for_reconciliation(activity_id: str, data: FullActivity, db=
 def set_personal_goal(data: PersonalGoal, db=Depends(get_db), user=Depends(require_role("youth"))):
     cursor = db.cursor()
     cursor.execute(
-        """INSERT INTO personal_goals (youth_id, goal_area, goal_name, goal_description,  target_date, status, progress_notes)
-           VALUES (?, ?, ?, ?, ?, ?, ?)""",
+        """INSERT INTO personal_goals (youth_id, goal_area, goal_name, goal_description,  target_date, status, progress_notes, visibility_level)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
         (
             data.youth_id,
             data.goal_area,
@@ -1271,7 +1271,8 @@ def set_personal_goal(data: PersonalGoal, db=Depends(get_db), user=Depends(requi
             data.goal_description,
             data.target_date,
             data.status,
-            json.dumps(data.progress_notes) if data.progress_notes else None
+            json.dumps(data.progress_notes) if data.progress_notes else None,
+            data.visibility_level
         )
     )
     db.commit()
@@ -1281,7 +1282,7 @@ def set_personal_goal(data: PersonalGoal, db=Depends(get_db), user=Depends(requi
 def get_personal_goals(youth_id: str, db=Depends(get_db), user=Depends(require_role("youth")))->List[PersonalGoal]:
     cursor = db.cursor()
     cursor.execute(
-        "SELECT youth_id, goal_area, goal_name, goal_description, target_date, status, progress_notes, completed FROM personal_goals WHERE youth_id = ? group by goal_area", (youth_id,)
+        "SELECT youth_id, goal_area, goal_name, goal_description, target_date, status, progress_notes, completed, visibility_level FROM personal_goals WHERE youth_id = ? group by goal_area", (youth_id,)
     )
     rows = cursor.fetchall()
     goals = []
@@ -1295,7 +1296,8 @@ def get_personal_goals(youth_id: str, db=Depends(get_db), user=Depends(require_r
             target_date=row["target_date"],
             status=row["status"],
             progress_notes=progress_notes,
-            completed=bool(row["completed"])
+            completed=bool(row["completed"]),
+            visibility_level=row["visibility_level"]
         )
         goals.append(goal)
     return goals
@@ -1306,7 +1308,7 @@ def update_personal_goal(youth_id: str, goal_name: str, data: PersonalGoal, db=D
     cursor = db.cursor()
     cursor.execute(
         """UPDATE personal_goals 
-           SET goal_area = ?, goal_description = ?, target_date = ?, status = ?, progress_notes = ?, completed = ?
+           SET goal_area = ?, goal_description = ?, target_date = ?, status = ?, progress_notes = ?, completed = ?, visibility_level = ?
            WHERE youth_id = ? AND goal_name = ?""",
         (
             data.goal_area,
@@ -1316,7 +1318,8 @@ def update_personal_goal(youth_id: str, goal_name: str, data: PersonalGoal, db=D
             json.dumps(data.progress_notes) if data.progress_notes else None,
             1 if data.completed else 0,
             youth_id,
-            goal_name
+            goal_name,
+            data.visibility_level
         )
     )
     db.commit()

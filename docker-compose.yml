@@ -23,6 +23,7 @@ services:
     container_name: youth_web_test
     environment:
       ENV: "test"
+      env: "test"
       BASE_URL: "localhost"
       API_BASE_URL: "http://localhost:8000"
       API_BASE: "http://localhost:8000"

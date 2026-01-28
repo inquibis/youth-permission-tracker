@@ -142,6 +142,7 @@ class DBSetup:
                 completed INTEGER DEFAULT 0,
                 created_at TEXT DEFAULT (datetime('now')),
                 updated_at TEXT
+                visibility_level TEXT NOT NULL DEFAULT 'private'
             );
             """
         )
