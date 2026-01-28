@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Admin Youth Review</title>
+<style>
+table { border-collapse: collapse; width:100%; }
+td,th { border:1px solid #aaa; padding:6px; }
+</style>
+</head>
+
+<body>
+
+<h2>Youth Records</h2>
+<table id="youthTable">
+<tr><th>ID</th><th>Name</th><th>Actions</th></tr>
+</table>
+
+<div id="details"></div>
+
+<script>
+const BASE_URL = window.BASE_URL || "http://localhost";
+
+async function loadYouth(){
+  const res = await fetch(`${BASE_URL}/api/admin/youth`);
+  const data = await res.json();
+  youthTable.innerHTML += data.map(y=>
+    `<tr><td>${y.id}</td><td>${y.name}</td>
+     <td><button onclick="view(${y.id})">View</button></td></tr>`
+  ).join("");
+}
+
+async function view(id){
+  const res = await fetch(`${BASE_URL}/api/admin/youth/${id}`);
+  const data = await res.json();
+  details.innerHTML = `
+    <h3>${data.name}</h3>
+    <pre>${JSON.stringify(data.versions,null,2)}</pre>
+    <h4>Audit Log</h4>
+    <pre>${JSON.stringify(data.audit_log,null,2)}</pre>
+  `;
+}
+
+loadYouth();
+</script>
+
+</body>
+</html>

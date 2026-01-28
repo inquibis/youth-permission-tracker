@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Activity Review</title>
+  <link rel="stylesheet" href="scripts/styles.css">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    h1 {
+      margin-bottom: 20px;
+    }
+    .info-box {
+      border: 1px solid #ccc;
+      padding: 15px;
+      border-radius: 5px;
+      margin-bottom: 15px;
+    }
+    .label {
+      font-weight: bold;
+    }
+    /* Spinner styles */
+    .spinner {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #3498db;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 20px auto;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .loading-text {
+      text-align: center;
+      font-style: italic;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Navigation menu bar -->
+  <div id="navbar-placeholder"></div>
+
+  <h1>Activity Review</h1>
+  <div id="content">
+    <div class="spinner"></div>
+    <div class="loading-text">Loading activity details...</div>
+  </div>
+
+  <script type="module">
+    import { loadNavbar } from "./scripts/navbar.js";
+    import { getActivityById } from "./scripts/api.js";
+
+    loadNavbar();
+
+    const params = new URLSearchParams(window.location.search);
+    const activityId = params.get("activity_id");
+    const contentDiv = document.getElementById("content");
+
+    if (!activityId) {
+      window.location.href = "activity-lookup.html";
+    } else {
+      getActivityById(activityId)
+        .then(data => {
+          if (!data) {
+            contentDiv.innerHTML = "<p>No details found for this activity.</p>";
+            return;
+          }
+
+          const name = data.activity_name || data.name || "Unnamed Activity";
+          const description = data.description || data.details || "No description provided.";
+          const dateStart = data.date_start ? new Date(data.date_start).toLocaleDateString() : "N/A";
+          const dateEnd = data.date_end ? new Date(data.date_end).toLocaleDateString() : "N/A";
+          const groups = data.groups ? data.groups.join(", ") : "N/A";
+          const id = data.id || data.activity_id || activityId;
+
+          contentDiv.innerHTML = `
+            <div class="info-box">
+              <p><span class="label">Activity Name:</span> ${name}</p>
+              <p><span class="label">Activity ID:</span> ${id}</p>
+              <p><span class="label">Groups:</span> ${groups}</p>
+              <p><span class="label">Start Date:</span> ${dateStart}</p>
+              <p><span class="label">End Date:</span> ${dateEnd}</p>
+              <p><span class="label">Description:</span> ${description}</p>
+            </div>
+          `;
+        })
+        .catch(err => {
+          console.error(err);
+          contentDiv.innerHTML = "<p>Error loading activity details.</p>";
+        });
+    }
+  </script>
+</body>
+</html>
+
