@@ -18,9 +18,7 @@ services:
       - youth_net
 
   api:
-    build:
-      context: .
-      dockerfile: api-dockerfile
+    image: docker.lthome.us:5000/youth-permission-tracker/youth-api:latest
     container_name: youth_api_test
     environment:
       ENV: "test"
@@ -38,9 +36,7 @@ services:
       - "traefik.http.services.api.loadbalancer.server.port=8000"
 
   web:
-    build:
-      context: .
-      dockerfile: web-dockerfile
+    image: docker.lthome.us:5000/youth-permission-tracker/youth-web:latest
     container_name: youth_web_test
     environment:
       ENV: "test"
