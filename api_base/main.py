@@ -9,7 +9,7 @@ from fastapi import HTTPException, status, Depends as fastapiDepends
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 import qrcode
 from pathlib import Path as PathlibPath
-from schema import ActivityApprovals, ActivityBase, ActivityHealthReport, ActivityInvitees, AdminUser, ConcernSurvey, FullActivity, InterestSurvey, PermissionGiven, PersonalGoal, ReturnGroupActivityList, UserReturnModel, YouthPermissionSubmission, Activity, ParentGuardian, MedicalInfo, EmergencyContact, Signature
+from schema import ActivityApprovals, ActivityBase, ActivityHealthReport, ActivityInvitees, AdminUser, ConcernSurvey, FullActivity, InterestSurvey, UserActivityInterests, ResetInterestSurveyRequest, PermissionGiven, PersonalGoal, ReturnGroupActivityList, UserReturnModel, YouthPermissionSubmission, YouthCreationRequest, Activity, ParentGuardian, MedicalInfo, EmergencyContact, Signature
 import sqlite3
 import os
 import json
@@ -284,15 +284,18 @@ def guid():
     
 
 @app.post("/youth", tags=["users"], description="Create a new youth user",summary="Create youth user account.  Happens via parent medical form creation")
-def create_youth_account(username:str, password:str, group:str, db=Depends(DB.get_db))->UserReturnModel:
+def create_youth_account(youth_data: YouthCreationRequest, db=Depends(DB.get_db))->UserReturnModel:
     cursor = db.cursor()
     user_id = guid()
+    # Generate username from first and last name (lowercase, with underscore)
+    username = f"{youth_data.first_name.lower()}_{youth_data.last_name.lower()}"
+    # Use first name as default password (in production, consider generating a random one)
+    password = youth_data.first_name
     cursor.execute(
         "INSERT INTO admin_users (username, password, role, org_group, user_id) VALUES (?, ?, ?, ?, ?)",
-        (username, password, "youth", group, user_id)
+        (username, password, "youth", youth_data.group, user_id)
     )
     db.commit()
-    # user_id = cursor.lastrowid
     return UserReturnModel(user_id=user_id)
 
 
@@ -448,6 +451,46 @@ async def get_users_emergency_contacts(activity_id: str,  user=Depends(require_r
     return emergency_contacts
 
 
+@app.post("/user-activities", tags=["users"], description="Submit user activity interests", summary="Store activity interests for a youth")
+async def submit_user_activities(data: UserActivityInterests, db=Depends(DB.get_db)):
+    """
+    Store which activities a youth is interested in.
+    Looks up the user_id from username and stores the activities.
+    """
+    cursor = db.cursor()
+    
+    # Look up user_id from username
+    cursor.execute(
+        "SELECT user_id, org_group FROM admin_users WHERE username = ?",
+        (data.username,)
+    )
+    user_row = cursor.fetchone()
+    
+    if not user_row:
+        raise HTTPException(status_code=404, detail=f"User '{data.username}' not found")
+    
+    user_id, org_group = user_row
+    
+    # Check if already submitted this year
+    cursor.execute(
+        "SELECT COUNT(*) FROM interest_survey WHERE youth_id = ? AND strftime('%Y', submitted_at) = strftime('%Y', 'now')",
+        (user_id,)
+    )
+    existing = cursor.fetchone()
+    if existing and existing[0] > 0:
+        return {"message": "Activity interests already submitted for this year", "user_id": user_id}
+    
+    # Store the activity interests
+    cursor.execute(
+        """INSERT INTO interest_survey (youth_id, interests, org_group, submitted_at)
+           VALUES (?, ?, ?, ?)""",
+        (user_id, json.dumps(data.activity_ids), org_group, datetime.now().isoformat())
+    )
+    db.commit()
+    
+    return {"message": "Activity interests submitted successfully", "user_id": user_id, "activities_count": len(data.activity_ids)}
+
+
 #######################################
 ######  Interests and Concerns
 ######################################
@@ -479,13 +522,32 @@ async def submit_interest_survey(data:InterestSurvey,db=Depends(DB.get_db)):
 
 
 @app.post("/interest-survey-reset", tags=["interest-survey"], description="Reset interest survey for youth", summary="Reset youth interest survey")
-async def reset_interest_survey(youth_id: str,db=Depends(DB.get_db)):
+async def reset_interest_survey(data: ResetInterestSurveyRequest, db=Depends(DB.get_db)):
+    """
+    Reset (delete) the interest survey for a youth.
+    Takes username in request body and looks up the associated user_id.
+    """
     cursor = db.cursor()
+    
+    # Look up user_id from username
+    cursor.execute(
+        "SELECT user_id FROM admin_users WHERE username = ?",
+        (data.username,)
+    )
+    user_row = cursor.fetchone()
+    
+    if not user_row:
+        raise HTTPException(status_code=404, detail=f"User '{data.username}' not found")
+    
+    youth_id = user_row[0]
+    
+    # Delete the interest survey
     cursor.execute(
         "DELETE FROM interest_survey WHERE youth_id = ?", (youth_id,)
     )
     db.commit()
-    return {"message": "Interest survey reset successfully."}
+    
+    return {"message": "Interest survey reset successfully.", "user_id": youth_id}
 
 
 @app.get("/interest-survey/{group}", tags=["interest-survey"], description="Get interest survey responses for a group", summary="Retrieve group interest surveys")

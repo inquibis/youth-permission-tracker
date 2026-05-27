@@ -9,6 +9,11 @@ class Youth(BaseModel):
     gender: str | None = None
     org_group: str | None = None
 
+class YouthCreationRequest(BaseModel):
+    first_name: str
+    last_name: str
+    group: str
+
 class ParentGuardian(BaseModel):
     name: str
     phone: str
@@ -114,6 +119,13 @@ class InterestSurvey(BaseModel):
     youth_id: str
     interests: List[str]
     org_group:str
+
+class UserActivityInterests(BaseModel):
+    username: str
+    activity_ids: List[str]
+
+class ResetInterestSurveyRequest(BaseModel):
+    username: str
 
 class ConcernSurvey(BaseModel):
     concerns: List[str]
