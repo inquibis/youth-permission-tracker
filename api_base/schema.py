@@ -185,3 +185,28 @@ class PersonalGoal(BaseModel):
 
     # levels of visibility on a goal
     # private, parents, group, group leaders, bishopric, everyone
+
+
+# Admin SQL Query Models
+class AdminSQLQuery(BaseModel):
+    """Schema for admin SQL query execution"""
+    query: str = Field(..., description="SQL query to execute")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "query": "SELECT * FROM admin_users LIMIT 10"
+            }
+        }
+
+
+class AdminQueryResult(BaseModel):
+    """Schema for admin SQL query results"""
+    success: bool
+    message: str
+    query: str
+    execution_time_ms: float
+    row_count: int
+    columns: List[str] | None = None
+    rows: List[dict] | None = None
+    error: str | None = None

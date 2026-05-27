@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin SQL Query Tool - Youth Permission Tracker</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/atom-one-dark.min.css" rel="stylesheet"/>
+  <style>
+    :root {
+      --primary-color: #1f3a93;
+      --secondary-color: #d4a574;
+      --accent-color: #2d5f8d;
+      --light-bg: #f8f9fa;
+      --text-dark: #333;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: var(--light-bg);
+      color: var(--text-dark);
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .page-header {
+      text-align: center;
+      margin-bottom: 30px;
+      padding: 20px;
+      background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
+      color: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    .page-header h1 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+
+    .page-header p {
+      font-size: 1.1rem;
+      opacity: 0.9;
+    }
+
+    .admin-warning {
+      background-color: #fff3cd;
+      border: 2px solid #ffc107;
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .admin-warning i {
+      font-size: 1.5rem;
+      color: #ff6b6b;
+    }
+
+    .form-card {
+      background: white;
+      border-radius: 8px;
+      padding: 25px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+
+    .form-card h2 {
+      color: var(--primary-color);
+      font-size: 1.5rem;
+      margin-bottom: 20px;
+      border-bottom: 2px solid var(--secondary-color);
+      padding-bottom: 10px;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      font-weight: 600;
+      color: var(--primary-color);
+      margin-bottom: 8px;
+      display: block;
+    }
+
+    .query-textarea {
+      width: 100%;
+      height: 200px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.95rem;
+      padding: 12px;
+      border: 2px solid #e0e0e0;
+      border-radius: 5px;
+      resize: vertical;
+      background-color: #f5f5f5;
+    }
+
+    .query-textarea:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      background-color: white;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 12px;
+      margin-top: 20px;
+    }
+
+    .btn-execute,
+    .btn-clear,
+    .btn-logout {
+      padding: 12px 24px;
+      font-size: 1rem;
+      font-weight: 600;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-execute {
+      background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
+      color: white;
+      flex: 1;
+    }
+
+    .btn-execute:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 20px rgba(31, 58, 147, 0.3);
+    }
+
+    .btn-execute:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-clear {
+      background-color: #6c757d;
+      color: white;
+    }
+
+    .btn-clear:hover {
+      background-color: #5a6268;
+    }
+
+    .btn-logout {
+      background-color: #dc3545;
+      color: white;
+      margin-left: auto;
+    }
+
+    .btn-logout:hover {
+      background-color: #c82333;
+    }
+
+    .alert {
+      padding: 15px;
+      border-radius: 5px;
+      margin-bottom: 20px;
+      display: none;
+    }
+
+    .alert-success {
+      background-color: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+
+    .alert-error {
+      background-color: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+
+    .alert-info {
+      background-color: #d1ecf1;
+      color: #0c5460;
+      border: 1px solid #bee5eb;
+    }
+
+    .loading-spinner {
+      display: none;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: white;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .results-container {
+      display: none;
+      margin-top: 30px;
+    }
+
+    .results-container.show {
+      display: block;
+    }
+
+    .results-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid var(--secondary-color);
+    }
+
+    .results-header h3 {
+      color: var(--primary-color);
+      margin: 0;
+    }
+
+    .result-stats {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 15px;
+      font-size: 0.95rem;
+    }
+
+    .stat-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .stat-label {
+      color: #666;
+      font-weight: 500;
+    }
+
+    .stat-value {
+      color: var(--primary-color);
+      font-weight: 700;
+    }
+
+    .results-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    .results-table thead {
+      background-color: var(--primary-color);
+      color: white;
+      position: sticky;
+      top: 0;
+    }
+
+    .results-table th {
+      padding: 12px;
+      text-align: left;
+      font-weight: 600;
+      border: 1px solid #ddd;
+    }
+
+    .results-table td {
+      padding: 12px;
+      border: 1px solid #ddd;
+      word-break: break-word;
+    }
+
+    .results-table tbody tr:nth-child(even) {
+      background-color: #f8f9fa;
+    }
+
+    .results-table tbody tr:hover {
+      background-color: #e9ecef;
+    }
+
+    .error-message {
+      background-color: #f8d7da;
+      border: 1px solid #f5c6cb;
+      color: #721c24;
+      padding: 15px;
+      border-radius: 5px;
+      margin-top: 15px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.9rem;
+      word-break: break-word;
+    }
+
+    .query-history {
+      max-height: 200px;
+      overflow-y: auto;
+      background-color: #f5f5f5;
+      border-radius: 5px;
+      padding: 10px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.85rem;
+    }
+
+    .query-history-item {
+      padding: 8px;
+      border-bottom: 1px solid #ddd;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    .query-history-item:hover {
+      background-color: #e9ecef;
+    }
+
+    .query-history-item.success {
+      color: #155724;
+    }
+
+    .query-history-item.error {
+      color: #721c24;
+    }
+
+    @media (max-width: 768px) {
+      .page-header h1 {
+        font-size: 1.8rem;
+      }
+
+      .button-group {
+        flex-direction: column;
+      }
+
+      .btn-logout {
+        margin-left: 0;
+      }
+
+      .results-table {
+        font-size: 0.8rem;
+      }
+
+      .results-table th,
+      .results-table td {
+        padding: 8px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Page Header -->
+    <div class="page-header">
+      <h1><i class="fas fa-database"></i> Admin SQL Query Tool</h1>
+      <p>Execute custom SQL queries with audit logging</p>
+    </div>
+
+    <!-- Admin Warning -->
+    <div class="admin-warning">
+      <i class="fas fa-exclamation-triangle"></i>
+      <div>
+        <strong>⚠️ ADMIN ONLY:</strong> All queries are logged and audited. Only SELECT, INSERT, UPDATE, DELETE queries are allowed. Dangerous operations (DROP, TRUNCATE, ALTER) are blocked.
+      </div>
+    </div>
+
+    <!-- Alert Messages -->
+    <div id="successAlert" class="alert alert-success">
+      <i class="fas fa-check-circle"></i>
+      <span id="successMessage"></span>
+    </div>
+    <div id="errorAlert" class="alert alert-error">
+      <i class="fas fa-exclamation-circle"></i>
+      <span id="errorMessage"></span>
+    </div>
+    <div id="infoAlert" class="alert alert-info">
+      <i class="fas fa-info-circle"></i>
+      <span id="infoMessage"></span>
+    </div>
+
+    <!-- Query Form -->
+    <div class="form-card">
+      <h2><i class="fas fa-keyboard"></i> SQL Query</h2>
+      <form id="queryForm">
+        <div class="form-group">
+          <label for="sqlQuery">Enter your SQL query:</label>
+          <textarea 
+            id="sqlQuery" 
+            name="sqlQuery" 
+            class="query-textarea"
+            placeholder="SELECT * FROM admin_users LIMIT 10;&#10;-- or INSERT/UPDATE/DELETE queries"
+            required
+          ></textarea>
+          <small class="form-text text-muted" style="display: block; margin-top: 8px;">
+            💡 Tip: Load common queries from history or write your own
+          </small>
+        </div>
+
+        <div class="button-group">
+          <button type="submit" class="btn-execute" id="executeBtn">
+            <i class="fas fa-play"></i>
+            <span id="btnText">Execute Query</span>
+            <div id="loadingSpinner" class="loading-spinner"></div>
+          </button>
+          <button type="reset" class="btn-clear">
+            <i class="fas fa-eraser"></i> Clear
+          </button>
+          <button type="button" class="btn-logout" onclick="logout()">
+            <i class="fas fa-sign-out-alt"></i> Logout
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Query History -->
+    <div class="form-card" id="historyCard" style="display: none;">
+      <h2><i class="fas fa-history"></i> Query History</h2>
+      <div id="queryHistory" class="query-history">
+        <p style="color: #999; text-align: center;">No queries executed yet</p>
+      </div>
+    </div>
+
+    <!-- Results -->
+    <div class="form-card results-container" id="resultsContainer">
+      <div class="results-header">
+        <h3><i class="fas fa-table"></i> Results</h3>
+        <button onclick="clearResults()" class="btn-clear" style="margin: 0;">
+          <i class="fas fa-times"></i> Clear Results
+        </button>
+      </div>
+
+      <div class="result-stats">
+        <div class="stat-item">
+          <span class="stat-label">Rows:</span>
+          <span class="stat-value" id="rowCount">0</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Time:</span>
+          <span class="stat-value" id="execTime">0ms</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Type:</span>
+          <span class="stat-value" id="queryType">SELECT</span>
+        </div>
+      </div>
+
+      <div id="tableContainer" style="display: none;">
+        <div style="overflow-x: auto;">
+          <table id="resultsTable" class="results-table">
+            <thead id="tableHead"></thead>
+            <tbody id="tableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="errorContainer" style="display: none;">
+        <div class="error-message" id="errorDetails"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE_URL = window.API_BASE_URL || window.BASE_URL || localStorage.getItem('API_BASE_URL') || localStorage.getItem('BASE_URL') || '${API_BASE_URL}';
+    let queryHistory = [];
+    let authToken = localStorage.getItem('authToken');
+
+    // Check authentication on page load
+    window.addEventListener('DOMContentLoaded', () => {
+      if (!authToken) {
+        // Redirect to login if no token
+        window.location.href = 'login.html';
+        return;
+      }
+      setupFormHandler();
+      loadQueryHistory();
+    });
+
+    function setupFormHandler() {
+      const form = document.getElementById('queryForm');
+      form.addEventListener('submit', handleFormSubmit);
+    }
+
+    async function handleFormSubmit(e) {
+      e.preventDefault();
+
+      const query = document.getElementById('sqlQuery').value.trim();
+      
+      if (!query) {
+        showError('Please enter a SQL query');
+        return;
+      }
+
+      const executeBtn = document.getElementById('executeBtn');
+      const btnText = document.getElementById('btnText');
+      const spinner = document.getElementById('loadingSpinner');
+
+      // Disable button and show spinner
+      executeBtn.disabled = true;
+      spinner.style.display = 'block';
+      btnText.textContent = 'Executing...';
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/admin/query`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+          },
+          body: JSON.stringify({
+            query: query
+          })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.detail || `Server error: ${response.statusText}`);
+        }
+
+        if (data.success) {
+          displayResults(data);
+          addQueryToHistory(query, 'success', data);
+          showSuccess('Query executed successfully!');
+        } else {
+          displayError(data);
+          addQueryToHistory(query, 'error', data);
+          showError('Query failed: ' + data.message);
+        }
+
+        // Re-enable button
+        executeBtn.disabled = false;
+        spinner.style.display = 'none';
+        btnText.textContent = 'Execute Query';
+      } catch (error) {
+        showError(error.message || 'An error occurred while executing the query');
+
+        // Re-enable button
+        executeBtn.disabled = false;
+        spinner.style.display = 'none';
+        btnText.textContent = 'Execute Query';
+
+        addQueryToHistory(query, 'error', { error: error.message });
+      }
+    }
+
+    function displayResults(data) {
+      const container = document.getElementById('resultsContainer');
+      const tableContainer = document.getElementById('tableContainer');
+      const errorContainer = document.getElementById('errorContainer');
+
+      document.getElementById('rowCount').textContent = data.row_count;
+      document.getElementById('execTime').textContent = data.execution_time_ms.toFixed(2) + 'ms';
+      document.getElementById('queryType').textContent = data.columns ? 'SELECT' : 'MODIFY';
+
+      if (data.columns && data.rows) {
+        // Display results table
+        tableContainer.style.display = 'block';
+        errorContainer.style.display = 'none';
+
+        const thead = document.getElementById('tableHead');
+        thead.innerHTML = '<tr>' + data.columns.map(col => `<th>${escapeHtml(col)}</th>`).join('') + '</tr>';
+
+        const tbody = document.getElementById('tableBody');
+        tbody.innerHTML = data.rows.map(row => {
+          return '<tr>' + data.columns.map(col => {
+            const value = row[col];
+            const displayValue = value === null ? '<em style="color: #999;">NULL</em>' : escapeHtml(String(value));
+            return `<td>${displayValue}</td>`;
+          }).join('') + '</tr>';
+        }).join('');
+      } else if (data.error) {
+        tableContainer.style.display = 'none';
+        errorContainer.style.display = 'block';
+        document.getElementById('errorDetails').textContent = data.error;
+      } else {
+        tableContainer.style.display = 'none';
+        errorContainer.style.display = 'none';
+      }
+
+      container.classList.add('show');
+    }
+
+    function displayError(data) {
+      const container = document.getElementById('resultsContainer');
+      const errorContainer = document.getElementById('errorContainer');
+      const tableContainer = document.getElementById('tableContainer');
+
+      tableContainer.style.display = 'none';
+      errorContainer.style.display = 'block';
+      document.getElementById('errorDetails').textContent = data.error || data.message;
+
+      document.getElementById('rowCount').textContent = '0';
+      document.getElementById('execTime').textContent = data.execution_time_ms.toFixed(2) + 'ms';
+
+      container.classList.add('show');
+    }
+
+    function clearResults() {
+      const container = document.getElementById('resultsContainer');
+      container.classList.remove('show');
+    }
+
+    function addQueryToHistory(query, status, result) {
+      queryHistory.unshift({ query, status, timestamp: new Date().toLocaleTimeString() });
+      if (queryHistory.length > 20) {
+        queryHistory.pop();
+      }
+      localStorage.setItem('queryHistory', JSON.stringify(queryHistory));
+      updateHistoryDisplay();
+    }
+
+    function loadQueryHistory() {
+      const saved = localStorage.getItem('queryHistory');
+      if (saved) {
+        queryHistory = JSON.parse(saved);
+        updateHistoryDisplay();
+      }
+    }
+
+    function updateHistoryDisplay() {
+      const historyCard = document.getElementById('historyCard');
+      const historyDiv = document.getElementById('queryHistory');
+
+      if (queryHistory.length === 0) {
+        historyCard.style.display = 'none';
+        return;
+      }
+
+      historyCard.style.display = 'block';
+      historyDiv.innerHTML = queryHistory.map((item, idx) => `
+        <div class="query-history-item ${item.status}" onclick="insertQueryFromHistory(${idx})" title="Click to insert">
+          <strong>[${item.timestamp}]</strong> ${item.status === 'success' ? '✓' : '✗'} ${escapeHtml(item.query.substring(0, 80))}...
+        </div>
+      `).join('');
+    }
+
+    function insertQueryFromHistory(index) {
+      const query = queryHistory[index].query;
+      document.getElementById('sqlQuery').value = query;
+    }
+
+    function showSuccess(message) {
+      const alert = document.getElementById('successAlert');
+      document.getElementById('successMessage').textContent = message;
+      alert.style.display = 'block';
+      setTimeout(() => alert.style.display = 'none', 5000);
+    }
+
+    function showError(message) {
+      const alert = document.getElementById('errorAlert');
+      document.getElementById('errorMessage').textContent = message;
+      alert.style.display = 'block';
+      setTimeout(() => alert.style.display = 'none', 7000);
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function logout() {
+      if (confirm('Are you sure you want to logout?')) {
+        localStorage.removeItem('authToken');
+        window.location.href = 'login.html';
+      }
+    }
+  </script>
+</body>
+</html>

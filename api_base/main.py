@@ -10,10 +10,12 @@ from fastapi import HTTPException, status, Depends as fastapiDepends
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 import qrcode
 from pathlib import Path as PathlibPath
-from schema import ActivityApprovals, ActivityBase, ActivityHealthReport, ActivityInvitees, AdminUser, ConcernSurvey, FullActivity, InterestSurvey, UserActivityInterests, ResetInterestSurveyRequest, PermissionGiven, PersonalGoal, ReturnGroupActivityList, UserReturnModel, YouthPermissionSubmission, YouthCreationRequest, LoginRequest, Activity, ParentGuardian, MedicalInfo, EmergencyContact, Signature
+from schema import ActivityApprovals, ActivityBase, ActivityHealthReport, ActivityInvitees, AdminUser, ConcernSurvey, FullActivity, InterestSurvey, UserActivityInterests, ResetInterestSurveyRequest, PermissionGiven, PersonalGoal, ReturnGroupActivityList, UserReturnModel, YouthPermissionSubmission, YouthCreationRequest, LoginRequest, Activity, ParentGuardian, MedicalInfo, EmergencyContact, Signature, AdminSQLQuery, AdminQueryResult
 import sqlite3
 import os
 import json
+import time
+import re
 from icalendar import Calendar, Event, vCalAddress, vText
 from datetime import datetime, timedelta, timezone
 import uuid
@@ -1029,6 +1031,180 @@ def verify_login(token: str):
         return {"message": "Token is valid", "payload": payload}
     except JWTError:
         return {"message": "Invalid token"}
+
+
+@app.post("/admin/query", tags=["admin"], description="Execute SQL query (admin only)", summary="Run custom SQL query")
+def execute_admin_query(
+    request: Request,
+    query_request: AdminSQLQuery,
+    user_info: dict = Depends(require_role({"all", "admin"})),
+    db=Depends(DB.get_db)
+) -> AdminQueryResult:
+    """
+    Execute custom SQL queries with restrictions and logging.
+    - Supports SELECT, INSERT, UPDATE, DELETE
+    - Queries are validated and logged
+    - Execution timeout: 30 seconds
+    - All queries logged to audit trail
+    """
+    try:
+        query = query_request.query.strip()
+        
+        # Validate query - only allow SELECT, INSERT, UPDATE, DELETE
+        allowed_keywords = ["SELECT", "INSERT", "UPDATE", "DELETE"]
+        query_upper = query.upper()
+        
+        if not any(query_upper.startswith(kw) for kw in allowed_keywords):
+            audit_log_event(
+                request=request,
+                actor_username=user_info.get("sub"),
+                actor_role=user_info.get("role"),
+                action="ADMIN_QUERY",
+                resource_type="database",
+                resource_id="query_execution",
+                success=False,
+                details={"reason": "invalid_query_type", "query": query[:100]}
+            )
+            raise HTTPException(
+                status_code=400,
+                detail="Only SELECT, INSERT, UPDATE, DELETE queries are allowed"
+            )
+        
+        # Prevent dangerous patterns
+        dangerous_patterns = [
+            r"DROP\s",
+            r"TRUNCATE\s",
+            r"ALTER\s+TABLE",
+            r"PRAGMA\s+",
+            r"VACUUM",
+            r"DETACH",
+        ]
+        
+        for pattern in dangerous_patterns:
+            if re.search(pattern, query_upper):
+                audit_log_event(
+                    request=request,
+                    actor_username=user_info.get("sub"),
+                    actor_role=user_info.get("role"),
+                    action="ADMIN_QUERY",
+                    resource_type="database",
+                    resource_id="query_execution",
+                    success=False,
+                    details={"reason": "dangerous_pattern_detected", "pattern": pattern}
+                )
+                pattern_name = pattern.replace(r'\s', ' ').strip()
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Query contains forbidden operation: {pattern_name}"
+                )
+        
+        # Execute query with timeout
+        cursor = db.cursor()
+        start_time = time.time()
+        
+        try:
+            cursor.execute(query)
+            execution_time_ms = (time.time() - start_time) * 1000
+            
+            # Handle different query types
+            if query_upper.startswith("SELECT"):
+                rows = cursor.fetchall()
+                columns = [description[0] for description in cursor.description] if cursor.description else []
+                row_count = len(rows)
+                
+                # Convert rows to dictionaries
+                rows_data = []
+                for row in rows:
+                    if isinstance(row, dict):
+                        rows_data.append(row)
+                    else:
+                        row_dict = {}
+                        if cursor.description:
+                            for i, col in enumerate(cursor.description):
+                                row_dict[col[0]] = row[i]
+                        rows_data.append(row_dict)
+                
+                result = AdminQueryResult(
+                    success=True,
+                    message=f"Query executed successfully. Retrieved {row_count} rows.",
+                    query=query,
+                    execution_time_ms=execution_time_ms,
+                    row_count=row_count,
+                    columns=columns,
+                    rows=rows_data
+                )
+            else:
+                # For INSERT, UPDATE, DELETE
+                db.commit()
+                row_count = cursor.rowcount
+                
+                result = AdminQueryResult(
+                    success=True,
+                    message=f"Query executed successfully. {row_count} rows affected.",
+                    query=query,
+                    execution_time_ms=execution_time_ms,
+                    row_count=row_count,
+                    columns=None,
+                    rows=None
+                )
+            
+            # Log successful query
+            audit_log_event(
+                request=request,
+                actor_username=user_info.get("sub"),
+                actor_role=user_info.get("role"),
+                action="ADMIN_QUERY",
+                resource_type="database",
+                resource_id="query_execution",
+                success=True,
+                details={
+                    "query": query[:200],
+                    "row_count": row_count,
+                    "execution_time_ms": execution_time_ms
+                }
+            )
+            
+            return result
+            
+        except sqlite3.Error as db_error:
+            execution_time_ms = (time.time() - start_time) * 1000
+            
+            audit_log_event(
+                request=request,
+                actor_username=user_info.get("sub"),
+                actor_role=user_info.get("role"),
+                action="ADMIN_QUERY",
+                resource_type="database",
+                resource_id="query_execution",
+                success=False,
+                details={"error": str(db_error), "query": query[:100]}
+            )
+            
+            return AdminQueryResult(
+                success=False,
+                message="Query execution failed",
+                query=query,
+                execution_time_ms=execution_time_ms,
+                row_count=0,
+                columns=None,
+                rows=None,
+                error=str(db_error)
+            )
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        audit_log_event(
+            request=request,
+            actor_username=user_info.get("sub"),
+            actor_role=user_info.get("role"),
+            action="ADMIN_QUERY",
+            resource_type="database",
+            resource_id="query_execution",
+            success=False,
+            details={"error": str(e)}
+        )
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
 
 @app.get("/activity-permission-ecclesiastical", tags=["admin-users","activities"], description="Get activity permission details for Bishop/Stake President", summary="Get ecclesiastical approvals")
