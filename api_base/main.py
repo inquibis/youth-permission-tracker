@@ -361,27 +361,39 @@ def create_youth_account(youth_data: YouthCreationRequest, db=Depends(DB.get_db)
 
 @app.post("/users", tags=["users"], description="Create a new user", summary="Create new user with medical info")
 async def create_user(user_data: YouthPermissionSubmission, db=Depends(DB.get_db)):
-    cursor = db.cursor()
-    sql = """
-    INSERT INTO youth_medical 
-            (youth_id, permission_code, youth, parent_guardian, medical, emergency_contact, signature, signed_at) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    """
-    cursor.execute(
-		sql,
-        (
-            f"{user_data.youth.first_name.lower()}_{user_data.youth.last_name.lower()}",
-            user_data.permission_code,
-            user_data.youth.model_dump_json(),
-            user_data.parent_guardian.model_dump_json(),
-            user_data.medical.model_dump_json(),
-            user_data.emergency_contact.model_dump_json(),
-            user_data.signature.model_dump_json(),
-            user_data.signed_at,
-        ),
-    )   
-    db.commit()
-    return {"message": "User created successfully."}
+    try:
+        cursor = db.cursor()
+        sql = """
+        INSERT INTO youth_medical 
+                (youth_id, permission_code, youth, parent_guardian, medical, emergency_contact, signature, signed_at, updated_at) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+        """
+        cursor.execute(
+            sql,
+            (
+                f"{user_data.youth.first_name.lower()}_{user_data.youth.last_name.lower()}",
+                user_data.permission_code,
+                user_data.youth.model_dump_json(),
+                user_data.parent_guardian.model_dump_json(),
+                user_data.medical.model_dump_json(),
+                user_data.emergency_contact.model_dump_json(),
+                user_data.signature.model_dump_json(),
+                user_data.signed_at,
+            ),
+        )   
+        db.commit()
+        return {"message": "User created successfully."}
+    except HTTPException:
+        raise
+    except sqlite3.IntegrityError as e:
+        print(f"Database integrity error: {str(e)}")
+        raise HTTPException(status_code=409, detail=f"User already exists: {str(e)}")
+    except sqlite3.OperationalError as e:
+        print(f"Database operational error: {str(e)}")
+        raise HTTPException(status_code=503, detail=f"Database temporarily unavailable: {str(e)}")
+    except Exception as e:
+        print(f"Unexpected error creating user: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to create user: {str(e)}")
 
 
 @app.get("/users/{youth_id}",tags=["users"],description="Get user by youth ID", summary="Retrieve user information")

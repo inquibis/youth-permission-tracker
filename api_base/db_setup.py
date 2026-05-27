@@ -69,8 +69,7 @@ class DBSetup:
                 signature TEXT NOT NULL,
                 signed_at TEXT NOT NULL,
                 created_at TEXT NOT NULL DEFAULT (datetime('now')),
-                updated_at TEXT
-                youth_id TEXT UNIQUE NOT NULL
+                updated_at TEXT NOT NULL DEFAULT (datetime('now'))
             );
             """
         )
