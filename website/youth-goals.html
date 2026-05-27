@@ -496,7 +496,7 @@
         // Configuration
         // const API_ENV = localStorage.getItem('env') || 'production';
          const API_ENV = localStorage.getItem('env') || 'test';
-        const API_BASE = localStorage.getItem('apiBase') || 'http://localhost:8000';
+        const API_BASE = localStorage.getItem('apiBase') || '${API_BASE}';
         let currentUser = null;
         let allGoals = [];
         let selectedGoalId = null;

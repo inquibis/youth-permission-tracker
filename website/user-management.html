@@ -358,7 +358,7 @@
   </div>
 
   <script>
-    const BASE_URL = window.BASE_URL || localStorage.getItem('BASE_URL') || 'http://localhost:8000';
+    const API_BASE_URL = window.API_BASE_URL || window.BASE_URL || localStorage.getItem('API_BASE_URL') || localStorage.getItem('BASE_URL') || '${API_BASE_URL}';
     
     // Determine if we're in test environment
     function isTestEnvironment() {
@@ -455,7 +455,7 @@
       try {
         const token = localStorage.getItem('authToken');
 
-        const response = await fetch(`${BASE_URL}/admin-users`, {
+        const response = await fetch(`${API_BASE_URL}/admin-users`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

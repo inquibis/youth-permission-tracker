@@ -521,7 +521,7 @@
   </div>
 
   <script>
-    const BASE_URL = window.BASE_URL || localStorage.getItem('BASE_URL') || 'http://localhost:8000';
+    const API_BASE_URL = window.API_BASE_URL || window.BASE_URL || localStorage.getItem('API_BASE_URL') || localStorage.getItem('BASE_URL') || '${API_BASE_URL}';
     let currentUserGroup = null;
 
     // Check authentication on page load
@@ -582,7 +582,7 @@
     async function loadInterestSurvey() {
       try {
         const token = localStorage.getItem('authToken');
-        const response = await fetch(`${BASE_URL}/interest-survey`, {
+        const response = await fetch(`${API_BASE_URL}/interest-survey`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -647,7 +647,7 @@
     async function loadGroupConcerns() {
       try {
         const token = localStorage.getItem('authToken');
-        const response = await fetch(`${BASE_URL}/group-concerns`, {
+        const response = await fetch(`${API_BASE_URL}/group-concerns`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -733,7 +733,7 @@
       try {
         const token = localStorage.getItem('authToken');
         
-        const response = await fetch(`${BASE_URL}/group-concerns`, {
+        const response = await fetch(`${API_BASE_URL}/group-concerns`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -788,7 +788,7 @@
       try {
         const token = localStorage.getItem('authToken');
         
-        const response = await fetch(`${BASE_URL}/interest-survey-reset`, {
+        const response = await fetch(`${API_BASE_URL}/interest-survey-reset`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

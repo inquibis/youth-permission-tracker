@@ -24,12 +24,20 @@ app = FastAPI()
 contact_engine = ContactEngine()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/token")
 
-# Allow CORS from any origin (use caution in production)
+# Allow CORS from web frontend origins
 app.add_middleware( 
 	CORSMiddleware,
-	allow_origins=["*"],
+	allow_origins=[
+		"http://brookhurst.centervillenorthstake.com",
+		"https://brookhurst.centervillenorthstake.com",
+		"http://bh.centervillenorthstake.com",
+		"https://bh.centervillenorthstake.com",
+		"http://localhost:80",
+		"http://localhost:3000",
+        "http://localhost:8000",
+	],
 	allow_credentials=True,
-	allow_methods=["*"],
+	allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
 	allow_headers=["*"],
 )
 

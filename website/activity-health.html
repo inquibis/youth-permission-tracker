@@ -93,7 +93,7 @@
   </div>
 
   <script>
-    const BASE_URL = window.BASE_URL || localStorage.getItem('BASE_URL') || 'http://localhost:8000';
+    const API_BASE_URL = window.API_BASE_URL || window.BASE_URL || localStorage.getItem('API_BASE_URL') || localStorage.getItem('BASE_URL') || '${API_BASE_URL}';
 
     // ---------- Config / ENV detection ----------
     function getEnvMode() {
@@ -189,7 +189,7 @@
         if (!r.ok) throw new Error(`Failed to load short-activity-list.json (${r.status})`);
         return r.json();
       }
-      const r = await fetch(`${BASE_URL}/activity-groups`, {
+      const r = await fetch(`${API_BASE_URL}/activity-groups`, {
         headers: { "Authorization": `Bearer ${token}` }
       });
       if (!r.ok) throw new Error(`Failed /activity-groups (${r.status})`);

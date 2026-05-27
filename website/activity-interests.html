@@ -345,7 +345,7 @@
   </div>
 
   <script>
-    const BASE_URL = window.BASE_URL || localStorage.getItem('BASE_URL') || 'http://localhost:8000';
+    const API_BASE_URL = window.API_BASE_URL || window.BASE_URL || localStorage.getItem('API_BASE_URL') || localStorage.getItem('BASE_URL') || '${API_BASE_URL}';
     let allActivities = [];
 
     // Load activities on page load
@@ -453,7 +453,7 @@
       btnText.textContent = 'Submitting...';
 
       try {
-        const response = await fetch(`${BASE_URL}/user-activities`, {
+        const response = await fetch(`${API_BASE_URL}/user-activities`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'

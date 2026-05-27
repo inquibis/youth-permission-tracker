@@ -183,7 +183,7 @@
   </div>
 
   <script>
-    const BASE_URL = window.BASE_URL || localStorage.getItem('BASE_URL') || 'http://localhost:8000';
+    const API_BASE_URL = window.API_BASE_URL || window.BASE_URL || localStorage.getItem('API_BASE_URL') || localStorage.getItem('BASE_URL') || '${API_BASE_URL}';
     
     // Get redirect URL from query parameter
     function getRedirectUrl() {
@@ -238,7 +238,7 @@
         formData.append('username', username);
         formData.append('password', password);
         
-        const response = await fetch(`${BASE_URL}/login`, {
+        const response = await fetch(`${API_BASE_URL}/login`, {
           method: 'POST',
           body: formData
         });

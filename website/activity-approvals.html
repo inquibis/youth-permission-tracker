@@ -102,7 +102,7 @@
   </div>
 
   <script>
-        const BASE_URL = window.BASE_URL || localStorage.getItem('BASE_URL') || 'http://localhost:8000';
+    const API_BASE_URL = window.API_BASE_URL || window.BASE_URL || localStorage.getItem('API_BASE_URL') || localStorage.getItem('BASE_URL') || '${API_BASE_URL}';
 
     // ---------- ENV detection ----------
     function getEnvMode() {
@@ -422,7 +422,7 @@ function renderApprovalsTable(rows) {
         return r.json();
       }
 
-      const r = await fetch(`${BASE_URL}/activities-pending-approval`, {
+      const r = await fetch(`${API_BASE_URL}/activities-pending-approval`, {
         headers: { "Authorization": `Bearer ${token}` }
       });
 

@@ -74,8 +74,8 @@
 <script>
 (function(){
   // Get base URLs from environment variables or localStorage, with defaults
-  const WEB_BASE_URL = window.WEB_BASE_URL || localStorage.getItem('WEB_BASE_URL') || 'http://youth.lthome.com';
-  const API_BASE_URL = window.API_BASE_URL || window.BASE_URL || localStorage.getItem('API_BASE_URL') || localStorage.getItem('BASE_URL') || 'http://localhost:8000';
+  const WEB_BASE_URL = window.WEB_BASE_URL || localStorage.getItem('WEB_BASE_URL') || '${WEB_BASE_URL}';
+  const API_BASE_URL = window.API_BASE_URL || window.BASE_URL || localStorage.getItem('API_BASE_URL') || localStorage.getItem('BASE_URL') || '${API_BASE_URL}';
   
   const status = document.getElementById('status');
   const qrContainer = document.getElementById('qrContainer');
