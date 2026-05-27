@@ -2,6 +2,10 @@ from pydantic import BaseModel, Field
 from typing import Optional, List, Any, Literal
 from datetime import datetime
 
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
 class Youth(BaseModel):
     first_name: str
     last_name: str

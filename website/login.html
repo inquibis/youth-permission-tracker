@@ -233,14 +233,15 @@
       btnText.textContent = 'Logging in...';
       
       try {
-        // Create FormData for POST request
-        const formData = new FormData();
-        formData.append('username', username);
-        formData.append('password', password);
-        
         const response = await fetch(`${API_BASE_URL}/login`, {
           method: 'POST',
-          body: formData
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            username: username,
+            password: password
+          })
         });
         
         if (!response.ok) {

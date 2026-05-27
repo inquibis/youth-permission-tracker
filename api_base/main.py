@@ -9,7 +9,7 @@ from fastapi import HTTPException, status, Depends as fastapiDepends
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 import qrcode
 from pathlib import Path as PathlibPath
-from schema import ActivityApprovals, ActivityBase, ActivityHealthReport, ActivityInvitees, AdminUser, ConcernSurvey, FullActivity, InterestSurvey, UserActivityInterests, ResetInterestSurveyRequest, PermissionGiven, PersonalGoal, ReturnGroupActivityList, UserReturnModel, YouthPermissionSubmission, YouthCreationRequest, Activity, ParentGuardian, MedicalInfo, EmergencyContact, Signature
+from schema import ActivityApprovals, ActivityBase, ActivityHealthReport, ActivityInvitees, AdminUser, ConcernSurvey, FullActivity, InterestSurvey, UserActivityInterests, ResetInterestSurveyRequest, PermissionGiven, PersonalGoal, ReturnGroupActivityList, UserReturnModel, YouthPermissionSubmission, YouthCreationRequest, LoginRequest, Activity, ParentGuardian, MedicalInfo, EmergencyContact, Signature
 import sqlite3
 import os
 import json
@@ -231,12 +231,12 @@ def login_for_access_token(
     return {"access_token": access_token, "token_type": "bearer"}
 
 
-@app.get("/login", tags=["admin-users","auth"], description="Admin user login", summary="Authenticate admin user")
-def login(request:Request, username: str, password: str, db=Depends(DB.get_db)):
+@app.post("/login", tags=["admin-users","auth"], description="Admin user login", summary="Authenticate admin user")
+def login(request:Request, data: LoginRequest, db=Depends(DB.get_db)):
     cursor = db.cursor()
     if os.getenv("ENV", "test").lower() == "test":
         token_data = {
-            "username": username,
+            "username": data.username,
             "role": "admin",
             "org_group": "admin"
         }
@@ -247,7 +247,7 @@ def login(request:Request, username: str, password: str, db=Depends(DB.get_db)):
     
     cursor.execute(
         "SELECT role, org_group, username FROM admin_users WHERE username = ? AND password = ?",
-        (username, password)
+        (data.username, data.password)
     )
     user = cursor.fetchone()
     
@@ -947,28 +947,7 @@ async def create_admin_user(user =  AdminUser, db=Depends(DB.get_db)):
     return {"message": "Admin user created successfully."}
 
 
-@app.get("/login", tags=["admin-users","auth"], description="Admin user login", summary="Authenticate admin user")
-def login_func(username: str, password: str, db=Depends(DB.get_db)):
-    cursor = db.cursor()
-    cursor.execute(
-        "SELECT role, org_group, username FROM admin_users WHERE username = ? AND password = ?",
-        (username, password)
-    )
-    user = cursor.fetchone()
-    
-    if user:
-        # Create JWT token with admin's username, role, and group
-        token_data = {
-            "username": user[2],
-            "role": user[0],
-            "org_group": user[1]
-        }
-        expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-        token_data["exp"] = expire
-        access_token = jwt.encode(token_data, SECRET_KEY, algorithm=ALGORITHM)
-        return {"message": "Login successful", "access_token": access_token, "token_type": "bearer"}
-    else:
-        return {"message": "Invalid credentials"}
+
 
 
 @app.post("/login-verify", tags=["admin-users","auth"], description="Verify admin user token", summary="Verify authentication token")
