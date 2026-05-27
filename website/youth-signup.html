@@ -276,7 +276,7 @@
         signed_at: payload.signed_at
       };
       
-      const userRes = await fetch(API_BASE_URL + '/users/', {
+      const userRes = await fetch(API_BASE_URL + '/users', {
         method: 'POST',
         headers: {'Content-Type':'application/json'},
         body: JSON.stringify(userPayload)

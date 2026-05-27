@@ -25,7 +25,8 @@ contact_engine = ContactEngine()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/token")
 
 # Allow CORS from web frontend origins
-app.add_middleware( 
+# MUST be added before other middleware that might modify responses
+app.add_middleware(
 	CORSMiddleware,
 	allow_origins=[
 		"http://brookhurst.centervillenorthstake.com",
