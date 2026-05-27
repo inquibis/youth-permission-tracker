@@ -582,7 +582,7 @@
     async function loadInterestSurvey() {
       try {
         const token = localStorage.getItem('authToken');
-        const response = await fetch(`${API_BASE_URL}/interest-survey`, {
+        const response = await fetch(`${API_BASE_URL}/interest-survey/${currentUserGroup}`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -647,7 +647,7 @@
     async function loadGroupConcerns() {
       try {
         const token = localStorage.getItem('authToken');
-        const response = await fetch(`${API_BASE_URL}/group-concerns`, {
+        const response = await fetch(`${API_BASE_URL}/group-concerns/${currentUserGroup}`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -740,8 +740,8 @@
             'Authorization': `Bearer ${token}`
           },
           body: JSON.stringify({
-            concern: concern,
-            group: currentUserGroup
+            concerns: [concern],
+            org_group: currentUserGroup
           })
         });
 

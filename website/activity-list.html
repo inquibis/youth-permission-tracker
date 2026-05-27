@@ -248,7 +248,7 @@
         groups: editForm.groups.value.split(",").map(x => x.trim())
       };
 
-      const res = await fetch(`${API_BASE_URL}/activity/${id}`, {
+      const res = await fetch(`${API_BASE_URL}/activities/${id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -267,7 +267,7 @@
 
     async function deleteActivity(id) {
       if (!confirm("Are you sure?")) return;
-      const res = await fetch(`${API_BASE_URL}/activity/${id}`, {
+      const res = await fetch(`${API_BASE_URL}/activities/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` }
       });

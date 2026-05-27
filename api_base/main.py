@@ -1073,6 +1073,99 @@ def email_activity_permission(
     return {"email_content": email_content}
 
 
+@app.post("/sms-activity-permission", tags=["tools","activities"], description="Send SMS to activity participants for permission", summary="Send permission SMS for activity")
+async def send_activity_permission_sms(request: Request, activity_id: str = Query(...), db=Depends(DB.get_db)):
+    """
+    Send SMS messages to parents/guardians of activity participants requesting permission.
+    Queries the activity participants and retrieves parent contact info from youth_medical table.
+    """
+    try:
+        cursor = db.cursor()
+        
+        # Get activity details
+        cursor.execute(
+            "SELECT activity_id, activity_name, date_start, participants_youth_ids FROM activities WHERE activity_id = ?",
+            (activity_id,)
+        )
+        activity_row = cursor.fetchone()
+        if not activity_row:
+            raise HTTPException(status_code=404, detail=f"Activity '{activity_id}' not found")
+        
+        act_id, act_name, date_start, participants_json = activity_row
+        participants = json.loads(participants_json) if participants_json else []
+        
+        # Get base URL from environment
+        base_url = os.getenv("BaseActivitySiteURL", "http://localhost:8000")
+        permission_link = f"{base_url}/activity-permission/{activity_id}"
+        
+        # Prepare SMS message
+        sms_message = f"""Activity Permission Request: {act_name}
+
+Date: {date_start}
+Your youth has been invited to participate.
+Please review and grant permission here:
+{permission_link}
+
+Thank you!"""
+        
+        # Collect all parent phone numbers
+        sent_count = 0
+        failed_count = 0
+        parent_phones = []
+        
+        for youth_id in participants:
+            cursor.execute(
+                "SELECT parent_guardian FROM youth_medical WHERE youth_id = ?",
+                (youth_id,)
+            )
+            med_row = cursor.fetchone()
+            if med_row:
+                try:
+                    parent_data = json.loads(med_row[0])
+                    if isinstance(parent_data, dict) and 'phone' in parent_data:
+                        parent_phones.append(parent_data['phone'])
+                    elif isinstance(parent_data, list):
+                        for parent in parent_data:
+                            if isinstance(parent, dict) and 'phone' in parent:
+                                parent_phones.append(parent['phone'])
+                except json.JSONDecodeError:
+                    pass
+        
+        # Send SMS to each parent (via ContactEngine if available)
+        contact_engine = ContactEngine()
+        for phone in parent_phones:
+            try:
+                contact_engine.send_sms(sms_message, phone)
+                sent_count += 1
+            except Exception as e:
+                print(f"Failed to send SMS to {phone}: {str(e)}")
+                failed_count += 1
+        
+        # Audit log
+        audit_log_event(
+            request=request,
+            actor_username="system",
+            actor_role="system",
+            action="send_activity_permission_sms",
+            resource_type="activity",
+            resource_id=activity_id,
+            success=True,
+            details={"participants": len(participants), "sms_sent": sent_count, "sms_failed": failed_count}
+        )
+        
+        return {
+            "message": f"SMS sent to {sent_count} parents, {failed_count} failed",
+            "activity_id": activity_id,
+            "participants_count": len(participants),
+            "sms_sent": sent_count,
+            "sms_failed": failed_count
+        }
+    
+    except Exception as e:
+        print(f"Error sending activity permission SMS: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to send SMS: {str(e)}")
+
+
 @app.get("/activity-qrcode", tags=["tools","activities"], description="Generate QR code for activity permission link", summary="Generate QR for the activity")
 def generate_qr(acivity_id: str = Query(..., description="The ID of the activity")):
     qr = qrcode.QRCode(box_size=10, border=4)
