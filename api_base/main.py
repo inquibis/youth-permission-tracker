@@ -2,6 +2,7 @@ from typing import Dict, List, Union, Optional, Any
 from fastapi import FastAPI, Path
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import Query, Response
+from fastapi.responses import JSONResponse
 from fastapi import Request
 from io import BytesIO
 from fastapi.params import Depends
@@ -65,6 +66,20 @@ async def log_requests(request: Request, call_next):
 	response = await call_next(request)
 	print(f"[RESPONSE] {response.status_code}")
 	return response
+
+
+# Global exception handler to ensure CORS headers on error responses
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+	"""Handle HTTP exceptions with proper CORS headers"""
+	return JSONResponse(
+		status_code=exc.status_code,
+		content={"detail": exc.detail},
+		headers={
+			"Access-Control-Allow-Origin": request.headers.get("origin", "*"),
+			"Access-Control-Allow-Credentials": "true",
+		}
+	)
 
 # def get_db():
 # 	return app.state._db
@@ -303,18 +318,45 @@ def guid():
 
 @app.post("/youth", tags=["users"], description="Create a new youth user",summary="Create youth user account.  Happens via parent medical form creation")
 def create_youth_account(youth_data: YouthCreationRequest, db=Depends(DB.get_db))->UserReturnModel:
-    cursor = db.cursor()
-    user_id = guid()
-    # Generate username from first and last name (lowercase, with underscore)
-    username = f"{youth_data.first_name.lower()}_{youth_data.last_name.lower()}"
-    # Use first name as default password (in production, consider generating a random one)
-    password = youth_data.first_name
-    cursor.execute(
-        "INSERT INTO admin_users (username, password, role, org_group, user_id) VALUES (?, ?, ?, ?, ?)",
-        (username, password, "youth", youth_data.group, user_id)
-    )
-    db.commit()
-    return UserReturnModel(user_id=user_id)
+    """
+    Create a new youth user account.
+    Generates username from first_name_last_name and stores in admin_users table.
+    """
+    try:
+        cursor = db.cursor()
+        user_id = guid()
+        # Generate username from first and last name (lowercase, with underscore)
+        username = f"{youth_data.first_name.lower()}_{youth_data.last_name.lower()}"
+        # Use first name as default password (in production, consider generating a random one)
+        password = youth_data.first_name
+        
+        # Check if username already exists
+        cursor.execute("SELECT user_id FROM admin_users WHERE username = ?", (username,))
+        if cursor.fetchone():
+            raise HTTPException(
+                status_code=409,
+                detail=f"Youth user '{username}' already exists. Please use different first/last name or contact admin."
+            )
+        
+        cursor.execute(
+            "INSERT INTO admin_users (username, password, role, org_group, user_id) VALUES (?, ?, ?, ?, ?)",
+            (username, password, "youth", youth_data.group, user_id)
+        )
+        db.commit()
+        return UserReturnModel(user_id=user_id)
+    
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
+    except sqlite3.IntegrityError as e:
+        print(f"Database integrity error: {str(e)}")
+        raise HTTPException(status_code=409, detail=f"User already exists or duplicate constraint: {str(e)}")
+    except sqlite3.OperationalError as e:
+        print(f"Database operational error: {str(e)}")
+        raise HTTPException(status_code=503, detail=f"Database temporarily unavailable: {str(e)}")
+    except Exception as e:
+        print(f"Unexpected error creating youth account: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to create youth account: {str(e)}")
 
 
 @app.post("/users", tags=["users"], description="Create a new user", summary="Create new user with medical info")
