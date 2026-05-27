@@ -33,13 +33,19 @@ app.add_middleware(
 		"https://brookhurst.centervillenorthstake.com",
 		"http://bh.centervillenorthstake.com",
 		"https://bh.centervillenorthstake.com",
+		"http://api-youth.centervillenorthstake.com",
+		"https://api-youth.centervillenorthstake.com",
 		"http://localhost:80",
 		"http://localhost:3000",
         "http://localhost:8000",
+		"http://localhost:443",
+		"https://localhost",
 	],
 	allow_credentials=True,
 	allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
 	allow_headers=["*"],
+	expose_headers=["*"],
+	max_age=3600,
 )
 
 DB_PATH = os.getenv("DB_PATH", "/data/data.sqlite3")
@@ -48,6 +54,17 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 DB = DatabaseEngine(DB_PATH)
+
+
+# Middleware to log all requests for debugging
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+	print(f"[REQUEST] {request.method} {request.url.path}")
+	print(f"[ORIGIN] {request.headers.get('origin', 'NO ORIGIN HEADER')}")
+	print(f"[HOST] {request.headers.get('host', 'NO HOST HEADER')}")
+	response = await call_next(request)
+	print(f"[RESPONSE] {response.status_code}")
+	return response
 
 # def get_db():
 # 	return app.state._db
