@@ -4,9 +4,9 @@ Pytest configuration and fixtures for API unit tests
 import pytest
 import sqlite3
 from fastapi.testclient import TestClient
-from unittest.mock import Mock, patch, MagicMock
 import sys
 import os
+from datetime import datetime, timedelta, timezone
 
 # Add api_base to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../../api_base'))
@@ -19,7 +19,8 @@ from schema import YouthCreationRequest, LoginRequest
 @pytest.fixture
 def test_db():
     """Create an in-memory SQLite database for testing"""
-    conn = sqlite3.connect(':memory:')
+    # Create in-memory SQLite with check_same_thread=False to allow usage across threads
+    conn = sqlite3.connect(':memory:', check_same_thread=False)
     conn.row_factory = sqlite3.Row
     
     # Create minimal schema for testing
@@ -125,28 +126,41 @@ def test_db():
 
 
 @pytest.fixture
-def mock_db(test_db):
-    """Mock database for dependency injection"""
-    def get_db_mock():
-        return test_db
+def client(test_db):
+    """Create a test client with mocked database dependency"""
+    from unittest.mock import MagicMock
     
-    yield get_db_mock
-
-
-@pytest.fixture
-def client(mock_db):
-    """Create a test client with mocked database"""
-    # Mock the DatabaseEngine dependency
-    with patch('main.DB.get_db', mock_db):
-        client = TestClient(app)
-        yield client
+    # Import the actual DB instance from main
+    import main
+    
+    # Create a generator function that yields the test database
+    def get_test_db_override():
+        """Override function for dependency injection - must be a generator"""
+        yield test_db
+    
+    # Store the original get_db method
+    original_get_db = main.DB.get_db
+    
+    # Replace DB.get_db with our override
+    main.DB.get_db = get_test_db_override
+    
+    # Also add to dependency_overrides as a fallback
+    app.dependency_overrides[original_get_db] = get_test_db_override
+    
+    # Create test client
+    test_client = TestClient(app)
+    
+    yield test_client
+    
+    # Restore original
+    main.DB.get_db = original_get_db
+    app.dependency_overrides.clear()
 
 
 @pytest.fixture
 def auth_token():
     """Generate a valid JWT token for testing"""
     from jose import jwt
-    from datetime import datetime, timedelta, timezone
     
     SECRET_KEY = os.getenv("SECRET_KEY", "super-secret-key")
     ALGORITHM = "HS256"
@@ -166,10 +180,11 @@ def auth_token():
 def test_admin_user(test_db):
     """Create a test admin user in the database"""
     cursor = test_db.cursor()
+    # Use bcrypt hashed password for "password123"
     cursor.execute("""
         INSERT INTO admin_users (username, password, role, org_group, user_id)
         VALUES (?, ?, ?, ?, ?)
-    """, ("test_admin", "password123", "admin", "test-group", "admin_001"))
+    """, ("test_admin", "$2b$12$Xvez11kLy9DXaKTWGrp2k.3zKYRDfNLzFN.eHwf1Jva7nS6KQqePW", "admin", "test-group", "admin_001"))
     test_db.commit()
     return {"username": "test_admin", "password": "password123", "role": "admin"}
 
@@ -178,10 +193,11 @@ def test_admin_user(test_db):
 def test_youth_user(test_db):
     """Create a test youth user in the database"""
     cursor = test_db.cursor()
+    # Use bcrypt hashed password for "password123"
     cursor.execute("""
         INSERT INTO admin_users (username, password, role, org_group, user_id)
         VALUES (?, ?, ?, ?, ?)
-    """, ("john_doe", "password123", "youth", "test-group", "youth_001"))
+    """, ("john_doe", "$2b$12$Xvez11kLy9DXaKTWGrp2k.3zKYRDfNLzFN.eHwf1Jva7nS6KQqePW", "youth", "test-group", "youth_001"))
     test_db.commit()
     return {"username": "john_doe", "password": "password123", "role": "youth"}
 
@@ -190,20 +206,23 @@ def test_youth_user(test_db):
 def test_activity(test_db):
     """Create a test activity in the database"""
     import json
-    from datetime import datetime, timedelta
     
     cursor = test_db.cursor()
-    start_date = (datetime.now() + timedelta(days=7)).isoformat()
-    end_date = (datetime.now() + timedelta(days=8)).isoformat()
+    start_date = (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()
+    end_date = (datetime.now(timezone.utc) + timedelta(days=8)).isoformat()
     
     cursor.execute("""
         INSERT INTO activities (activity_id, activity_name, date_start, date_end, drivers, description, groups)
         VALUES (?, ?, ?, ?, ?, ?, ?)
-    """, ("act_001", "Test Activity", start_date, end_date, "Driver Name", "Test Description", json.dumps(["test-group"])))
+    """, ("activity_001", "Test Activity", start_date, end_date, "Test Driver", "Test Description", json.dumps(["test-group"])))
     test_db.commit()
+    
     return {
-        "activity_id": "act_001",
+        "activity_id": "activity_001",
         "activity_name": "Test Activity",
         "date_start": start_date,
-        "date_end": end_date
+        "date_end": end_date,
+        "drivers": "Test Driver",
+        "description": "Test Description",
+        "groups": ["test-group"]
     }

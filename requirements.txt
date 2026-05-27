@@ -24,3 +24,5 @@ twilio
 jinja2
 
 aiosqlite 
+qrcode
+icalendar

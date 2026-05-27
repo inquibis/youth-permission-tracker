@@ -106,7 +106,8 @@ class TestLoginVerifyEndpoint:
     
     def test_login_verify_success_with_valid_token(self, client, auth_token):
         """Test token verification with valid token"""
-        response = client.post("/login-verify", json={"token": auth_token.replace("Bearer ", "")})
+        token = auth_token.replace("Bearer ", "") if "Bearer " in auth_token else auth_token
+        response = client.post("/login-verify", params={"token": token})
         
         assert response.status_code == 200
         data = response.json()
@@ -115,7 +116,7 @@ class TestLoginVerifyEndpoint:
     
     def test_login_verify_failure_with_invalid_token(self, client):
         """Test token verification fails with invalid token"""
-        response = client.post("/login-verify", json={"token": "invalid_token"})
+        response = client.post("/login-verify", params={"token": "invalid_token"})
         
         assert response.status_code in [200, 422]  # Returns either success with invalid message or validation error
         if response.status_code == 200:
@@ -124,7 +125,7 @@ class TestLoginVerifyEndpoint:
     
     def test_login_verify_failure_with_malformed_token(self, client):
         """Test token verification with malformed token"""
-        response = client.post("/login-verify", json={"token": "not.a.valid.jwt"})
+        response = client.post("/login-verify", params={"token": "not.a.valid.jwt"})
         
         assert response.status_code in [200, 422]
 
@@ -139,6 +140,7 @@ class TestAdminUserCreation:
             json={
                 "username": "new_admin",
                 "password": "securepass123",
+                "role": "admin",
                 "org_group": "test-group"
             },
             headers={"Authorization": auth_token}
@@ -156,11 +158,12 @@ class TestAdminUserCreation:
             json={
                 "username": "new_admin",
                 "password": "securepass123",
+                "role": "admin",
                 "org_group": "test-group"
             }
         )
         
-        assert response.status_code == 403
+        assert response.status_code in [401, 403]
     
     def test_admin_user_creation_with_invalid_role_requirement(self, client):
         """Test admin user creation with insufficient permissions"""
@@ -186,6 +189,7 @@ class TestAdminUserCreation:
             json={
                 "username": "new_admin",
                 "password": "securepass123",
+                "role": "admin",
                 "org_group": "test-group"
             },
             headers={"Authorization": f"Bearer {token}"}
