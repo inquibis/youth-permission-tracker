@@ -1,0 +1,9 @@
+ltodd@srv-docker:~/docker/main-docker-setup$ docker logs -f youth-api
+INFO:     Started server process [1]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     172.19.0.7:50404 - "GET /docs HTTP/1.1" 200 OK
+/usr/local/lib/python3.11/site-packages/pydantic/json_schema.py:2463: PydanticJsonSchemaWarning: Default value <class 'schema.AdminUser'> is not JSON serializable; excluding default from JSON schema [non-serializable-default]
+  warnings.warn(message, PydanticJsonSchemaWarning)
+INFO:     172.19.0.7:50404 - "GET /openapi.json HTTP/1.1" 200 OK
