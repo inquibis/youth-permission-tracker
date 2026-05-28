@@ -31,3 +31,6 @@ CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000
 
 # docker build -f new-api-dockerfile -t youth-api .
 # docker run --rm -p 8000:8000 youth-api
+
+# docker build -t docker.lthome.us:5000/youth-permission-tracker/youth-api:latest -f api-dockerfile .
+# docker push docker.lthome.us:5000/youth-permission-tracker/youth-api:latest
