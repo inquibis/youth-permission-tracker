@@ -21,11 +21,13 @@ from datetime import datetime, timedelta, timezone
 import uuid
 from contact_engine import ContactEngine
 from jose import jwt, JWTError
+from passlib.context import CryptContext
 from db import DatabaseEngine
 
 app = FastAPI()
 contact_engine = ContactEngine()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/token")
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # Allow CORS from web frontend origins
 # MUST be added before other middleware that might modify responses
@@ -251,9 +253,12 @@ def login_for_access_token(
     
     username, stored_password, role, org_group = user_row[0], user_row[1], user_row[2], user_row[3]
     
-    # For testing, accept the hashed password or plain password match
-    # In production, use proper bcrypt password verification
-    if form_data.password != stored_password and form_data.username != "test_admin":
+    try:
+        password_valid = pwd_context.verify(form_data.password, stored_password)
+    except ValueError:
+        password_valid = False
+
+    if not password_valid:
         audit_log_event(
             request=request,
             actor_username=form_data.username,
