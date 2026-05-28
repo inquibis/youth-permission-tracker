@@ -63,9 +63,9 @@ class Activity(BaseModel):
     description: str
     date: str
     location: str
-    budget: budget
-    drivers: List[str]
-    groups: List[str]
+    budgets: budget | None = None
+    drivers: List[str] | None = None
+    groups: List[str] | None = None
     start_time: str | None = None
     end_time: str | None = None
     is_overnight: bool | None = None
