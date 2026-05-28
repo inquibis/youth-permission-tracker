@@ -1084,7 +1084,6 @@ def execute_admin_query(
     Execute custom SQL queries with restrictions and logging.
     - Supports SELECT, INSERT, UPDATE, DELETE
     - Queries are validated and logged
-    - Execution timeout: 30 seconds
     - All queries logged to audit trail
     """
     try:
