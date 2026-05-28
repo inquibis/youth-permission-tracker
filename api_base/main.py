@@ -717,7 +717,7 @@ async def create_activity(activity_data: Activity, db=Depends(DB.get_db)):
     activity_data.is_overnight = is_overnighter
     all_users = []
     for group in activity_data.groups:
-        participants = list_group_participants(group)
+        participants = list_group_participants(group, db)
         all_users.extend(participants)
     cursor = db.cursor()
 
@@ -726,8 +726,9 @@ async def create_activity(activity_data: Activity, db=Depends(DB.get_db)):
     
     # Serialize complex fields as JSON
     budget_json = json.dumps(activity_data.budget) if hasattr(activity_data, 'budget') and activity_data.budget else None
-    groups = activity_data.groups if hasattr(activity_data, 'groups') and activity_data.groups else None
-    drivers = activity_data.drivers if hasattr(activity_data, 'drivers') and activity_data.drivers else None
+    groups_json = json.dumps(activity_data.groups) if hasattr(activity_data, 'groups') and activity_data.groups else None
+    drivers_json = json.dumps(activity_data.drivers) if hasattr(activity_data, 'drivers') and activity_data.drivers else None
+    participants_json = json.dumps(all_users) if all_users else None
 
     cursor.execute(
         """INSERT INTO activities 
@@ -742,9 +743,9 @@ async def create_activity(activity_data: Activity, db=Depends(DB.get_db)):
             activity_data.end_time,
             getattr(activity_data, 'location', None),
             budget_json,
-            all_users,
-            groups,
-            drivers,
+            participants_json,
+            groups_json,
+            drivers_json,
             1 if is_overnighter else 0,
             1 if coed else 0,
             1 if activity_data.requires_permission else 0
@@ -814,14 +815,15 @@ async def update_activity(activity_id: str, activity_data: Activity, db=Depends(
     
     # Serialize complex fields as JSON
     budget_json = json.dumps(activity_data.budget) if hasattr(activity_data, 'budget') and activity_data.budget else None
-    groups = activity_data.groups if hasattr(activity_data, 'groups') and activity_data.groups else None
-    drivers = activity_data.drivers if hasattr(activity_data, 'drivers') and activity_data.drivers else None
+    groups_json = json.dumps(activity_data.groups) if hasattr(activity_data, 'groups') and activity_data.groups else None
+    drivers_json = json.dumps(activity_data.drivers) if hasattr(activity_data, 'drivers') and activity_data.drivers else None
     
     # Get all users for updated groups
     all_users = []
     for group in activity_data.groups:
-        participants = list_group_participants(group)
+        participants = list_group_participants(group, db)
         all_users.extend(participants)
+    participants_json = json.dumps(all_users) if all_users else None
     
     # Update the activity
     cursor.execute(
@@ -837,9 +839,9 @@ async def update_activity(activity_id: str, activity_data: Activity, db=Depends(
             activity_data.end_time,
             getattr(activity_data, 'location', None),
             budget_json,
-            all_users,
-            groups,
-            drivers,
+            participants_json,
+            groups_json,
+            drivers_json,
             1 if is_overnighter else 0,
             1 if coed else 0,
             1 if activity_data.requires_permission else 0,
