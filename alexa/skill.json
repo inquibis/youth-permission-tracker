@@ -1,0 +1,43 @@
+# ASK CLI skill configuration
+# This file is used by ask deploy to manage the skill
+
+{
+  "skillMetadata": {
+    "publishingInformation": {
+      "locales": {
+        "en-US": {
+          "summary": "Manage youth activities and parental permissions via voice",
+          "examplePhrases": [
+            "Alexa, open Youth Permission Tracker",
+            "List my activities",
+            "What's next?",
+            "Do I need to approve anything?"
+          ],
+          "description": "A voice-first Alexa skill that enables parents and youth to manage youth group activities, check permissions, and grant parental approval through voice commands.",
+          "name": "Youth Permission Tracker",
+          "smallIconUri": "file://assets/images/en-US_small_icon.png",
+          "largeIconUri": "file://assets/images/en-US_large_icon.png"
+        }
+      },
+      "isAvailableWorldwide": false,
+      "testingInstructions": "To test this skill, try saying 'open youth permission tracker' and follow the setup flow. You'll need a 6-digit permission code from the backend system.",
+      "category": "FAMILY",
+      "distributionCountries": []
+    },
+    "privacyAndCompliance": {
+      "allowsPurchases": false,
+      "usesPersonalInfo": true,
+      "isChildDirected": false,
+      "containsAds": false,
+      "locales": {
+        "en-US": {
+          "privacyPolicyUrl": "https://example.com/privacy",
+          "termsOfUseUrl": "https://example.com/terms"
+        }
+      }
+    },
+    "apis": {
+      "custom": {}
+    }
+  }
+}

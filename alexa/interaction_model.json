@@ -1,0 +1,255 @@
+{
+  "interactionModel": {
+    "languageModel": {
+      "invocationName": "youth permission tracker",
+      "intents": [
+        {
+          "name": "AMAZON.CancelIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.HelpIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.StopIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.FallbackIntent",
+          "samples": []
+        },
+        {
+          "name": "ListActivitiesIntent",
+          "slots": [],
+          "samples": [
+            "list my activities",
+            "what activities do I have",
+            "show my activities",
+            "what activities are coming up",
+            "list activities",
+            "show activities",
+            "my activities"
+          ]
+        },
+        {
+          "name": "NextActivityIntent",
+          "slots": [],
+          "samples": [
+            "what's next",
+            "what's my next activity",
+            "when's the next activity",
+            "what's coming up",
+            "next activity",
+            "find next activity",
+            "what is next"
+          ]
+        },
+        {
+          "name": "ActivityDetailsIntent",
+          "slots": [
+            {
+              "name": "activity_name",
+              "samples": [
+                "the {activity_name}",
+                "{activity_name}",
+                "activity {activity_name}"
+              ]
+            },
+            {
+              "name": "activity_number",
+              "samples": [
+                "number {activity_number}",
+                "{activity_number}",
+                "activity number {activity_number}"
+              ]
+            }
+          ],
+          "samples": [
+            "tell me about {activity_name}",
+            "details on {activity_name}",
+            "details on number {activity_number}",
+            "what is {activity_name}",
+            "more details on {activity_name}",
+            "about {activity_name}",
+            "information on {activity_name}",
+            "tell me more about number {activity_number}"
+          ]
+        },
+        {
+          "name": "ActivitiesNeedingPermissionIntent",
+          "slots": [],
+          "samples": [
+            "do I need to approve anything",
+            "what needs my permission",
+            "are there activities needing approval",
+            "show me activities that need permission",
+            "check permissions",
+            "what permissions do I need to give",
+            "activities needing approval"
+          ]
+        },
+        {
+          "name": "GrantPermissionIntent",
+          "slots": [
+            {
+              "name": "activity_name",
+              "samples": [
+                "the {activity_name}",
+                "{activity_name}",
+                "activity {activity_name}"
+              ]
+            },
+            {
+              "name": "activity_number",
+              "samples": [
+                "number {activity_number}",
+                "{activity_number}",
+                "activity number {activity_number}"
+              ]
+            },
+            {
+              "name": "pin",
+              "samples": [
+                "{pin}",
+                "my pin is {pin}",
+                "my PIN is {pin}"
+              ]
+            }
+          ],
+          "samples": [
+            "approve {activity_name}",
+            "grant permission for number {activity_number}",
+            "allow {activity_name}",
+            "say yes to {activity_name}",
+            "approve number {activity_number}",
+            "ok to {activity_name}",
+            "permission for {activity_name}",
+            "{pin}"
+          ]
+        },
+        {
+          "name": "UserTypeIntent",
+          "slots": [
+            {
+              "name": "user_type",
+              "values": [
+                {
+                  "name": {
+                    "value": "parent"
+                  }
+                },
+                {
+                  "name": {
+                    "value": "youth"
+                  }
+                },
+                {
+                  "name": {
+                    "value": "kid"
+                  }
+                },
+                {
+                  "name": {
+                    "value": "child"
+                  }
+                }
+              ],
+              "samples": [
+                "I'm a {user_type}",
+                "I'm {user_type}",
+                "{user_type}",
+                "I am a {user_type}",
+                "I am {user_type}"
+              ]
+            }
+          ],
+          "samples": [
+            "I'm a {user_type}",
+            "I'm {user_type}",
+            "{user_type}",
+            "set me up as {user_type}",
+            "I am a {user_type}"
+          ]
+        },
+        {
+          "name": "PermissionCodeIntent",
+          "slots": [
+            {
+              "name": "permission_code",
+              "samples": [
+                "{permission_code}",
+                "code {permission_code}",
+                "my code is {permission_code}"
+              ]
+            }
+          ],
+          "samples": [
+            "{permission_code}",
+            "my code is {permission_code}",
+            "code {permission_code}",
+            "the code is {permission_code}"
+          ]
+        },
+        {
+          "name": "PINSetupIntent",
+          "slots": [
+            {
+              "name": "pin",
+              "samples": [
+                "{pin}",
+                "my pin is {pin}",
+                "my PIN is {pin}",
+                "pin {pin}"
+              ]
+            }
+          ],
+          "samples": [
+            "{pin}",
+            "my PIN is {pin}",
+            "my pin is {pin}",
+            "set PIN to {pin}",
+            "I want {pin}"
+          ]
+        }
+      ],
+      "types": [
+        {
+          "name": "activity_name",
+          "values": [
+            {
+              "name": {
+                "value": "soccer"
+              }
+            },
+            {
+              "name": {
+                "value": "hiking"
+              }
+            },
+            {
+              "name": {
+                "value": "swimming"
+              }
+            },
+            {
+              "name": {
+                "value": "campout"
+              }
+            },
+            {
+              "name": {
+                "value": "activity"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "prompt": {
+      "elicitSlotDirectives": {
+        "confirmIntent": true
+      }
+    }
+  }
+}
