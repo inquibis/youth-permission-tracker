@@ -1728,6 +1728,84 @@ def view_youth_goals(db=Depends(DB.get_db), user=Depends(require_role("all")))->
         goals.append(goal)
     return goals
 
+# ===== Youth Data Editor Endpoint =====
+@app.get("/api/youth/data", tags=["youth-editor"], description="Get youth data for editor", summary="Retrieve youth data JSON")
+def get_youth_data():
+    """
+    Retrieve the complete youth_data.json for the web editor.
+    Returns all youth records with their current information.
+    """
+    try:
+        youth_data_path = PathlibPath(__file__).parent.parent / "file_load" / "youth_data.json"
+        
+        if not youth_data_path.exists():
+            raise HTTPException(status_code=404, detail="Youth data file not found")
+        
+        with open(youth_data_path, 'r') as f:
+            all_youth = json.load(f)
+        
+        return all_youth
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error loading youth data: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to load youth data: {str(e)}")
+
+@app.post("/api/youth/save", tags=["youth-editor"], description="Save updated youth data from editor", summary="Save youth data changes")
+def save_youth_data(youth_data: Dict[str, Any]):
+    """
+    Save updated youth data from the web editor back to youth_data.json.
+    Expects the complete youth record with all fields.
+    """
+    try:
+        # Path to the youth data JSON file
+        youth_data_path = PathlibPath(__file__).parent.parent / "file_load" / "youth_data.json"
+        
+        if not youth_data_path.exists():
+            raise HTTPException(status_code=404, detail="Youth data file not found")
+        
+        # Load current data
+        with open(youth_data_path, 'r') as f:
+            all_youth = json.load(f)
+        
+        # Find the matching youth entry
+        first_name = youth_data.get('first_name')
+        last_name = youth_data.get('last_name')
+        permission_code = youth_data.get('permission_code')
+        
+        youth_index = None
+        for idx, youth in enumerate(all_youth):
+            if (youth.get('first_name') == first_name and 
+                youth.get('last_name') == last_name and 
+                youth.get('permission_code') == permission_code):
+                youth_index = idx
+                break
+        
+        if youth_index is None:
+            raise HTTPException(status_code=404, detail="Youth not found in database")
+        
+        # Update the youth record, preserving original fields
+        updated_youth = all_youth[youth_index].copy()
+        updated_youth.update(youth_data)
+        all_youth[youth_index] = updated_youth
+        
+        # Save back to file
+        with open(youth_data_path, 'w') as f:
+            json.dump(all_youth, f, indent=2)
+        
+        return {
+            "status": "success",
+            "message": f"Youth {first_name} {last_name} updated successfully",
+            "updated_fields": list(youth_data.keys())
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error saving youth data: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to save youth data: {str(e)}")
+
 # if __name__ == "__main__":
 # 	import uvicorn
 # 	uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

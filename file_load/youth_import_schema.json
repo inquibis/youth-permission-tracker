@@ -1,0 +1,107 @@
+{
+  "schema_version": "1.0",
+  "description": "Schema for youth data import to youth-permission-tracker system",
+  "phase": "Phase 1: Basic Youth Account Creation",
+  "notes": "This schema defines the data structure for loading youth accounts into the system via the /youth API endpoint.",
+  "fields": {
+    "first_name": {
+      "type": "string",
+      "required": true,
+      "description": "Youth's first name",
+      "example": "John",
+      "validation": "Non-empty string, alphanumeric with spaces/hyphens allowed"
+    },
+    "last_name": {
+      "type": "string",
+      "required": true,
+      "description": "Youth's last name",
+      "example": "Doe",
+      "validation": "Non-empty string, alphanumeric with spaces/hyphens allowed"
+    },
+    "group": {
+      "type": "string",
+      "required": true,
+      "description": "Primary organizational group",
+      "allowed_values": [
+        "Priest",
+        "Teacher",
+        "YM",
+        "YW"
+      ],
+      "example": "YW",
+      "notes": "Auto-assigned by extract_from_pdf.py based on gender and age. Can be manually overridden."
+    },
+    "gender": {
+      "type": "string",
+      "required": false,
+      "description": "Youth's gender",
+      "allowed_values": [
+        "M",
+        "F"
+      ],
+      "example": "F",
+      "notes": "Used to determine group assignment. Not stored in database, informational only."
+    },
+    "birth_date": {
+      "type": "string",
+      "required": false,
+      "description": "Youth's birth date",
+      "format": "ISO 8601 (YYYY-MM-DD) or flexible format (M/D/YYYY)",
+      "example": "2008-06-15",
+      "notes": "Optional in Phase 1. Used for age calculation and group assignment. Stored for future reference."
+    },
+    "phone": {
+      "type": "string",
+      "required": false,
+      "description": "Youth's phone number",
+      "example": "555-123-4567",
+      "notes": "Extracted from PDF if available. Not used by /youth endpoint but stored for records."
+    },
+    "email": {
+      "type": "string",
+      "required": false,
+      "description": "Youth's email address",
+      "example": "john.doe@example.com",
+      "notes": "Extracted from PDF if available. Not used by /youth endpoint but stored for records."
+    }
+  },
+  "grouping_rules": {
+    "males_16_and_older": "Priest",
+    "males_under_16": "Teacher",
+    "females_all_ages": "YW",
+    "note": "Secondary group affiliation (YM, YW) is implicit and not stored in /youth endpoint"
+  },
+  "validation_rules": {
+    "first_name": "Required, non-empty string",
+    "last_name": "Required, non-empty string",
+    "group": "Required, must be one of: Priest, Teacher, YM, YW",
+    "uniqueness": "Combination of (first_name, last_name) should be unique; duplicate usernames will be rejected by API with 409 Conflict"
+  },
+  "example_entries": [
+    {
+      "first_name": "Jane",
+      "last_name": "Smith",
+      "group": "YW",
+      "gender": "F",
+      "birth_date": "2010-03-22",
+      "phone": "555-111-2222",
+      "email": "jane.smith@email.com"
+    },
+    {
+      "first_name": "Michael",
+      "last_name": "Johnson",
+      "group": "Priest",
+      "gender": "M",
+      "birth_date": "2007-11-14",
+      "phone": "555-333-4444"
+    },
+    {
+      "first_name": "David",
+      "last_name": "Williams",
+      "group": "Teacher",
+      "gender": "M",
+      "birth_date": "2012-05-08"
+    }
+  ],
+  "phase_2_note": "Future enhancement: Use /users endpoint to submit complete medical/permission data. Required fields for Phase 2 will include: permission_code, parent_guardian info, medical history, emergency_contact, and signature image."
+}
