@@ -25,3 +25,6 @@ ENTRYPOINT ["/entrypoint.sh"]
 
 # docker build -f new-web-dockerfile -t youth-web .
 # docker run --rm -p 80:80 youth-web
+
+# docker image build -t docker.lthome.us:5000/youth-permission-tracker/youth-web:latest -f web-dockerfile .
+# docker push docker.lthome.us:5000/youth-permission-tracker/youth-web:latest

@@ -86,6 +86,7 @@
   <form id="activityForm">
     <label>Activity Name <input type="text" id="activity_name" required></label>
     <label>Description <textarea id="description"></textarea></label>
+    <label>Location <input type="text" id="location" required></label>
     <div class="row">
       <div class="col"><label>Start Date <input type="datetime-local" id="date_start"></label></div>
       <div class="col"><label>End Date <input type="datetime-local" id="date_end"></label></div>
@@ -246,14 +247,38 @@
   });
 
   function collectPayload(){
+    var id = document.getElementById('load_activity_id').value.trim();
+    if(!id) {
+      const name = document.getElementById('activity_name').value.trim();
+      const lastWord = name.split(' ').pop();
+      const year = new Date().getFullYear().toString().slice(-2);
+      id = lastWord + year;
+    }
+    
+    // Calculate total budget
+    let totalBudget = 0;
+    const budgetItems = [];
+    for(const b of budget) {
+      totalBudget += parseFloat(b.amount) || 0;
+      budgetItems.push({item: b.item, amount: b.amount});
+    }
+    
     return {
-      activity_name: document.getElementById('activity_name').value.trim(),
+      activity_id: id,
+      name: document.getElementById('activity_name').value.trim(),
       description: document.getElementById('description').value.trim(),
-      date_start: document.getElementById('date_start').value || null,
-      date_end: document.getElementById('date_end').value || null,
+      date: document.getElementById('date_start').value || null,
+      location: document.getElementById('location').value.trim() || null,
+      start_time: document.getElementById('date_start').value || null,
+      end_time: document.getElementById('date_end').value || null,
       purpose: document.getElementById('purpose').value || null,
       requires_permission: document.getElementById('requires_permission').checked,
-      budgets: budget,
+      budgets: totalBudget > 0 ? {
+        total_amount: totalBudget,
+        items: budgetItems,
+        budget_id: id + '_budget',
+        actual_amount: null
+      } : null,
       drivers: drivers,
       groups: groups
     };
@@ -282,10 +307,11 @@
   });
 
   function populateForm(data){
-    document.getElementById('activity_name').value = data.activity_name || data.name || '';
+    document.getElementById('activity_name').value = data.name || data.activity_name || '';
     document.getElementById('description').value = data.description || '';
-    if(data.date_start) document.getElementById('date_start').value = data.date_start;
-    if(data.date_end) document.getElementById('date_end').value = data.date_end;
+    document.getElementById('location').value = data.location || '';
+    if(data.date_start || data.start_time) document.getElementById('date_start').value = data.date_start || data.start_time || '';
+    if(data.date_end || data.end_time) document.getElementById('date_end').value = data.date_end || data.end_time || '';
     document.getElementById('purpose').value = data.purpose || '';
 
     budget.length = 0;

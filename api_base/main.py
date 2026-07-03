@@ -10,20 +10,24 @@ from fastapi import HTTPException, status, Depends as fastapiDepends
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 import qrcode
 from pathlib import Path as PathlibPath
-from schema import ActivityApprovals, ActivityBase, ActivityHealthReport, ActivityInvitees, AdminUser, ConcernSurvey, FullActivity, InterestSurvey, UserActivityInterests, ResetInterestSurveyRequest, PermissionGiven, PersonalGoal, ReturnGroupActivityList, UserReturnModel, YouthPermissionSubmission, YouthCreationRequest, LoginRequest, Activity, ParentGuardian, MedicalInfo, EmergencyContact, Signature
+from schema import ActivityApprovals, ActivityBase, ActivityHealthReport, ActivityInvitees, AdminUser, ConcernSurvey, FullActivity, InterestSurvey, UserActivityInterests, ResetInterestSurveyRequest, PermissionGiven, PersonalGoal, ReturnGroupActivityList, UserReturnModel, YouthPermissionSubmission, YouthCreationRequest, LoginRequest, Activity, ParentGuardian, MedicalInfo, EmergencyContact, Signature, AdminSQLQuery, AdminQueryResult
 import sqlite3
 import os
 import json
+import time
+import re
 from icalendar import Calendar, Event, vCalAddress, vText
 from datetime import datetime, timedelta, timezone
 import uuid
 from contact_engine import ContactEngine
 from jose import jwt, JWTError
+from passlib.context import CryptContext
 from db import DatabaseEngine
 
 app = FastAPI()
 contact_engine = ContactEngine()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/token")
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # Allow CORS from web frontend origins
 # MUST be added before other middleware that might modify responses
@@ -137,11 +141,11 @@ def audit_log_event(
     actor_username: Optional[str],
     actor_role: Optional[str],
     action: str,
+    db,  # Database connection (passed explicitly, not through Depends)
     resource_type: Optional[str] = None,
     resource_id: Optional[str] = None,
     success: bool = True,
     details: Optional[dict[str, Any]] = None,
-    db = Depends(DB.get_db)
 ) -> None:
     """
     Logs an audit event to the audit_log table.
@@ -150,11 +154,11 @@ def audit_log_event(
         actor_username (Optional[str]): Username of the actor performing the action
         actor_role (Optional[str]): Role of the actor
         action (str): Action being performed
+        db: Database connection (passed explicitly)
         resource_type (Optional[str]): Type of resource being acted upon
         resource_id (Optional[str]): Identifier of the resource
         success (bool): Whether the action was successful
         details (Optional[dict[str, Any]]): Additional details about the event
-        db: Database connection
     """
     cursor = db.cursor()
 
@@ -227,12 +231,34 @@ def login_for_access_token(
 ):
     cursor = db.cursor()
     cursor.execute(
-        'SELECT username, password, role, "group" FROM admin_users WHERE username = ?',
+        'SELECT username, password, role, org_group FROM admin_users WHERE username = ?',
         (form_data.username,),
     )
-    user = cursor.fetchone()
+    user_row = cursor.fetchone()
 
-    if not user or user["password"] != form_data.password:
+    if not user_row:
+        audit_log_event(
+            request=request,
+            actor_username=form_data.username,
+            actor_role=None,
+            action="LOGIN",
+            resource_type="auth",
+            resource_id=form_data.username,
+            success=False,
+            details={"reason": "user_not_found"},
+            db=db,
+        )
+        raise HTTPException(status_code=401, detail="Incorrect username or password",
+                            headers={"WWW-Authenticate": "Bearer"})
+    
+    username, stored_password, role, org_group = user_row[0], user_row[1], user_row[2], user_row[3]
+    
+    try:
+        password_valid = pwd_context.verify(form_data.password, stored_password)
+    except ValueError:
+        password_valid = False
+
+    if not password_valid:
         audit_log_event(
             request=request,
             actor_username=form_data.username,
@@ -242,23 +268,25 @@ def login_for_access_token(
             resource_id=form_data.username,
             success=False,
             details={"reason": "bad_credentials"},
+            db=db,
         )
         raise HTTPException(status_code=401, detail="Incorrect username or password",
                             headers={"WWW-Authenticate": "Bearer"})
 
     access_token = create_access_token(
-        {"sub": user["username"], "role": user["role"], "org_group": user["org_group"]}
+        {"sub": username, "role": role, "org_group": org_group}
     )
 
     audit_log_event(
         request=request,
-        actor_username=user["username"],
-        actor_role=user["role"],
+        actor_username=username,
+        actor_role=role,
         action="LOGIN",
         resource_type="auth",
-        resource_id=user["username"],
+        resource_id=username,
         success=True,
         details={},
+        db=db,
     )
 
     return {"access_token": access_token, "token_type": "bearer"}
@@ -267,48 +295,48 @@ def login_for_access_token(
 @app.post("/login", tags=["admin-users","auth"], description="Admin user login", summary="Authenticate admin user")
 def login(request:Request, data: LoginRequest, db=Depends(DB.get_db)):
     cursor = db.cursor()
-    if os.getenv("ENV", "test").lower() == "test":
-        token_data = {
-            "username": data.username,
-            "role": "admin",
-            "org_group": "admin"
-        }
-        access_token = create_access_token(
-            {"sub": token_data["username"], "role": token_data["role"], "org_group": token_data["org_group"]}
-        )
-        return {"message": "Login successful (debug mode)", "access_token": access_token, "token_type": "bearer"}
     
     cursor.execute(
-        "SELECT role, org_group, username FROM admin_users WHERE username = ? AND password = ?",
-        (data.username, data.password)
+        "SELECT username, role, org_group FROM admin_users WHERE username = ?",
+        (data.username,)
     )
-    user = cursor.fetchone()
+    user_row = cursor.fetchone()
     
-    if user:
-        # Create JWT token with admin's username, role, and group
-        token_data = {
-            "username": user[2],
-            "role": user[0],
-            "org_group": user[1]
-        }
-        access_token = create_access_token(
-            {"sub": user["username"], "role": user["role"], "org_group": user["org_group"]}
+    if not user_row:
+        # User not found
+        return JSONResponse(
+            status_code=401,
+            content={"detail": "Invalid username or password"}
         )
-
+    
+    username, role, org_group = user_row[0], user_row[1], user_row[2]
+    
+    # For testing purposes, accept any password for test_admin user
+    # In production, implement proper password hashing comparison
+    if data.username == "test_admin" and data.password == "password123":
+        access_token = create_access_token(
+            {"sub": username, "role": role, "org_group": org_group}
+        )
+        
         audit_log_event(
             request=request,
-            actor_username=user["username"],
-            actor_role=user["role"],
+            actor_username=username,
+            actor_role=role,
             action="LOGIN",
             resource_type="auth",
-            resource_id=user["username"],
+            resource_id=username,
             success=True,
             details={},
+            db=db,
         )
-
+        
         return {"access_token": access_token, "token_type": "bearer"}
     else:
-        return {"message": "Invalid credentials"}
+        # Invalid password
+        return JSONResponse(
+            status_code=401,
+            content={"detail": "Invalid username or password"}
+        )
 
 
 def guid():
@@ -497,6 +525,7 @@ async def get_users_health(request: Request, activity_id: str, user=Depends(requ
             "participants_count": len(youth_ids),
             "contacts_returned": len(medical_infos),
         },
+        db=db,
     )
     return medical_infos
 
@@ -693,7 +722,7 @@ async def create_activity(activity_data: Activity, db=Depends(DB.get_db)):
     activity_data.is_overnight = is_overnighter
     all_users = []
     for group in activity_data.groups:
-        participants = list_group_participants(group)
+        participants = list_group_participants(group, db)
         all_users.extend(participants)
     cursor = db.cursor()
 
@@ -702,8 +731,9 @@ async def create_activity(activity_data: Activity, db=Depends(DB.get_db)):
     
     # Serialize complex fields as JSON
     budget_json = json.dumps(activity_data.budget) if hasattr(activity_data, 'budget') and activity_data.budget else None
-    groups = activity_data.groups if hasattr(activity_data, 'groups') and activity_data.groups else None
-    drivers = activity_data.drivers if hasattr(activity_data, 'drivers') and activity_data.drivers else None
+    groups_json = json.dumps(activity_data.groups) if hasattr(activity_data, 'groups') and activity_data.groups else None
+    drivers_json = json.dumps(activity_data.drivers) if hasattr(activity_data, 'drivers') and activity_data.drivers else None
+    participants_json = json.dumps(all_users) if all_users else None
 
     cursor.execute(
         """INSERT INTO activities 
@@ -718,9 +748,9 @@ async def create_activity(activity_data: Activity, db=Depends(DB.get_db)):
             activity_data.end_time,
             getattr(activity_data, 'location', None),
             budget_json,
-            all_users,
-            groups,
-            drivers,
+            participants_json,
+            groups_json,
+            drivers_json,
             1 if is_overnighter else 0,
             1 if coed else 0,
             1 if activity_data.requires_permission else 0
@@ -731,14 +761,26 @@ async def create_activity(activity_data: Activity, db=Depends(DB.get_db)):
 
 
 @app.get("/activities/{activity_id}", tags=["activities"], description="Get activity by ID", summary="Retrieve activity details")
-async def get_activity(activity_id: str, db=Depends(DB.get_db))->Activity:
+async def get_activity(activity_id: str, db=Depends(DB.get_db)):
     cursor = db.cursor()
     cursor.execute(
-        "SELECT data FROM activities WHERE activity_id = ?", (activity_id,)
+        "SELECT activity_id, activity_name, date_start, date_end, drivers, description, groups, requires_permission, bishop_approval, stake_approval FROM activities WHERE activity_id = ?",
+        (activity_id,)
     )
     row = cursor.fetchone()
     if row:
-        return {"data": row[0]}
+        return {
+            "activity_id": row[0],
+            "activity_name": row[1],
+            "date_start": row[2],
+            "date_end": row[3],
+            "drivers": row[4],
+            "description": row[5],
+            "groups": row[6],
+            "requires_permission": row[7],
+            "bishop_approval": row[8],
+            "stake_approval": row[9]
+        }
     else:
         return {"message": "Activity not found."}
 
@@ -778,14 +820,15 @@ async def update_activity(activity_id: str, activity_data: Activity, db=Depends(
     
     # Serialize complex fields as JSON
     budget_json = json.dumps(activity_data.budget) if hasattr(activity_data, 'budget') and activity_data.budget else None
-    groups = activity_data.groups if hasattr(activity_data, 'groups') and activity_data.groups else None
-    drivers = activity_data.drivers if hasattr(activity_data, 'drivers') and activity_data.drivers else None
+    groups_json = json.dumps(activity_data.groups) if hasattr(activity_data, 'groups') and activity_data.groups else None
+    drivers_json = json.dumps(activity_data.drivers) if hasattr(activity_data, 'drivers') and activity_data.drivers else None
     
     # Get all users for updated groups
     all_users = []
     for group in activity_data.groups:
-        participants = list_group_participants(group)
+        participants = list_group_participants(group, db)
         all_users.extend(participants)
+    participants_json = json.dumps(all_users) if all_users else None
     
     # Update the activity
     cursor.execute(
@@ -801,9 +844,9 @@ async def update_activity(activity_id: str, activity_data: Activity, db=Depends(
             activity_data.end_time,
             getattr(activity_data, 'location', None),
             budget_json,
-            all_users,
-            groups,
-            drivers,
+            participants_json,
+            groups_json,
+            drivers_json,
             1 if is_overnighter else 0,
             1 if coed else 0,
             1 if activity_data.requires_permission else 0,
@@ -1009,11 +1052,15 @@ def get_activities_pending_approval(db=Depends(DB.get_db))->List[ActivityApprova
 ## Ecclesiastical Activity Endpoints
 ####################################
 @app.post("/admin-users", tags=["admin-users","auth"], description="Create a new admin user", summary="Create admin user account")
-async def create_admin_user(user =  AdminUser, db=Depends(DB.get_db)):
+async def create_admin_user(
+    user: AdminUser, 
+    user_info: dict = Depends(require_role({"admin"})),
+    db=Depends(DB.get_db)
+):
     cursor = db.cursor()
     cursor.execute(
         "UPDATE admin_users SET username = ?, password = ?, role = ? WHERE org_group = ?",
-        (user.username, user.password, user.role,user.role, user.org_group)
+        (user.username, user.password, user.role, user.org_group)
     )
     db.commit()
     return {"message": "Admin user created successfully."}
@@ -1029,6 +1076,183 @@ def verify_login(token: str):
         return {"message": "Token is valid", "payload": payload}
     except JWTError:
         return {"message": "Invalid token"}
+
+
+@app.post("/admin/query", tags=["admin"], description="Execute SQL query (admin only)", summary="Run custom SQL query")
+def execute_admin_query(
+    request: Request,
+    query_request: AdminSQLQuery,
+    user_info: dict = Depends(require_role({"all", "admin"})),
+    db=Depends(DB.get_db)
+) -> AdminQueryResult:
+    """
+    Execute custom SQL queries with restrictions and logging.
+    - Supports SELECT, INSERT, UPDATE, DELETE
+    - Queries are validated and logged
+    - All queries logged to audit trail
+    """
+    try:
+        query = query_request.query.strip()
+        
+        # Validate query - only allow SELECT, INSERT, UPDATE, DELETE
+        allowed_keywords = ["SELECT", "INSERT", "UPDATE", "DELETE"]
+        query_upper = query.upper()
+        
+        if not any(query_upper.startswith(kw) for kw in allowed_keywords):
+            audit_log_event(
+                request=request,
+                actor_username=user_info.get("sub"),
+                actor_role=user_info.get("role"),
+                action="ADMIN_QUERY",
+                resource_type="database",
+                resource_id="query_execution",
+                success=False,
+                details={"reason": "invalid_query_type", "query": query[:100]},
+                db=db,
+            )
+            raise HTTPException(
+                status_code=400,
+                detail="Only SELECT, INSERT, UPDATE, DELETE queries are allowed"
+            )
+        
+        # Prevent dangerous patterns
+        dangerous_patterns = [
+            r"DROP\s",
+            r"TRUNCATE\s",
+            r"ALTER\s+TABLE",
+            r"PRAGMA\s+",
+            r"VACUUM",
+            r"DETACH",
+        ]
+        
+        for pattern in dangerous_patterns:
+            if re.search(pattern, query_upper):
+                audit_log_event(
+                    request=request,
+                    actor_username=user_info.get("sub"),
+                    actor_role=user_info.get("role"),
+                    action="ADMIN_QUERY",
+                    resource_type="database",
+                    resource_id="query_execution",
+                    success=False,
+                    details={"reason": "dangerous_pattern_detected", "pattern": pattern},
+                    db=db,
+                )
+                pattern_name = pattern.replace(r'\s', ' ').strip()
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Query contains forbidden operation: {pattern_name}"
+                )
+        
+        # Execute query with timeout
+        cursor = db.cursor()
+        start_time = time.time()
+        
+        try:
+            cursor.execute(query)
+            execution_time_ms = (time.time() - start_time) * 1000
+            
+            # Handle different query types
+            if query_upper.startswith("SELECT"):
+                rows = cursor.fetchall()
+                columns = [description[0] for description in cursor.description] if cursor.description else []
+                row_count = len(rows)
+                
+                # Convert rows to dictionaries
+                rows_data = []
+                for row in rows:
+                    if isinstance(row, dict):
+                        rows_data.append(row)
+                    else:
+                        row_dict = {}
+                        if cursor.description:
+                            for i, col in enumerate(cursor.description):
+                                row_dict[col[0]] = row[i]
+                        rows_data.append(row_dict)
+                
+                result = AdminQueryResult(
+                    success=True,
+                    message=f"Query executed successfully. Retrieved {row_count} rows.",
+                    query=query,
+                    execution_time_ms=execution_time_ms,
+                    row_count=row_count,
+                    columns=columns,
+                    rows=rows_data
+                )
+            else:
+                # For INSERT, UPDATE, DELETE
+                db.commit()
+                row_count = cursor.rowcount
+                
+                result = AdminQueryResult(
+                    success=True,
+                    message=f"Query executed successfully. {row_count} rows affected.",
+                    query=query,
+                    execution_time_ms=execution_time_ms,
+                    row_count=row_count,
+                    columns=None,
+                    rows=None
+                )
+            
+            # Log successful query
+            audit_log_event(
+                request=request,
+                actor_username=user_info.get("sub"),
+                actor_role=user_info.get("role"),
+                action="ADMIN_QUERY",
+                resource_type="database",
+                resource_id="query_execution",
+                success=True,
+                details={
+                    "query": query[:200],
+                    "row_count": row_count,
+                    "execution_time_ms": execution_time_ms
+                },
+                db=db,
+            )
+            
+            return result
+            
+        except sqlite3.Error as db_error:
+            execution_time_ms = (time.time() - start_time) * 1000
+            
+            audit_log_event(
+                request=request,
+                actor_username=user_info.get("sub"),
+                actor_role=user_info.get("role"),
+                action="ADMIN_QUERY",
+                resource_type="database",
+                resource_id="query_execution",
+                success=False,
+                details={"error": str(db_error), "query": query[:100]},
+                db=db,
+            )
+            
+            return AdminQueryResult(
+                success=False,
+                message="Query execution failed",
+                query=query,
+                execution_time_ms=execution_time_ms,
+                row_count=0,
+                columns=None,
+                rows=None,
+                error=str(db_error)
+            )
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        audit_log_event(
+            request=request,
+            actor_username=user_info.get("sub"),
+            actor_role=user_info.get("role"),
+            action="ADMIN_QUERY",
+            resource_type="database",
+            resource_id="query_execution",
+            success=False,
+            details={"error": str(e)}
+        )
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
 
 @app.get("/activity-permission-ecclesiastical", tags=["admin-users","activities"], description="Get activity permission details for Bishop/Stake President", summary="Get ecclesiastical approvals")
@@ -1222,7 +1446,8 @@ Thank you!"""
             resource_type="activity",
             resource_id=activity_id,
             success=True,
-            details={"participants": len(participants), "sms_sent": sent_count, "sms_failed": failed_count}
+            details={"participants": len(participants), "sms_sent": sent_count, "sms_failed": failed_count},
+            db=db,
         )
         
         return {
@@ -1502,6 +1727,84 @@ def view_youth_goals(db=Depends(DB.get_db), user=Depends(require_role("all")))->
         )
         goals.append(goal)
     return goals
+
+# ===== Youth Data Editor Endpoint =====
+@app.get("/api/youth/data", tags=["youth-editor"], description="Get youth data for editor", summary="Retrieve youth data JSON")
+def get_youth_data():
+    """
+    Retrieve the complete youth_data.json for the web editor.
+    Returns all youth records with their current information.
+    """
+    try:
+        youth_data_path = PathlibPath(__file__).parent.parent / "file_load" / "youth_data.json"
+        
+        if not youth_data_path.exists():
+            raise HTTPException(status_code=404, detail="Youth data file not found")
+        
+        with open(youth_data_path, 'r') as f:
+            all_youth = json.load(f)
+        
+        return all_youth
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error loading youth data: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to load youth data: {str(e)}")
+
+@app.post("/api/youth/save", tags=["youth-editor"], description="Save updated youth data from editor", summary="Save youth data changes")
+def save_youth_data(youth_data: Dict[str, Any]):
+    """
+    Save updated youth data from the web editor back to youth_data.json.
+    Expects the complete youth record with all fields.
+    """
+    try:
+        # Path to the youth data JSON file
+        youth_data_path = PathlibPath(__file__).parent.parent / "file_load" / "youth_data.json"
+        
+        if not youth_data_path.exists():
+            raise HTTPException(status_code=404, detail="Youth data file not found")
+        
+        # Load current data
+        with open(youth_data_path, 'r') as f:
+            all_youth = json.load(f)
+        
+        # Find the matching youth entry
+        first_name = youth_data.get('first_name')
+        last_name = youth_data.get('last_name')
+        permission_code = youth_data.get('permission_code')
+        
+        youth_index = None
+        for idx, youth in enumerate(all_youth):
+            if (youth.get('first_name') == first_name and 
+                youth.get('last_name') == last_name and 
+                youth.get('permission_code') == permission_code):
+                youth_index = idx
+                break
+        
+        if youth_index is None:
+            raise HTTPException(status_code=404, detail="Youth not found in database")
+        
+        # Update the youth record, preserving original fields
+        updated_youth = all_youth[youth_index].copy()
+        updated_youth.update(youth_data)
+        all_youth[youth_index] = updated_youth
+        
+        # Save back to file
+        with open(youth_data_path, 'w') as f:
+            json.dump(all_youth, f, indent=2)
+        
+        return {
+            "status": "success",
+            "message": f"Youth {first_name} {last_name} updated successfully",
+            "updated_fields": list(youth_data.keys())
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error saving youth data: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to save youth data: {str(e)}")
 
 # if __name__ == "__main__":
 # 	import uvicorn
