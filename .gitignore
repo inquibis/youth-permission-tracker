@@ -5,6 +5,10 @@
 sandbox/
 *.sqlite3
 
+file_load/*.pdf
+file_load/youth_data.json
+website/youth_data.json
+
 # User-specific files
 *.rsuser
 *.suo
